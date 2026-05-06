@@ -4,8 +4,9 @@ import { clone as skeletonClone } from 'three/examples/jsm/utils/SkeletonUtils.j
 import { Config, UnitType } from '../game/GameConfig'
 
 // Tweak if Meshy model comes in wrong size or orientation
-const MODEL_SCALE = 0.12
-const MODEL_TILT_X = Math.PI / 2
+// Cyborg GLB is 1.65 units tall — scale 25 → ~41 world units tall
+const MODEL_SCALE = 25
+const MODEL_TILT_X = 0
 
 type AnimName = 'running' | 'dead'
 type LoadedGLTF = { scene: THREE.Group; animations: THREE.AnimationClip[] }

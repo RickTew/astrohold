@@ -133,6 +133,16 @@ Our pattern: `Game` instance is created fresh in `main.ts`, old one disposed via
 
 ---
 
+## Current Build State (2026-05-06)
+- Deployed at https://astrohold3.vercel.app
+- World: ±600 x ±200, three ~400×400 zones
+- Testing phase: both shops visible, attacker units spawn on button click
+- Sphere.glb = power core (local only; SphereGeometry fallback on Vercel)
+- Cyborg = attacker (running + dead animations, hit flash)
+- Tuning knobs: `SPHERE_SCALE` in PowerCore.ts, `MODEL_SCALE` + `MODEL_TILT_X` in Unit.ts
+
+---
+
 ## Common Errors & Fixes
 
 ### Resize distorts game — camera frustum not updated (WATCH)

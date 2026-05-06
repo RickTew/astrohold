@@ -12,6 +12,7 @@ export class PowerCore {
   private hpBar: THREE.Mesh
   private coreMesh: THREE.Mesh
   private glbModel: THREE.Group | null = null
+  private glbBaseScale = 1
   private pulseTime = 0
 
   constructor(scene: THREE.Scene) {
@@ -62,6 +63,7 @@ export class PowerCore {
         const maxDim = Math.max(size.x, size.y, size.z)
         const targetDiameter = Config.POWER_CORE.RADIUS * 2
         const autoScale = maxDim > 0 ? targetDiameter / maxDim : SPHERE_SCALE
+        this.glbBaseScale = autoScale
         this.glbModel.scale.setScalar(autoScale)
 
         this.coreMesh.visible = false
@@ -106,7 +108,7 @@ export class PowerCore {
     this.pulseTime += delta * 2.5
     const s = 1 + Math.sin(this.pulseTime) * 0.08
     if (this.glbModel) {
-      this.glbModel.scale.setScalar(SPHERE_SCALE * s)
+      this.glbModel.scale.setScalar(this.glbBaseScale * s)
     } else {
       this.coreMesh.scale.setScalar(s)
     }
