@@ -48,19 +48,28 @@ export class PowerCore {
 
     scene.add(this.mesh)
 
-    // Load sphere.glb — only present locally, falls back silently on Vercel
+    // Load sphere.glb and auto-scale it to match power core radius
     const sLoader = new GLTFLoader()
     sLoader.load(
       '/models/sphere.glb',
       (gltf) => {
-        this.coreMesh.visible = false
         this.glbModel = gltf.scene
-        this.glbModel.scale.setScalar(SPHERE_SCALE)
+
+        // Measure actual model size and scale to target diameter
+        const box = new THREE.Box3().setFromObject(this.glbModel)
+        const size = new THREE.Vector3()
+        box.getSize(size)
+        const maxDim = Math.max(size.x, size.y, size.z)
+        const targetDiameter = Config.POWER_CORE.RADIUS * 2
+        const autoScale = maxDim > 0 ? targetDiameter / maxDim : SPHERE_SCALE
+        this.glbModel.scale.setScalar(autoScale)
+
+        this.coreMesh.visible = false
         this.mesh.add(this.glbModel)
-        console.log('sphere.glb loaded — SPHERE_SCALE:', SPHERE_SCALE)
+        console.log(`sphere.glb loaded — raw size: ${maxDim.toFixed(2)}, applied scale: ${autoScale.toFixed(4)}`)
       },
       undefined,
-      () => { /* expected on Vercel — SphereGeometry fallback active */ }
+      () => { console.log('sphere.glb not found — using SphereGeometry fallback') }
     )
   }
 

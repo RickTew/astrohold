@@ -71,6 +71,12 @@ export class Game {
     this.testUnits = []
     this.hud.setPhase('build')
     this.buildPhase = new BuildPhase(this.scene, this.camera, this.hud, Config.START_CREDITS)
+
+    // Auto-spawn one cyborg so it's visible immediately for model testing
+    const testCyborg = new Unit(this.scene, 'scout', 300)
+    testCyborg.mesh.position.y = 0
+    this.testUnits.push(testCyborg)
+
     this.hud.onBattle = () => this.enterBattlePhase()
     this.hud.onSpawnUnit = (type) => {
       const unit = new Unit(this.scene, type, 350 + Math.random() * 150)
