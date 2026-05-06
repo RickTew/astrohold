@@ -1,4 +1,6 @@
 node_modules/
 dist/
+_zips/
+public/models/sphere.glb
 .DS_Store
 *.local
