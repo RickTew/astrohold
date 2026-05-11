@@ -337,25 +337,47 @@ export class Game {
       this.lastPan = { x: e.clientX, y: e.clientY }
     }
     if (e.button === 0 && this.phase === 'build') {
-      if ((e.target as HTMLElement).closest('#hud')) return  // ignore HUD clicks
+      const targetEl = (e.target as HTMLElement)
+      const onHud = targetEl?.closest('#hud')
+      this.hud?.setDebug(`mdn b=${e.button} ph=${this.phase} hud=${onHud?'Y':'N'} ssel=${this.sphereSelecting?'Y':'N'} bp=${this.buildPhase?'Y':'N'} ghost.v=${this.sphereGhostMesh?.visible?'Y':'N'} att=${this.selectedAttUnitType||'-'} tgt=${targetEl?.tagName||'?'}#${targetEl?.id||''}`)
+      if (onHud) return  // ignore HUD clicks
 
-      // Place sphere at ghost position — same flow as cyborg below.
-      // Ghost visibility (set in onMouseMove based on zone) is the gate.
+      // Place sphere — derive coords from ghost if visible, else clamp the
+      // raw click into the defender zone. Always attempts placement when
+      // sphereSelecting is true so a stale ghost.visible can't deadlock UX.
       if (this.sphereSelecting && this.buildPhase) {
-        if (!this.sphereGhostMesh?.visible) return
-        if (!this.buildPhase.spendCredits(100)) return
-        const { x, y } = this.sphereGhostMesh.position
+        let px = 0, py = 0, src = 'none'
+        if (this.sphereGhostMesh?.visible) {
+          px = this.sphereGhostMesh.position.x
+          py = this.sphereGhostMesh.position.y
+          src = 'ghost'
+        } else {
+          const pos = this.screenToWorld(e.clientX, e.clientY)
+          if (!pos) {
+            this.hud.setDebug?.('sphere click: screenToWorld returned null')
+            return
+          }
+          px = Math.max(Config.WORLD.LEFT + 20, Math.min(Config.DEFENDER_MAX_X - 10, pos.x))
+          py = Math.max(Config.WORLD.BOTTOM + 20, Math.min(Config.WORLD.TOP - 20, pos.y))
+          src = `click(${Math.round(pos.x)},${Math.round(pos.y)})→clamp`
+        }
+        const before = this.buildPhase.getCredits()
+        if (!this.buildPhase.spendCredits(100)) {
+          this.hud.setDebug?.(`sphere: spend failed (credits=${before})`)
+          return
+        }
         if (this.sphereChar) {
-          this.sphereChar.position.set(x, y, 0)
+          this.sphereChar.position.set(px, py, 0)
           this.sphereChar.visible = true
         }
         if (this.sphereDefender) {
-          this.sphereDefender.worldX = x
-          this.sphereDefender.worldY = y
+          this.sphereDefender.worldX = px
+          this.sphereDefender.worldY = py
         }
         this.spherePlaced = true
         this.clearSphereGhost()
         this.hud.markSpherePurchased()
+        this.hud.setDebug?.(`sphere placed @ (${Math.round(px)},${Math.round(py)}) via ${src}`)
         return
       }
 

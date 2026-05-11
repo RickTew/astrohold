@@ -27,6 +27,7 @@ export class HUD {
       <div id="credits-display" class="hidden">Credits: <span id="credits-val">200</span></div>
       <div id="team-label-att" class="hidden">CYBORGS</div>
       <div id="att-credits-display" class="hidden">Credits: <span id="att-credits-val">200</span></div>
+      <div id="debug-overlay" style="position:absolute;top:60px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.7);color:#0f0;font-family:monospace;font-size:12px;padding:4px 10px;border:1px solid #0a0;pointer-events:none;max-width:80%;text-align:center;"></div>
       <div id="bottom-bar" class="hidden">
         <div id="shop" class="shop-panel">
           <button id="sphere-btn" class="shop-btn">Sphere 100cr</button>
@@ -92,6 +93,11 @@ export class HUD {
   markSpherePurchased() {
     const btn = this.container.querySelector('#sphere-btn') as HTMLButtonElement | null
     if (btn) { btn.textContent = 'Sphere ✓'; btn.disabled = true }
+  }
+
+  setDebug(msg: string) {
+    const el = this.container.querySelector('#debug-overlay') as HTMLElement | null
+    if (el) el.textContent = msg
   }
 
   setSelectedUnitType(type: UnitType | null) {
