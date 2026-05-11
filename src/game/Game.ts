@@ -214,11 +214,12 @@ export class Game {
     this.sphereGhostMesh.position.set(-400, 0, 1)
     this.scene.add(this.sphereGhostMesh)
 
-    // Strong tint over the defender zone so it's obvious where you can click
+    // Bright tint over the defender zone — so it's impossible to miss where
+    // to click. Pulses subtly during placement (handled in the render loop).
     const zoneW = Config.DEFENDER_MAX_X - Config.WORLD.LEFT
     const zoneH = Config.WORLD.TOP - Config.WORLD.BOTTOM
     const zoneGeo = new THREE.PlaneGeometry(zoneW, zoneH)
-    const zoneMat = new THREE.MeshBasicMaterial({ color: 0x00aaff, transparent: true, opacity: 0.18, depthWrite: false })
+    const zoneMat = new THREE.MeshBasicMaterial({ color: 0x00ddff, transparent: true, opacity: 0.32, depthWrite: false })
     this.sphereZoneMesh = new THREE.Mesh(zoneGeo, zoneMat)
     this.sphereZoneMesh.position.set((Config.WORLD.LEFT + Config.DEFENDER_MAX_X) / 2, 0, 0.5)
     this.scene.add(this.sphereZoneMesh)
@@ -338,31 +339,27 @@ export class Game {
     if (e.button === 0 && this.phase === 'build') {
       if ((e.target as HTMLElement).closest('#hud')) return  // ignore HUD clicks
 
-      // Place sphere if in selection mode — clamp click into the defender zone
-      // so a click slightly right of the boundary still places successfully
+      // Place sphere at ghost position — same flow as cyborg below.
+      // Ghost visibility (set in onMouseMove based on zone) is the gate.
       if (this.sphereSelecting && this.buildPhase) {
-        const pos = this.screenToWorld(e.clientX, e.clientY)
-        if (pos) {
-          const cx = Math.max(Config.WORLD.LEFT + 20, Math.min(Config.DEFENDER_MAX_X - 10, pos.x))
-          const cy = Math.max(Config.WORLD.BOTTOM + 20, Math.min(Config.WORLD.TOP - 20, pos.y))
-          if (this.buildPhase.spendCredits(100)) {
-            if (this.sphereChar) {
-              this.sphereChar.position.set(cx, cy, 0)
-              this.sphereChar.visible = true
-            }
-            if (this.sphereDefender) {
-              this.sphereDefender.worldX = cx
-              this.sphereDefender.worldY = cy
-            }
-            this.spherePlaced = true
-            this.clearSphereGhost()
-            this.hud.markSpherePurchased()
-          }
+        if (!this.sphereGhostMesh?.visible) return
+        if (!this.buildPhase.spendCredits(100)) return
+        const { x, y } = this.sphereGhostMesh.position
+        if (this.sphereChar) {
+          this.sphereChar.position.set(x, y, 0)
+          this.sphereChar.visible = true
         }
+        if (this.sphereDefender) {
+          this.sphereDefender.worldX = x
+          this.sphereDefender.worldY = y
+        }
+        this.spherePlaced = true
+        this.clearSphereGhost()
+        this.hud.markSpherePurchased()
         return
       }
 
-      // Place attacker unit at ghost position
+      // Place attacker unit at ghost position — canonical placement flow
       if (this.selectedAttUnitType) {
         if (!this.attGhostMesh?.visible) return
         const cost = Config.UNITS[this.selectedAttUnitType].cost
@@ -399,14 +396,17 @@ export class Game {
         this.attGhostMesh.visible = false
       }
     }
-    // Sphere ghost: always tracks mouse but clamps into the defender zone
+    // Move sphere ghost — visible only when cursor is over the defender zone
+    // (mirrors attacker-ghost flow above so onMouseDown can use ghost.visible
+    // as the placement gate)
     if (this.sphereGhostMesh && this.sphereSelecting) {
       const pos = this.screenToWorld(e.clientX, e.clientY)
-      if (pos) {
-        const cx = Math.max(Config.WORLD.LEFT + 20, Math.min(Config.DEFENDER_MAX_X - 10, pos.x))
-        const cy = Math.max(Config.WORLD.BOTTOM + 20, Math.min(Config.WORLD.TOP - 20, pos.y))
-        this.sphereGhostMesh.position.set(cx, cy, 1)
+      if (pos && pos.x >= Config.WORLD.LEFT && pos.x <= Config.DEFENDER_MAX_X) {
+        const clampedY = Math.max(Config.WORLD.BOTTOM + 20, Math.min(Config.WORLD.TOP - 20, pos.y))
+        this.sphereGhostMesh.position.set(pos.x, clampedY, 1)
         this.sphereGhostMesh.visible = true
+      } else {
+        this.sphereGhostMesh.visible = false
       }
     }
   }

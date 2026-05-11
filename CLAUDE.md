@@ -34,6 +34,15 @@
 - `HUD.ts` — DOM overlay only, no Three.js; exposes onBuySphere / onSpawnUnit / onBattle / onSelectStructure callbacks; markSpherePurchased() disables button
 - HMR dispose is wired in `main.ts` + `Game.ts` — do not remove it
 
+## Canonical placement flow (cyborg + sphere)
+Both placements share this 3-step pattern. **The ghost mesh is the source of truth for placement position.** Don't re-raycast at click time.
+
+1. **HUD button click → enter selecting mode**: set a flag (`sphereSelecting` / `selectedAttUnitType`), call `createXxxGhost()` to add a ring mesh to the scene at a starting world position.
+2. **`onMouseMove` → update ghost**: raycast cursor to world via `screenToWorld(clientX, clientY)`. If the world position is inside the valid zone, set `ghost.position` and `ghost.visible = true`. Otherwise `ghost.visible = false`.
+3. **`onMouseDown` → place at ghost**: `if (!ghost.visible) return` is the gate. Then `spendCredits(...)` and read position from `ghost.position` (NOT a fresh raycast). Then `clearGhost()` and update HUD.
+
+Also: in `createSphereGhost`, a bright zone tint is added over the defender zone so the click target is obvious. `clearSphereGhost` removes both the ghost and the zone tint.
+
 ## Rendering
 - Use `MeshBasicMaterial` for ground/overlays — MeshStandardMaterial multiplies color by ambient+directional (≈3.7×), making dark earth tones render as washed-out gray
 - Grid: neutral gray (0xaaaaaa/0x777777), opacity 0.3, z=1.5 (must be above zone tint overlays at z=-4)
