@@ -14,9 +14,6 @@ type LoadedGLTF = { scene: THREE.Group; animations: THREE.AnimationClip[] }
 const cache: Partial<Record<AnimName, LoadedGLTF>> = {}
 const loader = new GLTFLoader()
 
-// Angle that makes HP bar planes face the 45° top-down camera
-const HP_BAR_TILT = -Math.PI / 4
-
 export class Unit {
   readonly mesh: THREE.Group
   hp: number
@@ -26,6 +23,7 @@ export class Unit {
 
   private bodyGroup: THREE.Group | null = null
   private mixer: THREE.AnimationMixer | null = null
+  private hpBarGroup: THREE.Group
   private hpBarFill: THREE.Mesh
   private dyingTimer = 0
   private isDisposed = false
@@ -74,8 +72,14 @@ export class Unit {
     this.mesh.position.set(spawnX, y, 0)
 
     this.swapAnim('idle')
-    this.hpBarFill = this.buildHpBar()
+    const { group, fill } = this.buildHpBar()
+    this.hpBarGroup = group
+    this.hpBarFill = fill
     scene.add(this.mesh)
+  }
+
+  faceCamera(camera: THREE.Camera) {
+    this.hpBarGroup.quaternion.copy(camera.quaternion)
   }
 
   // ── Public API for game logic ──────────────────────────────────────────────
@@ -213,24 +217,27 @@ export class Unit {
     this.mesh.add(group)
   }
 
-  private buildHpBar(): THREE.Mesh {
+  private buildHpBar(): { group: THREE.Group; fill: THREE.Mesh } {
     // y=52 puts bar above the head (model head is at ~y=41 with MODEL_SCALE=25)
+    const group = new THREE.Group()
+    group.position.set(0, 52, 0)
+
     const bg = new THREE.Mesh(
       new THREE.PlaneGeometry(30, 4),
       new THREE.MeshBasicMaterial({ color: 0x222222 })
     )
-    bg.position.set(0, 52, 0.1)
-    bg.rotation.x = HP_BAR_TILT
-    this.mesh.add(bg)
+    bg.position.z = 0.1
+    group.add(bg)
 
     const fill = new THREE.Mesh(
       new THREE.PlaneGeometry(30, 4),
       new THREE.MeshBasicMaterial({ color: 0x00cc44 })
     )
-    fill.position.set(0, 52, 0.2)
-    fill.rotation.x = HP_BAR_TILT
-    this.mesh.add(fill)
-    return fill
+    fill.position.z = 0.2
+    group.add(fill)
+
+    this.mesh.add(group)
+    return { group, fill }
   }
 
   private flashHit() {

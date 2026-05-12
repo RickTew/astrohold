@@ -19,6 +19,11 @@ export class BattlePhase {
   onWin: (() => void) | null = null
   onLose: (() => void) | null = null
 
+  faceCamera(camera: THREE.Camera) {
+    for (const u of this.units) u.faceCamera(camera)
+    for (const s of this.structures) if (!s.isDead) s.faceCamera(camera)
+  }
+
   constructor(
     private scene: THREE.Scene,
     private core: PowerCore,

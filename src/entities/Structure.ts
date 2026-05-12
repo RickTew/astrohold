@@ -8,6 +8,7 @@ export class Structure {
   readonly type: StructureType
   readonly col: number
   readonly row: number
+  private hpBarGroup!: THREE.Group
   private hpBar: THREE.Mesh
 
   constructor(scene: THREE.Scene, type: StructureType, col: number, row: number) {
@@ -72,21 +73,28 @@ export class Structure {
       }
     }
 
-    // HP bar
+    // HP bar — grouped so we can billboard the group to face the camera
+    this.hpBarGroup = new THREE.Group()
+    this.hpBarGroup.position.set(0, 34, 0)
     const bg = new THREE.Mesh(
       new THREE.PlaneGeometry(40, 5),
       new THREE.MeshBasicMaterial({ color: 0x222222 })
     )
-    bg.position.set(0, 34, 0.1)
-    this.mesh.add(bg)
+    bg.position.z = 0.1
+    this.hpBarGroup.add(bg)
 
     const fill = new THREE.Mesh(
       new THREE.PlaneGeometry(40, 5),
       new THREE.MeshBasicMaterial({ color: 0x00cc44 })
     )
-    fill.position.set(0, 34, 0.2)
-    this.mesh.add(fill)
+    fill.position.z = 0.2
+    this.hpBarGroup.add(fill)
+    this.mesh.add(this.hpBarGroup)
     return fill
+  }
+
+  faceCamera(camera: THREE.Camera) {
+    this.hpBarGroup.quaternion.copy(camera.quaternion)
   }
 
   takeDamage(amount: number) {
@@ -100,8 +108,8 @@ export class Structure {
   }
 
   get isDead() { return this.hp <= 0 }
-  get worldX() { return -600 + this.col * Config.GRID_CELL + Config.GRID_CELL / 2 }
-  get worldY() { return -350 + this.row * Config.GRID_CELL + Config.GRID_CELL / 2 }
+  get worldX() { return Config.WORLD.LEFT   + this.col * Config.GRID_CELL + Config.GRID_CELL / 2 }
+  get worldY() { return Config.WORLD.BOTTOM + this.row * Config.GRID_CELL + Config.GRID_CELL / 2 }
   get range()        { return Config.STRUCTURES[this.type].range }
   get damage()       { return Config.STRUCTURES[this.type].damage }
   get fireInterval() { return Config.STRUCTURES[this.type].fireInterval }

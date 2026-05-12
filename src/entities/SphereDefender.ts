@@ -1,7 +1,5 @@
 import * as THREE from 'three'
 
-const HP_BAR_TILT = -Math.PI / 4
-
 export class SphereDefender {
   worldX = -350
   worldY = 0
@@ -11,11 +9,18 @@ export class SphereDefender {
   readonly range = 200
   readonly damage = 10
 
+  private hpBarGroup: THREE.Group
   private hpBarFill: THREE.Mesh
 
   constructor(private scene: THREE.Scene, readonly mesh: THREE.Group) {
     this.hp = this.maxHp
-    this.hpBarFill = this.buildHpBar()
+    const { group, fill } = this.buildHpBar()
+    this.hpBarGroup = group
+    this.hpBarFill = fill
+  }
+
+  faceCamera(camera: THREE.Camera) {
+    this.hpBarGroup.quaternion.copy(camera.quaternion)
   }
 
   takeDamage(amount: number) {
@@ -32,22 +37,25 @@ export class SphereDefender {
     }
   }
 
-  private buildHpBar(): THREE.Mesh {
+  private buildHpBar(): { group: THREE.Group; fill: THREE.Mesh } {
+    const group = new THREE.Group()
+    group.position.set(0, 30, 0)
+
     const bg = new THREE.Mesh(
       new THREE.PlaneGeometry(30, 4),
       new THREE.MeshBasicMaterial({ color: 0x222222 })
     )
-    bg.position.set(0, 30, 0.1)
-    bg.rotation.x = HP_BAR_TILT
-    this.mesh.add(bg)
+    bg.position.z = 0.1
+    group.add(bg)
 
     const fill = new THREE.Mesh(
       new THREE.PlaneGeometry(30, 4),
       new THREE.MeshBasicMaterial({ color: 0x00cc44 })
     )
-    fill.position.set(0, 30, 0.2)
-    fill.rotation.x = HP_BAR_TILT
-    this.mesh.add(fill)
-    return fill
+    fill.position.z = 0.2
+    group.add(fill)
+
+    this.mesh.add(group)
+    return { group, fill }
   }
 }

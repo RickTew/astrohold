@@ -138,6 +138,10 @@ export class BuildPhase {
     }
   }
 
+  faceCamera(camera: THREE.Camera) {
+    for (const s of this.structures) s.faceCamera(camera)
+  }
+
   getCredits(): number { return this.credits }
 
   spendCredits(amount: number): boolean {

@@ -182,9 +182,8 @@ Symptom: clicking places two structures, or ghost appears when no type is select
 Design decision: damage is applied immediately when the structure fires (in `doStructureTurn`), not when the projectile lands. The flying projectile is visual only.
 If a unit dies and vanishes before the projectile animation completes, that's correct behavior. Do not move damage to projectile `update()` — it will cause double-damage.
 
-### Turn index drift — units skip after another dies
-`unitIdx` persists between turns but `alive` is recalculated each call. When a unit dies mid-cycle, the alive array shrinks, so `unitIdx` can skip the next unit by one.
-Current code resets index when `unitIdx >= alive.length`, which prevents infinite loops but can skip one unit per cycle when deaths occur. Acceptable for now — fix later by switching to round-robin with a cycle flag.
+### Turn loop: all alive units act each tick (no index drift)
+`executeTurn` filters `units.filter(u => !u.isDead)` and loops everyone in one go (no `unitIdx`). A unit that dies mid-loop won't be revisited this tick, won't be skipped next tick. Earlier sessions documented "unit-skip drift" — that bug is gone; the design is simpler now.
 
 ### Mines don't fire if unit spawns inside mine radius
 `checkMines` is called before the unit moves on its first turn. If units spawn close to a mine (spawnX 420+, mines max at ~-200), this is not an issue. But if map changes and spawn zone moves, test mine trigger on first turn.
@@ -246,3 +245,31 @@ Cyborg and sphere now share the same 3-step pattern. The ghost mesh is the sourc
 
 ### Visual upgrade
 Defender zone gets a bright cyan tint (`0x00ddff @ 0.32` opacity) over (-600..-200, -200..200) when sphere selection mode is active — was previously invisible, so users couldn't tell where to click.
+
+---
+
+## Session 4 (2026-05-12) — Code cleanup + visual polish
+
+### Unified placement state (one source of truth)
+Previously: sphere had `sphereSelecting` + `sphereGhostMesh` + `spherePlaced` + `sphereZoneMesh`; cyborg had `selectedAttUnitType` + `attGhostMesh` + `attPendingCost`. Three different state machines for the same idea — pick a thing, hover ghost, click to place.
+
+Now: a single `placement: PlacementSession | null` in `Game.ts`. Each session owns its own ghost mesh, optional zone tint, zone bounds, and an `onPlace(x, y) => boolean` callback (return `true` to end the session, e.g. one-shot sphere; `false` to stay in placement, e.g. multi-place cyborg). Starting a new session implicitly cancels the old one.
+
+Killed: the "must call createSphereGhost before setting flag" gotcha — that whole class of bug becomes structurally impossible since helpers no longer mutate shared flags.
+
+### Billboard HP bars
+All HP bars (Unit, SphereDefender, PowerCore, Structure) are now wrapped in a `hpBarGroup` whose quaternion is copied from the camera each frame. Previously they used a fixed `rotation.x = -π/4` tilt that worked only at the default camera angle and broke under pan/zoom. Each entity exposes `faceCamera(camera)`; Game's render loop calls them after `update()`.
+
+### Structure placement offset bug (FIXED)
+`Structure.worldY` was hardcoded to `-350 + row * 50 + 25` even though `Config.WORLD.BOTTOM = -200`. Result: structures rendered 125 units south of where the user clicked. Replaced with `Config.WORLD.BOTTOM + row * GRID_CELL + GRID_CELL/2` (and same Config-derived form for `worldX`). Always derive grid coords from `Config.WORLD` — never re-magic-number the bounds.
+
+### Permanent zone tints (symmetric)
+Both sides now have a subtle permanent tint during build phase — defender cyan (`0x00ddff @ 0.07`), attacker red (`0xff4488 @ 0.07`). Placement adds a brighter tint *on top* of the permanent one. No more "where can I click?" confusion before pressing a Buy button.
+
+### Sphere fallback: BasicMaterial + rings
+Per CLAUDE.md, swapped fallback `MeshStandardMaterial` → `MeshBasicMaterial` so the placeholder doesn't render as a washed-out gray sphere under our scene lighting. Added two thin equatorial rings so the placeholder reads as "spherical object with structure" rather than "untextured ball." Only visible until `sphere.glb` (57MB) finishes downloading.
+
+### Dead code removed
+- `attPendingCost` — declared and read in `clearAttPlacement` but never assigned anywhere → useless "refund" code path
+- `testUnits` → renamed to `attackerUnits` (they're real attacker units, not test fixtures)
+- Removed `markSpherePurchased` is still called (single-shot sphere) but flag-spaghetti gates are gone

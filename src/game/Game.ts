@@ -12,6 +12,21 @@ import { BattlePhase } from './BattlePhase'
 
 type Phase = 'loading' | 'build' | 'battle' | 'win' | 'lose'
 
+// Unified placement session — covers both cyborg and sphere placement.
+// Ghost mesh is the authoritative position; never re-raycast at click time.
+// onPlace returns true to end the session (single-shot, e.g. sphere),
+// false to stay in placement mode (multi-place, e.g. cyborg).
+type PlacementKind = 'sphere' | UnitType
+type PlacementSession = {
+  kind: PlacementKind
+  ghost: THREE.Mesh
+  tint: THREE.Mesh | null
+  zoneXMin: number
+  zoneXMax: number
+  onPlace: (x: number, y: number) => boolean
+  onEnd?: () => void
+}
+
 export class Game {
   private scene: THREE.Scene
   private camera: THREE.OrthographicCamera
@@ -25,21 +40,20 @@ export class Game {
   private hud!: HUD
   private buildPhase: BuildPhase | null = null
   private battlePhase: BattlePhase | null = null
-  private testUnits: Unit[] = []
+  private attackerUnits: Unit[] = []
 
   private attCredits = Config.START_CREDITS
-  private selectedAttUnitType: UnitType | null = null
-  private attGhostMesh: THREE.Mesh | null = null
   private attZoneMesh: THREE.Mesh | null = null
-  private attPendingCost = 0
+  private defZoneMesh: THREE.Mesh | null = null
+
   private sphereChar: THREE.Group | null = null
   private sphereInner: THREE.Group | null = null
   private sphereFallback: THREE.Mesh | null = null
   private sphereDefender: SphereDefender | null = null
-  private sphereGhostMesh: THREE.Mesh | null = null
-  private sphereZoneMesh: THREE.Mesh | null = null
-  private sphereSelecting = false
   private spherePlaced = false
+
+  // Single source of truth for any active placement.
+  private placement: PlacementSession | null = null
 
   // Camera pan/zoom state
   private isPanning = false
@@ -99,14 +113,23 @@ export class Game {
 
     // Inner group: rotates, contains the model
     const inner = new THREE.Group()
-    const fallbackGeo = new THREE.SphereGeometry(18, 16, 16)
-    const fallbackMat = new THREE.MeshStandardMaterial({
-      color: 0x4488cc,
-      emissive: new THREE.Color(0x112244),
-      emissiveIntensity: 0.6,
-    })
+
+    // Fallback: cyan sphere using MeshBasicMaterial (per project rules — Standard
+    // material's color × ambient+directional washes out under our scene lighting).
+    // Shown only while the 57MB sphere.glb downloads, or if the GLB fails to load.
+    const fallbackGeo = new THREE.SphereGeometry(18, 24, 24)
+    const fallbackMat = new THREE.MeshBasicMaterial({ color: 0x44ccff })
     const fallback = new THREE.Mesh(fallbackGeo, fallbackMat)
     inner.add(fallback)
+    // Two thin equatorial rings to give the fallback some character
+    const ringMat = new THREE.MeshBasicMaterial({ color: 0x88eeff, transparent: true, opacity: 0.7, side: THREE.DoubleSide })
+    const ring1 = new THREE.Mesh(new THREE.TorusGeometry(22, 0.8, 6, 32), ringMat)
+    ring1.rotation.x = Math.PI / 2
+    inner.add(ring1)
+    const ring2 = new THREE.Mesh(new THREE.TorusGeometry(22, 0.8, 6, 32), ringMat)
+    ring2.rotation.y = Math.PI / 2
+    inner.add(ring2)
+
     group.add(inner)
 
     group.visible = false  // hidden until purchased during build phase
@@ -127,9 +150,15 @@ export class Game {
         box.getSize(size)
         const maxDim = Math.max(size.x, size.y, size.z)
         if (maxDim > 0) model.scale.setScalar(36 / maxDim)
-        this.sphereInner.remove(this.sphereFallback)
-        this.sphereFallback.geometry.dispose()
-        ;(this.sphereFallback.material as THREE.Material).dispose()
+        // Remove fallback (sphere + rings) so only the real model shows
+        while (this.sphereInner.children.length > 0) {
+          const child = this.sphereInner.children[0]
+          this.sphereInner.remove(child)
+          if (child instanceof THREE.Mesh) {
+            child.geometry.dispose()
+            ;(child.material as THREE.Material).dispose()
+          }
+        }
         this.sphereFallback = null
         this.sphereInner.add(model)
       },
@@ -140,63 +169,52 @@ export class Game {
 
   private enterBuildPhase() {
     this.phase = 'build'
-    this.testUnits = []
+    this.attackerUnits = []
     this.attCredits = Config.START_CREDITS
     this.hud.setPhase('build')
     this.hud.setAttCredits(this.attCredits)
     this.buildPhase = new BuildPhase(this.scene, this.camera, this.hud, Config.START_CREDITS)
 
-    // Subtle tint showing where attackers can be placed
-    const zoneGeo = new THREE.PlaneGeometry(400, 400)
-    const zoneMat = new THREE.MeshBasicMaterial({ color: 0x4488ff, transparent: true, opacity: 0.07, side: THREE.DoubleSide, depthWrite: false })
-    this.attZoneMesh = new THREE.Mesh(zoneGeo, zoneMat)
-    this.attZoneMesh.position.set(400, 0, 0.3)
-    this.scene.add(this.attZoneMesh)
+    // Permanent zone tints — let players see where each side can place
+    // before they click a Buy button. Subtle (opacity 0.07) so they're not in
+    // the way; sphere/cyborg placement layers a brighter tint on top.
+    this.defZoneMesh = this.makeZoneTint(
+      Config.WORLD.LEFT, Config.DEFENDER_MAX_X, 0x00ddff, 0.07, 0.3
+    )
+    this.attZoneMesh = this.makeZoneTint(
+      Config.ATTACKER_MIN_X, Config.WORLD.RIGHT, 0xff4488, 0.07, 0.3
+    )
 
     this.hud.onBuySphere = () => {
       if (this.spherePlaced) return
-      // Toggle selection — second click cancels
-      if (this.sphereSelecting) {
-        this.clearSphereGhost()
-        return
-      }
+      if (this.placement?.kind === 'sphere') { this.endPlacement(); return }
       if (!this.buildPhase || this.buildPhase.getCredits() < 100) return
-      this.createSphereGhost()
-      this.sphereSelecting = true   // must be after createSphereGhost — that helper calls clearSphereGhost first, which would reset this flag
+      this.startSpherePlacement()
     }
 
     this.hud.onBattle = () => this.enterBattlePhase()
+
     this.hud.onSpawnUnit = (type) => {
-      // Same button again → cancel placement
-      if (this.selectedAttUnitType === type) {
-        this.clearAttPlacement(false)
-        return
-      }
-      if (this.selectedAttUnitType) this.clearAttPlacement(false)
-      this.selectedAttUnitType = type
-      this.hud.setSelectedUnitType(type)
-      this.createAttGhost(type)
+      // Click same button → cancel
+      if (this.placement?.kind === type) { this.endPlacement(); return }
+      this.startCyborgPlacement(type)
     }
   }
 
   private enterBattlePhase() {
     if (!this.buildPhase) return
-    this.clearAttPlacement(false)
-    this.clearSphereGhost()
-    if (this.attZoneMesh) {
-      this.scene.remove(this.attZoneMesh)
-      this.attZoneMesh.geometry.dispose()
-      ;(this.attZoneMesh.material as THREE.Material).dispose()
-      this.attZoneMesh = null
-    }
+    this.endPlacement()
+    this.removeZoneTint('att')
+    this.removeZoneTint('def')
+
     const structures = this.buildPhase.getStructures()
     this.buildPhase.cleanup()
     this.buildPhase = null
 
-    const units = this.testUnits.length > 0
-      ? this.testUnits
+    const units = this.attackerUnits.length > 0
+      ? this.attackerUnits
       : AIPlayer.buildArmy(Config.START_CREDITS).map(t => new Unit(this.scene, t, 420 + Math.random() * 100))
-    this.testUnits = []
+    this.attackerUnits = []
 
     this.phase = 'battle'
     this.hud.setPhase('battle')
@@ -206,69 +224,102 @@ export class Game {
     this.battlePhase.onLose = () => { this.phase = 'lose'; this.hud.setPhase('lose') }
   }
 
-  private createSphereGhost() {
-    this.clearSphereGhost()
-    const geo = new THREE.RingGeometry(16, 24, 24)
-    const mat = new THREE.MeshBasicMaterial({ color: 0x44aaff, side: THREE.DoubleSide, transparent: true, opacity: 0.85 })
-    this.sphereGhostMesh = new THREE.Mesh(geo, mat)
-    this.sphereGhostMesh.position.set(-400, 0, 1)
-    this.scene.add(this.sphereGhostMesh)
+  // ── Placement (unified) ──────────────────────────────────────────────────
 
-    // Bright tint over the defender zone — so it's impossible to miss where
-    // to click. Pulses subtly during placement (handled in the render loop).
-    const zoneW = Config.DEFENDER_MAX_X - Config.WORLD.LEFT
-    const zoneH = Config.WORLD.TOP - Config.WORLD.BOTTOM
-    const zoneGeo = new THREE.PlaneGeometry(zoneW, zoneH)
-    const zoneMat = new THREE.MeshBasicMaterial({ color: 0x00ddff, transparent: true, opacity: 0.32, depthWrite: false })
-    this.sphereZoneMesh = new THREE.Mesh(zoneGeo, zoneMat)
-    this.sphereZoneMesh.position.set((Config.WORLD.LEFT + Config.DEFENDER_MAX_X) / 2, 0, 0.5)
-    this.scene.add(this.sphereZoneMesh)
-  }
-
-  private clearSphereGhost() {
-    this.sphereSelecting = false
-    if (this.sphereGhostMesh) {
-      this.scene.remove(this.sphereGhostMesh)
-      this.sphereGhostMesh.geometry.dispose()
-      ;(this.sphereGhostMesh.material as THREE.Material).dispose()
-      this.sphereGhostMesh = null
-    }
-    if (this.sphereZoneMesh) {
-      this.scene.remove(this.sphereZoneMesh)
-      this.sphereZoneMesh.geometry.dispose()
-      ;(this.sphereZoneMesh.material as THREE.Material).dispose()
-      this.sphereZoneMesh = null
+  private startSpherePlacement() {
+    const ghost = this.makeGhostRing(0x44aaff, 16, 24)
+    ghost.position.set(-400, 0, 1)
+    this.scene.add(ghost)
+    // Brighter tint highlighting the defender zone during placement
+    const tint = this.makeZoneTint(
+      Config.WORLD.LEFT, Config.DEFENDER_MAX_X, 0x00ddff, 0.32, 0.5
+    )
+    this.placement = {
+      kind: 'sphere',
+      ghost, tint,
+      zoneXMin: Config.WORLD.LEFT,
+      zoneXMax: Config.DEFENDER_MAX_X,
+      onPlace: (x, y) => {
+        if (!this.buildPhase?.spendCredits(100)) return false
+        if (this.sphereChar) {
+          this.sphereChar.position.set(x, y, 0)
+          this.sphereChar.visible = true
+        }
+        if (this.sphereDefender) {
+          this.sphereDefender.worldX = x
+          this.sphereDefender.worldY = y
+        }
+        this.spherePlaced = true
+        this.hud.markSpherePurchased()
+        return true  // end session
+      },
     }
   }
 
-  private createAttGhost(type: UnitType) {
-    if (this.attGhostMesh) {
-      this.scene.remove(this.attGhostMesh)
-      this.attGhostMesh.geometry.dispose()
-      ;(this.attGhostMesh.material as THREE.Material).dispose()
-    }
+  private startCyborgPlacement(type: UnitType) {
     const color = Config.UNITS[type].color
-    const geo = new THREE.RingGeometry(12, 20, 24)
-    const mat = new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, transparent: true, opacity: 0.75 })
-    this.attGhostMesh = new THREE.Mesh(geo, mat)
-    this.attGhostMesh.position.set(400, 0, 1)
-    this.scene.add(this.attGhostMesh)
+    const ghost = this.makeGhostRing(color, 12, 20)
+    ghost.position.set(400, 0, 1)
+    this.scene.add(ghost)
+    this.hud.setSelectedUnitType(type)
+    this.placement = {
+      kind: type,
+      ghost, tint: null,
+      zoneXMin: Config.ATTACKER_MIN_X,
+      zoneXMax: Config.WORLD.RIGHT,
+      onPlace: (x, y) => {
+        const cost = Config.UNITS[type].cost
+        if (this.attCredits < cost) return false
+        this.attCredits -= cost
+        this.hud.setAttCredits(this.attCredits)
+        this.attackerUnits.push(new Unit(this.scene, type, x, y))
+        return false  // stay in placement
+      },
+      onEnd: () => this.hud.setSelectedUnitType(null),
+    }
   }
 
-  private clearAttPlacement(refund: boolean) {
-    if (refund && this.attPendingCost > 0) {
-      this.attCredits += this.attPendingCost
-      this.hud.setAttCredits(this.attCredits)
+  private endPlacement() {
+    if (!this.placement) return
+    const p = this.placement
+    this.placement = null  // clear first so onEnd handlers can't loop back
+    this.scene.remove(p.ghost)
+    p.ghost.geometry.dispose()
+    ;(p.ghost.material as THREE.Material).dispose()
+    if (p.tint) {
+      this.scene.remove(p.tint)
+      p.tint.geometry.dispose()
+      ;(p.tint.material as THREE.Material).dispose()
     }
-    this.attPendingCost = 0
-    this.selectedAttUnitType = null
-    this.hud.setSelectedUnitType(null)
-    if (this.attGhostMesh) {
-      this.scene.remove(this.attGhostMesh)
-      this.attGhostMesh.geometry.dispose()
-      ;(this.attGhostMesh.material as THREE.Material).dispose()
-      this.attGhostMesh = null
-    }
+    p.onEnd?.()
+  }
+
+  private makeGhostRing(color: number, inner: number, outer: number): THREE.Mesh {
+    const geo = new THREE.RingGeometry(inner, outer, 24)
+    const mat = new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, transparent: true, opacity: 0.85 })
+    return new THREE.Mesh(geo, mat)
+  }
+
+  private makeZoneTint(xMin: number, xMax: number, color: number, opacity: number, z: number): THREE.Mesh {
+    const w = xMax - xMin
+    const h = Config.WORLD.TOP - Config.WORLD.BOTTOM
+    const mesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(w, h),
+      new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false })
+    )
+    mesh.position.set((xMin + xMax) / 2, 0, z)
+    this.scene.add(mesh)
+    return mesh
+  }
+
+  private removeZoneTint(side: 'att' | 'def') {
+    const m = side === 'att' ? this.attZoneMesh : this.defZoneMesh
+    if (!m) return
+    this.scene.remove(m)
+    m.geometry.dispose()
+    ;(m.material as THREE.Material).dispose()
+    if (side === 'att') this.attZoneMesh = null
+    else this.defZoneMesh = null
   }
 
   private screenToWorld(clientX: number, clientY: number): THREE.Vector2 | null {
@@ -293,9 +344,14 @@ export class Game {
     const delta = Math.min((now - this.lastTime) / 1000, 0.1)
     this.lastTime = now
 
-    this.testUnits.forEach(u => u.update(delta))
+    this.attackerUnits.forEach(u => u.update(delta))
+    this.attackerUnits.forEach(u => u.faceCamera(this.camera))
     this.powerCore?.update(delta)
+    this.powerCore?.faceCamera(this.camera)
+    this.sphereDefender?.faceCamera(this.camera)
+    this.buildPhase?.faceCamera(this.camera)
     this.battlePhase?.update(delta)
+    this.battlePhase?.faceCamera(this.camera)
     if (this.sphereInner) this.sphereInner.rotation.y += delta * 0.5
 
     // Smooth zoom with damping
@@ -339,35 +395,11 @@ export class Game {
     if (e.button === 0 && this.phase === 'build') {
       if ((e.target as HTMLElement).closest('#hud')) return  // ignore HUD clicks
 
-      // Place sphere at ghost position — same flow as cyborg below.
-      // Ghost visibility (set in onMouseMove based on zone) gates the click.
-      if (this.sphereSelecting && this.buildPhase) {
-        if (!this.sphereGhostMesh?.visible) return
-        if (!this.buildPhase.spendCredits(100)) return
-        const { x, y } = this.sphereGhostMesh.position
-        if (this.sphereChar) {
-          this.sphereChar.position.set(x, y, 0)
-          this.sphereChar.visible = true
-        }
-        if (this.sphereDefender) {
-          this.sphereDefender.worldX = x
-          this.sphereDefender.worldY = y
-        }
-        this.spherePlaced = true
-        this.clearSphereGhost()
-        this.hud.markSpherePurchased()
-        return
-      }
-
-      // Place attacker unit at ghost position — canonical placement flow
-      if (this.selectedAttUnitType) {
-        if (!this.attGhostMesh?.visible) return
-        const cost = Config.UNITS[this.selectedAttUnitType].cost
-        if (this.attCredits < cost) return
-        this.attCredits -= cost
-        this.hud.setAttCredits(this.attCredits)
-        const { x, y } = this.attGhostMesh.position
-        this.testUnits.push(new Unit(this.scene, this.selectedAttUnitType, x, y))
+      if (this.placement) {
+        if (!this.placement.ghost.visible) return
+        const { x, y } = this.placement.ghost.position
+        const shouldEnd = this.placement.onPlace(x, y)
+        if (shouldEnd) this.endPlacement()
       }
     }
   }
@@ -385,28 +417,17 @@ export class Game {
       this.camera.position.z -= panY * 0.707
       this.lastPan = { x: e.clientX, y: e.clientY }
     }
-    // Move ghost — only visible when mouse is over the valid attacker zone
-    if (this.attGhostMesh && this.selectedAttUnitType) {
+    if (this.placement) {
       const pos = this.screenToWorld(e.clientX, e.clientY)
-      if (pos && pos.x >= Config.ATTACKER_MIN_X && pos.x <= Config.WORLD.RIGHT) {
+      const inZone = pos
+        && pos.x >= this.placement.zoneXMin
+        && pos.x <= this.placement.zoneXMax
+      if (pos && inZone) {
         const clampedY = Math.max(Config.WORLD.BOTTOM + 20, Math.min(Config.WORLD.TOP - 20, pos.y))
-        this.attGhostMesh.position.set(pos.x, clampedY, 1)
-        this.attGhostMesh.visible = true
+        this.placement.ghost.position.set(pos.x, clampedY, 1)
+        this.placement.ghost.visible = true
       } else {
-        this.attGhostMesh.visible = false
-      }
-    }
-    // Move sphere ghost — visible only when cursor is over the defender zone
-    // (mirrors attacker-ghost flow above so onMouseDown can use ghost.visible
-    // as the placement gate)
-    if (this.sphereGhostMesh && this.sphereSelecting) {
-      const pos = this.screenToWorld(e.clientX, e.clientY)
-      if (pos && pos.x >= Config.WORLD.LEFT && pos.x <= Config.DEFENDER_MAX_X) {
-        const clampedY = Math.max(Config.WORLD.BOTTOM + 20, Math.min(Config.WORLD.TOP - 20, pos.y))
-        this.sphereGhostMesh.position.set(pos.x, clampedY, 1)
-        this.sphereGhostMesh.visible = true
-      } else {
-        this.sphereGhostMesh.visible = false
+        this.placement.ghost.visible = false
       }
     }
   }
@@ -426,9 +447,9 @@ export class Game {
     window.removeEventListener('mouseup', this.onMouseUp)
     window.removeEventListener('contextmenu', this.onContextMenu)
     this.buildPhase?.cleanup()
-    this.clearAttPlacement(false)
-    this.clearSphereGhost()
-    if (this.attZoneMesh) { this.scene.remove(this.attZoneMesh); this.attZoneMesh = null }
+    this.endPlacement()
+    this.removeZoneTint('att')
+    this.removeZoneTint('def')
     if (this.sphereChar) { this.scene.remove(this.sphereChar); this.sphereChar = null }
     this.sphereInner = null
     this.sphereFallback = null

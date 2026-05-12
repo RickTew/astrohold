@@ -5,6 +5,7 @@ export class PowerCore {
   readonly mesh: THREE.Group
   hp: number
   readonly maxHp: number
+  private hpBarGroup: THREE.Group
   private hpBar: THREE.Mesh
   private coreMesh: THREE.Mesh
   private ring1: THREE.Mesh
@@ -55,24 +56,28 @@ export class PowerCore {
     this.coreMesh = new THREE.Mesh(coreGeo, coreMat)
     this.mesh.add(this.coreMesh)
 
-    // HP bar background
+    // HP bar — billboarded to face camera each frame (faceCamera method)
+    this.hpBarGroup = new THREE.Group()
+    this.hpBarGroup.position.set(0, 44, 0)
     const bgBar = new THREE.Mesh(
       new THREE.PlaneGeometry(70, 8),
       new THREE.MeshBasicMaterial({ color: 0x222222 })
     )
-    bgBar.position.set(0, 44, 0.1)
-    bgBar.rotation.x = -Math.PI / 4
-    this.mesh.add(bgBar)
-
+    bgBar.position.z = 0.1
+    this.hpBarGroup.add(bgBar)
     this.hpBar = new THREE.Mesh(
       new THREE.PlaneGeometry(70, 8),
       new THREE.MeshBasicMaterial({ color: 0x00ff88 })
     )
-    this.hpBar.position.set(0, 44, 0.2)
-    this.hpBar.rotation.x = -Math.PI / 4
-    this.mesh.add(this.hpBar)
+    this.hpBar.position.z = 0.2
+    this.hpBarGroup.add(this.hpBar)
+    this.mesh.add(this.hpBarGroup)
 
     scene.add(this.mesh)
+  }
+
+  faceCamera(camera: THREE.Camera) {
+    this.hpBarGroup.quaternion.copy(camera.quaternion)
   }
 
   takeDamage(amount: number) {
