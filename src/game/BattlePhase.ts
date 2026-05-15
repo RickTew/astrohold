@@ -120,6 +120,7 @@ export class BattlePhase {
     }
     if (nearestSphere) {
       const sphere = nearestSphere
+      unit.faceTarget(sphere.worldX, sphere.worldY)
       const proj = new Projectile(
         this.scene, unit.worldX, unit.worldY + 20, null,
         sphere.worldX, sphere.worldY + 12,
@@ -142,6 +143,7 @@ export class BattlePhase {
     }
     if (nearestStruct) {
       const target = nearestStruct
+      unit.faceTarget(target.worldX, target.worldY)
       const proj = new Projectile(
         this.scene, unit.worldX, unit.worldY + 20, null,
         target.worldX, target.worldY,
@@ -176,6 +178,7 @@ export class BattlePhase {
     const dist = Math.sqrt(dx * dx + dy * dy)
 
     if (dist <= Config.POWER_CORE.RADIUS + 20) {
+      unit.faceTarget(tx, ty)
       const unitX = unit.worldX
       const unitY = unit.worldY + 20
       const proj = new Projectile(

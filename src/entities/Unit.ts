@@ -82,6 +82,16 @@ export class Unit {
     this.hpBarGroup.quaternion.copy(camera.quaternion)
   }
 
+  // Rotate the model to face a world-space point. Mirrors the formula used
+  // while moving (atan2 + π/2 to match the model's default -X facing).
+  faceTarget(x: number, y: number) {
+    if (!this.bodyGroup) return
+    const dx = x - this.logicalX
+    const dy = y - this.logicalY
+    if (dx * dx + dy * dy < 0.01) return
+    this.bodyGroup.rotation.y = Math.atan2(dy, dx) + Math.PI / 2
+  }
+
   // ── Public API for game logic ──────────────────────────────────────────────
 
   get worldX() { return this.logicalX }

@@ -76,11 +76,8 @@ export class Game {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     this.renderer.setSize(window.innerWidth, window.innerHeight)
 
-    // Ambient was 2.5 + directional 1.2 = ~3.7× — too bright for GLB
-    // MeshStandardMaterials, blowing out the top half of any model facing +Z
-    // into a flat washed-out tone. Toned down so textures survive.
-    this.scene.add(new THREE.AmbientLight(0xffffff, 0.6))
-    const dir = new THREE.DirectionalLight(0xffffff, 0.8)
+    this.scene.add(new THREE.AmbientLight(0xffffff, 2.5))
+    const dir = new THREE.DirectionalLight(0xffffff, 1.2)
     dir.position.set(0, 0, 100)
     this.scene.add(dir)
 
@@ -150,6 +147,10 @@ export class Game {
 
   // Build a fresh sphere model for a single placement. Resolves with a
   // SphereGeometry fallback if the GLB buffer is missing or parse fails.
+  // Swaps every MeshStandardMaterial for a MeshBasicMaterial that keeps the
+  // base color texture but ignores scene lights — the scene's bright ambient
+  // was blowing out the sphere's dark base color into a washed-out cap on
+  // whatever side was facing the directional light.
   private makeSphereModel(): Promise<THREE.Object3D> {
     if (!this.sphereGlbBuffer) return Promise.resolve(this.makeSphereFallback())
     return new Promise(resolve => {
@@ -158,6 +159,17 @@ export class Game {
         '',
         gltf => {
           gltf.scene.scale.setScalar(this.sphereScale)
+          gltf.scene.traverse(obj => {
+            const m = obj as THREE.Mesh
+            if (!m.isMesh) return
+            const old = m.material as THREE.MeshStandardMaterial
+            if (!old || !(old as { isMeshStandardMaterial?: boolean }).isMeshStandardMaterial) return
+            m.material = new THREE.MeshBasicMaterial({
+              map: old.map ?? null,
+              color: 0xffffff,
+            })
+            old.dispose()
+          })
           resolve(gltf.scene)
         },
         () => resolve(this.makeSphereFallback())
