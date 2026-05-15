@@ -6,7 +6,7 @@ const SPHERE_DIRECTIONS = [
   'south', 'south-east', 'east', 'north-east',
   'north', 'north-west', 'west', 'south-west',
 ] as const
-const SPHERE_FRAME_INTERVAL = 0.12   // seconds per direction = ~1 s per full spin
+const SPHERE_FRAME_INTERVAL = 0.4    // seconds per direction = ~3.2 s per full spin
 const SPHERE_SCREEN_SIZE = 44        // sprite world-units (slightly larger than the old GLB at 36)
 
 const sphereTextures: THREE.Texture[] = []
@@ -58,7 +58,15 @@ export class SphereDefender {
     this.mesh.position.set(x, y, 0)
 
     const firstTex = sphereTexturesLoaded ? sphereTextures[0] : null
-    const mat = new THREE.SpriteMaterial({ map: firstTex, transparent: true })
+    // depthWrite: false stops the sprite quad's transparent pixels from
+    // blocking the cyan zone tint behind it (would leave brown rectangles).
+    // alphaTest discards fully transparent pixels for clean edges.
+    const mat = new THREE.SpriteMaterial({
+      map: firstTex,
+      transparent: true,
+      depthWrite: false,
+      alphaTest: 0.1,
+    })
     this.sprite = new THREE.Sprite(mat)
     this.sprite.scale.set(SPHERE_SCREEN_SIZE, SPHERE_SCREEN_SIZE, 1)
     this.sprite.position.set(0, 0, 5)
