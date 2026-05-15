@@ -4,7 +4,7 @@ import { Config, UnitType } from './GameConfig'
 import { Background } from '../scene/Background'
 import { PowerCore } from '../entities/PowerCore'
 import { SphereDefender } from '../entities/SphereDefender'
-import { Unit, ALL_ANIM_CLIPS } from '../entities/Unit'
+import { Unit, getAllAnimClips } from '../entities/Unit'
 import { HUD } from '../ui/HUD'
 import { AIPlayer } from '../ai/AIPlayer'
 import { BuildPhase } from './BuildPhase'
@@ -281,9 +281,11 @@ export class Game {
         if (this.attCredits < cost) return false
         this.attCredits -= cost
         this.hud.setAttCredits(this.attCredits)
-        // Rotation test mode: pass the next clip name as the idle override so
-        // each newly placed cyborg shows a different animation pose.
-        const clip = ALL_ANIM_CLIPS[this.animTestIndex % ALL_ANIM_CLIPS.length]
+        // Rotation test mode: pass the next clip OBJECT as the idle override
+        // so each newly placed cyborg shows a different animation pose, and
+        // the label text is read directly off that object's .name.
+        const clips = getAllAnimClips()
+        const clip = clips[this.animTestIndex % clips.length]
         this.animTestIndex++
         this.attackerUnits.push(new Unit(this.scene, type, x, y, clip))
         return false

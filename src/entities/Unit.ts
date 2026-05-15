@@ -17,31 +17,22 @@ const STATE_CLIP: Record<AnimName, string> = {
   dead: 'Dead',
 }
 
-// All clip names exposed for the rotation test mode (also covers anything the
-// state machine doesn't yet use — handy for finding the right "shoot" pose).
-export const ALL_ANIM_CLIPS = [
-  'Idle',
-  'Running',
-  'Walking',
-  'Dead',
-  'Hit_Reaction_1',
-  'Female_Crouch_Pick_Gun_Point_Forward',
-  'Rifle_Aim_Turn_Right',
-  'Run_and_Shoot',
-  'Forward_Roll_and_Fire',
-  'Gun_Hold_Left_Turn',
-  'Crouch_Pull_and_Throw',
-  'Crouch_Walk_with_Torch',
-  'Spartan_Kick',
-] as const
-
 // Module-level cache populated once by preload() and shared by every Unit.
 const assets: {
   characterTemplate: THREE.Group | null
   clips: Map<string, THREE.AnimationClip>
+  clipList: THREE.AnimationClip[]   // same clips, kept in file-order for the rotation test
 } = {
   characterTemplate: null,
   clips: new Map(),
+  clipList: [],
+}
+
+// Iterable list of all loaded clip objects for the rotation test mode in
+// Game.ts. Returning objects (not names) so the label and the playback come
+// from the exact same source — eliminates label/animation mismatch.
+export function getAllAnimClips(): readonly THREE.AnimationClip[] {
+  return assets.clipList
 }
 const loader = new GLTFLoader()
 
@@ -69,9 +60,10 @@ export class Unit {
   // after each swapAnim so animation changes don't snap rotation back.
   private facingY = -Math.PI / 2
   // Optional override for the IDLE pose — set per-instance to test specific
-  // animations (rotation test mode in Game.ts cycles through ALL_ANIM_CLIPS).
-  // Running/dead still use their normal clips.
-  private testIdleClip: string | null = null
+  // animations (rotation test mode cycles through every loaded clip).
+  // Running/dead still use their normal clips. Stored as the clip OBJECT
+  // (not name) so playback and label can't drift apart.
+  private testIdleClipObj: THREE.AnimationClip | null = null
 
   static async preload(): Promise<void> {
     // Load BOTH mesh and clips from the merged animations.glb. The separate
@@ -90,7 +82,9 @@ export class Unit {
               !t.name.endsWith('.scale') && !t.name.startsWith('Hips.position')
             )
             assets.clips.set(clip.name, clip)
+            assets.clipList.push(clip)
           }
+          console.log('[Unit] loaded clips:', gltf.animations.map(c => c.name))
           resolve()
         },
         undefined,
@@ -104,12 +98,12 @@ export class Unit {
     type: UnitType,
     spawnX: number,
     spawnY?: number,
-    testIdleClip?: string
+    testIdleClip?: THREE.AnimationClip
   ) {
     this.type = type
     this.hp = this.maxHp = Config.UNITS[type].hp
     this.moveSpeedPS = Config.UNITS[type].speed / Config.TURN_INTERVAL
-    this.testIdleClip = testIdleClip ?? null
+    this.testIdleClipObj = testIdleClip ?? null
 
     const spread = Config.WORLD.TOP - Config.WORLD.BOTTOM - 40
     const y = spawnY ?? (Math.random() - 0.5) * spread
@@ -121,7 +115,7 @@ export class Unit {
     this.mesh.position.set(spawnX, y, 0)
 
     this.swapAnim('idle')
-    if (testIdleClip) this.buildAnimLabel(testIdleClip)
+    if (testIdleClip) this.buildAnimLabel(testIdleClip.name)
     const { group, fill } = this.buildHpBar()
     this.hpBarGroup = group
     this.hpBarFill = fill
@@ -269,11 +263,12 @@ export class Unit {
     this.bodyGroup = clone
     this.mesh.add(clone)
 
-    // Pick the clip: test mode overrides only the idle pose.
-    const clipName = name === 'idle' && this.testIdleClip
-      ? this.testIdleClip
-      : STATE_CLIP[name]
-    const clip = assets.clips.get(clipName)
+    // Pick the clip: test mode overrides only the idle pose. Test mode uses
+    // the clip OBJECT directly so label and playback always match. Normal
+    // gameplay still uses the name lookup against assets.clips.
+    const clip = name === 'idle' && this.testIdleClipObj
+      ? this.testIdleClipObj
+      : assets.clips.get(STATE_CLIP[name])
     if (clip) {
       this.mixer = new THREE.AnimationMixer(clone)
       const action = this.mixer.clipAction(clip)
