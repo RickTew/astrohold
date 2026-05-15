@@ -6,7 +6,7 @@ import { Config, UnitType } from '../game/GameConfig'
 // Tweak if Meshy model comes in wrong size or orientation
 // Cyborg GLB is 1.65 units tall — scale 25 → ~41 world units tall
 const MODEL_SCALE = 25
-const MODEL_TILT_X = Math.PI / 2  // stand model along world +Z so it's perpendicular to the XY ground plane — required for a top-down view
+const MODEL_TILT_X = 0   // model faces camera; 0 = upright, PI/2 = flat on ground
 
 type AnimName = 'idle' | 'running' | 'dead'
 type LoadedGLTF = { scene: THREE.Group; animations: THREE.AnimationClip[] }

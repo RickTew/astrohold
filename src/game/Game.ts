@@ -69,11 +69,8 @@ export class Game {
 
     const halfH = 600 / (window.innerWidth / window.innerHeight)
     this.camera = new THREE.OrthographicCamera(-600, 600, halfH, -halfH, 1, 1500)
-    // "Low top-down" RTS angle: camera mostly above, slight northward offset
-    // so units (now standing along +Z) read as figures viewed from above with
-    // a hint of front/back visible. Tilt is shallow enough that grid cells
-    // still project very close to square.
-    this.camera.position.set(0, 100, 300)
+    // 45° tilt — the known-good camera angle that shows units in 3/4 view.
+    this.camera.position.set(0, 300, 300)
     this.camera.lookAt(0, 0, 0)
 
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
@@ -449,7 +446,7 @@ export class Game {
       // Camera local Y axis in world coords — has a small -Z component because
       // of the slight tilt. Read it directly from the camera's world matrix so
       // pan slides along the screen up direction instead of pitching the view.
-      const camUp = new THREE.Vector3().setFromMatrixColumn(this.camera.matrix, 1)
+      const camUp = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 1)
       this.camera.position.x -= (dx / window.innerWidth) * ww
       this.camera.position.y += panY * camUp.y
       this.camera.position.z += panY * camUp.z
