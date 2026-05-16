@@ -277,31 +277,87 @@ export class BattlePhase {
       this.projectiles.push(proj)
       if (!isAoe) playGunshot()
     } else {
-      // Grid movement: pick the adjacent cell that's closest to the core and
-      // not already occupied. One step per turn (AP-tiered movement comes
-      // with the full turn system).
-      const cell = Config.GRID_CELL
-      type Cand = { x: number; y: number; d: number }
-      const candidates: Cand[] = []
-      for (let cx = -1; cx <= 1; cx++) {
-        for (let cy = -1; cy <= 1; cy++) {
-          if (cx === 0 && cy === 0) continue
-          const px = unit.worldX + cx * cell
-          const py = unit.worldY + cy * cell
-          const d = Math.sqrt((px - tx) * (px - tx) + (py - ty) * (py - ty))
-          candidates.push({ x: px, y: py, d })
-        }
+      // Out of attack range. CAMP behavior: if NOTHING is within sight range
+      // (no sphere/structure/core spotted yet), there's a 50% chance the unit
+      // wanders to a random adjacent cell instead of marching toward the core.
+      // Once anything enters sight the unit advances every turn (ENGAGED).
+      const camp = !this.anyTargetInSight(unit)
+      if (camp && Math.random() < 0.5) {
+        this.wanderUnit(unit)
+      } else {
+        this.advanceToward(unit, tx, ty, dist)
       }
-      candidates.sort((a, b) => a.d - b.d)
-      for (const c of candidates) {
-        if (c.d >= dist) continue                  // must close the distance
-        if (c.x < Config.WORLD.LEFT || c.x > Config.WORLD.RIGHT) continue
-        if (c.y < Config.WORLD.BOTTOM || c.y > Config.WORLD.TOP) continue
-        if (this.isCellOccupiedInBattle(c.x, c.y, unit)) continue
-        unit.moveTo(c.x, c.y)
-        this.checkMines(unit)
-        break
+    }
+  }
+
+  // Sight check — does this unit see any defender (sphere, structure, or
+  // the Power Core) inside its sightRange? Drives the CAMP vs ENGAGED choice.
+  private anyTargetInSight(unit: Attacker): boolean {
+    const sight = Config.UNITS[unit.type].sightRange ?? unit.range
+    for (const sp of this.spheres) {
+      if (sp.isDead) continue
+      const dx = sp.worldX - unit.worldX
+      const dy = sp.worldY - unit.worldY
+      if (Math.sqrt(dx * dx + dy * dy) <= sight) return true
+    }
+    for (const s of this.structures) {
+      if (s.isDead) continue
+      const dx = s.worldX - unit.worldX
+      const dy = s.worldY - unit.worldY
+      if (Math.sqrt(dx * dx + dy * dy) <= sight) return true
+    }
+    const cdx = this.core.mesh.position.x - unit.worldX
+    const cdy = this.core.mesh.position.y - unit.worldY
+    if (Math.sqrt(cdx * cdx + cdy * cdy) <= sight) return true
+    return false
+  }
+
+  // Camp wander: step to a random unoccupied adjacent cell. Does nothing if
+  // every neighbor is blocked.
+  private wanderUnit(unit: Attacker) {
+    const cell = Config.GRID_CELL
+    const options: Array<{ x: number; y: number }> = []
+    for (let cx = -1; cx <= 1; cx++) {
+      for (let cy = -1; cy <= 1; cy++) {
+        if (cx === 0 && cy === 0) continue
+        const px = unit.worldX + cx * cell
+        const py = unit.worldY + cy * cell
+        if (px < Config.WORLD.LEFT || px > Config.WORLD.RIGHT) continue
+        if (py < Config.WORLD.BOTTOM || py > Config.WORLD.TOP) continue
+        if (this.isCellOccupiedInBattle(px, py, unit)) continue
+        options.push({ x: px, y: py })
       }
+    }
+    if (options.length === 0) return
+    const pick = options[Math.floor(Math.random() * options.length)]
+    unit.moveTo(pick.x, pick.y)
+    this.checkMines(unit)
+  }
+
+  // Advance one cell toward (tx, ty), enforcing one-piece-per-cell and only
+  // accepting cells that actually close the distance.
+  private advanceToward(unit: Attacker, tx: number, ty: number, currentDist: number) {
+    const cell = Config.GRID_CELL
+    type Cand = { x: number; y: number; d: number }
+    const candidates: Cand[] = []
+    for (let cx = -1; cx <= 1; cx++) {
+      for (let cy = -1; cy <= 1; cy++) {
+        if (cx === 0 && cy === 0) continue
+        const px = unit.worldX + cx * cell
+        const py = unit.worldY + cy * cell
+        const d = Math.sqrt((px - tx) * (px - tx) + (py - ty) * (py - ty))
+        candidates.push({ x: px, y: py, d })
+      }
+    }
+    candidates.sort((a, b) => a.d - b.d)
+    for (const c of candidates) {
+      if (c.d >= currentDist) continue
+      if (c.x < Config.WORLD.LEFT || c.x > Config.WORLD.RIGHT) continue
+      if (c.y < Config.WORLD.BOTTOM || c.y > Config.WORLD.TOP) continue
+      if (this.isCellOccupiedInBattle(c.x, c.y, unit)) continue
+      unit.moveTo(c.x, c.y)
+      this.checkMines(unit)
+      break
     }
   }
 
@@ -327,25 +383,32 @@ export class BattlePhase {
     }
   }
 
+  // Sphere has 3 AP per turn (turning is free per design). It fires up to 3
+  // shots at the 3 nearest distinct enemies in range. If fewer than 3 enemies
+  // are in range, fewer shots fire.
   private doSphereTurn(sphere: SphereDefender, aliveUnits: Attacker[]) {
-    let nearest: Attacker | null = null
-    let nearestDist: number = sphere.range
-    for (const u of aliveUnits) {
-      const dx = u.worldX - sphere.worldX
-      const dy = u.worldY - sphere.worldY
-      const d = Math.sqrt(dx * dx + dy * dy)
-      if (d <= nearestDist) { nearestDist = d; nearest = u }
+    const SHOTS_PER_TURN = 3
+    const targets = aliveUnits
+      .filter(u => !u.isDead)
+      .map(u => {
+        const dx = u.worldX - sphere.worldX
+        const dy = u.worldY - sphere.worldY
+        return { unit: u, dist: Math.sqrt(dx * dx + dy * dy) }
+      })
+      .filter(c => c.dist <= sphere.range)
+      .sort((a, b) => a.dist - b.dist)
+      .slice(0, SHOTS_PER_TURN)
+    for (const t of targets) {
+      const target = t.unit
+      const proj = new Projectile(
+        this.scene, sphere.worldX, sphere.worldY + 12,
+        target, target.worldX, target.worldY + 20,
+        sphere.damage, false, 0, 0xffee00
+      )
+      proj.onHit = () => target.takeDamage(sphere.damage)
+      this.projectiles.push(proj)
+      playGunshot()
     }
-    if (!nearest) return
-    const target = nearest
-    const proj = new Projectile(
-      this.scene, sphere.worldX, sphere.worldY + 12,
-      target, target.worldX, target.worldY + 20,
-      sphere.damage, false, 0, 0xffee00
-    )
-    proj.onHit = () => target.takeDamage(sphere.damage)
-    this.projectiles.push(proj)
-    playGunshot()   // sphere fires a direct shot at an attacker
   }
 
   private doStructureTurn(structure: Structure, aliveUnits: Attacker[]) {

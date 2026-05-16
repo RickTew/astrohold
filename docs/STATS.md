@@ -66,12 +66,13 @@ per turn limited by its AP budget.
 | Attack range | 300 |
 | Sight range | 400 |
 | Speed | — (stationary) |
-| Proposed AP | **2-3** |
+| AP (live) | **3 shots/turn** |
 | Behavior | Defensive / stationary; fires the moment a target enters its attack range |
 
-**Special:** Spherical hero — can fire in any direction, **turning costs 0 AP**.
-With 2-3 AP per turn it can fire that many times at different targets in the
-same turn. Stationary; no movement AP needed.
+**Special:** Spherical hero — fires in any direction, **turning costs 0 AP**.
+Live implementation: picks the **3 nearest distinct enemies** in attack range
+and fires one shot at each per turn. If fewer than 3 enemies are in range,
+fewer shots fire.
 
 ### Structures (no shop yet — code exists, HUD button missing)
 
@@ -143,6 +144,11 @@ Every piece runs a small state machine. Default transitions:
 - Wander: move 1 random adjacent cell every N turns (low frequency so it
   doesn't drift far from spawn). Skip for stationary pieces (Sphere, structures).
 - Hold: stationary, idle animation.
+
+**Live implementation (cyborgs):** when no defender / structure / core is
+within the unit's `sightRange`, there's a **50% chance per turn** to wander
+to a random unoccupied adjacent cell. The other 50% the unit advances toward
+the core normally (so they still close the distance, just less directly).
 
 **ENGAGED** — a target is in sight. Piece runs its behavior routine:
 
