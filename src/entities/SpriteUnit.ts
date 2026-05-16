@@ -76,6 +76,13 @@ const MANIFEST: Record<string, AnimManifest> = {
     throw:   { fps: 12, loop: false, presentDirs: ALL_DIRS, frameCount: 9 },
     die:     { fps: 8,  loop: false, presentDirs: ALL_DIRS, frameCount: 4 },
   },
+  doublegun: {
+    // Full 8 directions per state — no mirroring fallback needed.
+    idle:    { fps: 6,  loop: true,  presentDirs: ALL_DIRS, frameCount: 4 },
+    walking: { fps: 10, loop: true,  presentDirs: ALL_DIRS, frameCount: 9 },
+    shoot:   { fps: 14, loop: false, presentDirs: ALL_DIRS, frameCount: 9 },
+    die:     { fps: 8,  loop: false, presentDirs: ALL_DIRS, frameCount: 9 },
+  },
 }
 
 function loadTexture(url: string): Promise<THREE.Texture> {

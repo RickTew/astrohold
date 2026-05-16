@@ -2,7 +2,7 @@ import { Config, UnitType } from '../game/GameConfig'
 
 // Sprite-only roster — the 3D Meshy cyborg (scout) was retired in session 8
 // when we committed to pixel sprites for all combatants.
-const ALL_TYPES: UnitType[] = ['cannon', 'grenadier']
+const ALL_TYPES: UnitType[] = ['cannon', 'grenadier', 'doublegun']
 
 export class AIPlayer {
   static buildArmy(credits: number): UnitType[] {

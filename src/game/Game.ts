@@ -103,6 +103,7 @@ export class Game {
       preloadSphereSprites(),
       preloadSpriteUnit('cannon', 'cannon'),
       preloadSpriteUnit('grenadier', 'grenadier'),
+      preloadSpriteUnit('doublegun', 'doublegun'),
       preloadPowerCore(),
     ])
 

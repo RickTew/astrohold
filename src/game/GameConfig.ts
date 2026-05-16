@@ -23,6 +23,8 @@ export const Config = {
     cannon:    { cost: 70, hp: 180, speed: 55,  damage: 35, range: 240, aoeRadius: 0,  label: 'Cannon',    color: 0xffaa55 },
     // Grenadier — AoE thrower without kamikaze. Bomber-tier damage with smaller radius.
     grenadier: { cost: 55, hp: 110, speed: 75,  damage: 28, range: 220, aoeRadius: 65, label: 'Grenadier', color: 0x88dd44 },
+    // Double Gun — dual hand-cannons, highest direct-fire damage, costlier and slightly squishier than Cannon.
+    doublegun: { cost: 90, hp: 160, speed: 65,  damage: 45, range: 230, aoeRadius: 0,  label: 'Double Gun',color: 0xff8866 },
   },
 } as const
 
