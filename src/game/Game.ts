@@ -231,9 +231,10 @@ private enterBuildPhase() {
       ghost, tint: null,
       zoneXMin: Config.WORLD.LEFT,
       zoneXMax: Config.DEFENDER_MAX_X,
-      marginTop: 20, marginBottom: 20,   // sphere sprite is symmetric, half-height ~11 after 50% shrink
+      marginTop: 0, marginBottom: 0,   // grid snap supersedes margins
       onPlace: (x, y) => {
         if (!this.buildPhase) return false
+        if (this.isCellOccupied(x, y)) return false   // one piece per cell
         if (!this.buildPhase.spendCredits(SPHERE_COST)) return false
         this.spheres.push(new SphereDefender(this.scene, x, y))
         return false  // multi-place — keep selecting until user cancels or credits run out
@@ -254,8 +255,9 @@ private enterBuildPhase() {
       ghost, tint: null,
       zoneXMin: Config.ATTACKER_MIN_X,
       zoneXMax: Config.WORLD.RIGHT,
-      marginTop: 45, marginBottom: 20,   // cyborg stands up from its feet — head extends ~40 above center
+      marginTop: 0, marginBottom: 0,   // grid snap supersedes margins
       onPlace: (x, y) => {
+        if (this.isCellOccupied(x, y)) return false
         const cost = Config.UNITS[type].cost
         if (this.attCredits < cost) return false
         this.attCredits -= cost
@@ -286,6 +288,40 @@ private makeGhostRing(color: number, inner: number, outer: number): THREE.Mesh {
     const geo = new THREE.RingGeometry(inner, outer, 24)
     const mat = new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, transparent: true, opacity: 0.85 })
     return new THREE.Mesh(geo, mat)
+  }
+
+  // Snap a world-space point to the center of its grid cell, restricted to
+  // columns inside the active placement zone. Returns valid=false if cursor
+  // falls outside the zone's columns or the map's row range.
+  private snapToGridCell(
+    x: number, y: number, zoneXMin: number, zoneXMax: number,
+  ): { x: number; y: number; valid: boolean } {
+    const cell = Config.GRID_CELL
+    const cols = Math.floor((zoneXMax - zoneXMin) / cell)
+    const rows = Math.floor((Config.WORLD.TOP - Config.WORLD.BOTTOM) / cell)
+    const colIdx = Math.floor((x - zoneXMin) / cell)
+    const rowIdx = Math.floor((y - Config.WORLD.BOTTOM) / cell)
+    if (colIdx < 0 || colIdx >= cols || rowIdx < 0 || rowIdx >= rows) {
+      return { x: 0, y: 0, valid: false }
+    }
+    return {
+      x: zoneXMin + colIdx * cell + cell / 2,
+      y: Config.WORLD.BOTTOM + rowIdx * cell + cell / 2,
+      valid: true,
+    }
+  }
+
+  // One piece per cell rule (per design — see docs/STATS.md). Pieces snap to
+  // exact cell centers, so equality-with-epsilon catches collisions.
+  private isCellOccupied(x: number, y: number): boolean {
+    const E = 1
+    for (const s of this.spheres) {
+      if (Math.abs(s.worldX - x) < E && Math.abs(s.worldY - y) < E) return true
+    }
+    for (const u of this.attackerUnits) {
+      if (Math.abs(u.worldX - x) < E && Math.abs(u.worldY - y) < E) return true
+    }
+    return false
   }
 
   // Thin outline rectangle marking the playable zone. Replaces the old
@@ -447,16 +483,17 @@ private makeGhostRing(color: number, inner: number, outer: number): THREE.Mesh {
     }
     if (this.placement) {
       const pos = this.screenToWorld(e.clientX, e.clientY)
-      const inZone = pos
-        && pos.x >= this.placement.zoneXMin
-        && pos.x <= this.placement.zoneXMax
-      if (pos && inZone) {
-        const clampedY = Math.max(
-          Config.WORLD.BOTTOM + this.placement.marginBottom,
-          Math.min(Config.WORLD.TOP - this.placement.marginTop, pos.y)
+      if (pos) {
+        const snap = this.snapToGridCell(
+          pos.x, pos.y,
+          this.placement.zoneXMin, this.placement.zoneXMax,
         )
-        this.placement.ghost.position.set(pos.x, clampedY, 1)
-        this.placement.ghost.visible = true
+        if (snap.valid) {
+          this.placement.ghost.position.set(snap.x, snap.y, 1)
+          this.placement.ghost.visible = true
+        } else {
+          this.placement.ghost.visible = false
+        }
       } else {
         this.placement.ghost.visible = false
       }

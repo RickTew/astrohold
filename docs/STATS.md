@@ -17,7 +17,10 @@ lands.
 - Defender zone (Robots): x < -200 (8 columns)
 - Battlefield (no-build zone): -200 ≤ x ≤ 200 (8 columns)
 - Attacker zone (Cyborgs): x > 200 (8 columns)
-- **One piece per cell.** Strict. No stacking.
+- **One piece per cell.** Strict. No stacking. Enforced at placement;
+  movement will enforce it once the turn system lands.
+- Placement snaps to cell centers automatically. Cell centers are at
+  (LEFT + col*50 + 25, BOTTOM + row*50 + 25) for col/row indices.
 
 ## Movement / Action Points (proposed, not yet implemented)
 
@@ -39,6 +42,16 @@ per turn limited by its AP budget.
   shoot through other pieces.
 - Grenadier grenades **arc over** intervening pieces and land at the target
   cell — they can be lobbed past walls and friendly units.
+
+**Firing arc:**
+- **All current pieces fire 8-directional** (N, NE, E, SE, S, SW, W, NW). The
+  PixelLab rotation sets give us all 8 angles natively — no asset cost to
+  support diagonal fire on every existing unit.
+- Reasons a future piece might be **cardinal-only** (4 directions): hardpoint-
+  mounted turret, heavy servo motors too slow to traverse diagonally, sniper
+  rifle that only fires straight lines, energy emitter with a fixed beam axis.
+  Designed cardinal-only pieces become natural counters to fast diagonal units.
+  See "Proposed future pieces" below.
 
 ---
 
@@ -110,6 +123,19 @@ Goal: small economic decisions that let weaker pieces threaten bigger ones
 (e.g. cheap turret + shield can survive a Cannon push).
 
 ---
+
+## Proposed future pieces
+
+These would deepen the rock-paper-scissors. Listed as design seeds — none are
+built yet.
+
+| Side | Name | Cost guess | Special |
+|---|---|---|---|
+| Robots | **Heavy Laser Turret** | 80 | Cardinal-only fire (N/S/E/W). High damage, long cooldown. Cyborgs that approach diagonally avoid it briefly. |
+| Robots | **Sniper Spire** | 60 | Cardinal-only, very long range (450). Single shot per turn. Counters fast cyborgs from across the map. |
+| Robots | **Shield Generator** | 50 | Stationary. Adds shield HP to adjacent friendly pieces per turn. |
+| Cyborgs | **Sapper** | 40 | Slow, low HP. Can disable a wall by sitting next to it for one turn. |
+| Cyborgs | **Sniper Cyborg** | 65 | Cardinal-only, range 380, single shot per turn. Soft counter to the Sphere. |
 
 ## Balance Principles
 
