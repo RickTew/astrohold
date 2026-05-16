@@ -185,7 +185,9 @@ export class SpriteUnit {
     })
     this.sprite = new THREE.Sprite(mat)
     this.sprite.scale.set(SPRITE_SIZE, SPRITE_SIZE, 1)
-    this.sprite.position.set(0, SPRITE_SIZE * 0.35, 5)
+    // Centered on mesh.position — top-down grid: piece sits in its cell, not
+    // anchored at the feet.
+    this.sprite.position.set(0, 0, 5)
     this.sprite.renderOrder = 10
     this.mesh.add(this.sprite)
 
@@ -384,7 +386,8 @@ export class SpriteUnit {
 
   private buildHpBar(): { group: THREE.Group; fill: THREE.Mesh } {
     const group = new THREE.Group()
-    group.position.set(0, 42, 0)
+    // Just above the sprite top (sprite half-height ≈ 30 for SPRITE_SIZE=60).
+    group.position.set(0, 35, 0)
 
     const bg = new THREE.Mesh(
       new THREE.PlaneGeometry(30, 4),

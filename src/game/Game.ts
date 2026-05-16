@@ -70,8 +70,9 @@ export class Game {
 
     const halfH = 600 / (window.innerWidth / window.innerHeight)
     this.camera = new THREE.OrthographicCamera(-600, 600, halfH, -halfH, 1, 1500)
-    // 45° tilt — the known-good camera angle that shows units in 3/4 view.
-    this.camera.position.set(0, 300, 300)
+    // Top-down view — square grid cells project as on-screen squares. Sprites
+    // are billboarded so they still face the camera with the same image.
+    this.camera.position.set(0, 0, 500)
     this.camera.lookAt(0, 0, 0)
 
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true })

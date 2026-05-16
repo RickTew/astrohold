@@ -75,12 +75,14 @@ export class PixelPowerCore {
     })
     this.sprite = new THREE.Sprite(mat)
     this.sprite.scale.set(size, size, 1)
-    this.sprite.position.set(0, size * 0.35, 5)   // feet near ground
+    // Centered on mesh.position — top-down board view, piece sits in its cell.
+    this.sprite.position.set(0, 0, 5)
     this.sprite.renderOrder = 10
     this.mesh.add(this.sprite)
 
     this.hpBarGroup = new THREE.Group()
-    this.hpBarGroup.position.set(0, size * 0.78, 0)
+    // Sprite half-height is size/2; bar a hair above that.
+    this.hpBarGroup.position.set(0, size * 0.55, 0)
     const bg = new THREE.Mesh(
       new THREE.PlaneGeometry(70, 8),
       new THREE.MeshBasicMaterial({ color: 0xcc2222 })
