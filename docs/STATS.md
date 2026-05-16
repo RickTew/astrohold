@@ -63,13 +63,15 @@ per turn limited by its AP budget.
 | Cost | 100 |
 | HP | 300 |
 | Damage | 10 |
-| Range | 300 |
+| Attack range | 300 |
+| Sight range | 400 |
 | Speed | — (stationary) |
-| Proposed AP | 2 |
+| Proposed AP | **2-3** |
+| Behavior | Defensive / stationary; fires the moment a target enters its attack range |
 
 **Special:** Spherical hero — can fire in any direction, **turning costs 0 AP**.
-With 2 AP per turn it can fire twice at different targets. Stationary; no
-movement AP needed.
+With 2-3 AP per turn it can fire that many times at different targets in the
+same turn. Stationary; no movement AP needed.
 
 ### Structures (no shop yet — code exists, HUD button missing)
 
@@ -96,11 +98,11 @@ Defender loses if Power Core HP reaches 0.
 
 ## Attackers (Cyborgs, red side)
 
-| Unit | Cost | HP | Speed | Damage | Range | AoE | Proposed AP | Special |
-|---|---|---|---|---|---|---|---|---|
-| **Cannon** | 70 | 180 | 55 | 35 | 240 | — | 3 | Heavy direct-fire infantry. Slowest cyborg, hits hard. |
-| **Grenadier** | 55 | 110 | 75 | 28 | 220 | 65 | 3 | Lobs grenade *over* intervening pieces — hits the target cell behind walls/units. Not kamikaze. |
-| **Double Gun** | 90 | 160 | 65 | 45 | 230 | — | 3 | Highest direct-fire damage (dual hand cannons). |
+| Unit | Cost | HP | Speed | Damage | Atk range | Sight | AoE | AP | Behavior |
+|---|---|---|---|---|---|---|---|---|---|
+| **Cannon** | 70 | 180 | 55 | 35 | 240 | 320 | — | 3 | Aggressive — advance to attack range, hold, fire |
+| **Grenadier** | 55 | 110 | 75 | 28 | 220 | 280 | 65 | 3 | Standoff — keep distance, lob grenades over cover, fall back if pressed |
+| **Double Gun** | 90 | 160 | 65 | 45 | 230 | 300 | — | 3 | Aggressive — heavy direct fire from medium range |
 
 Cyborgs spawn in the attacker zone (x > 200) and need to traverse the
 battlefield to reach the Power Core at (-550, 0).
@@ -124,18 +126,57 @@ Goal: small economic decisions that let weaker pieces threaten bigger ones
 
 ---
 
+## AI Behavior States
+
+Every piece runs a small state machine. Default transitions:
+
+```
+                       (target in sight)              (target lost / dead)
+   ┌──────────┐   ───────────────────►   ┌───────────┐   ──────────►   ┌──────────┐
+   │  CAMP    │                          │ ENGAGED   │                  │  CAMP    │
+   │ (idle)   │   ◄───────────────       │ (behavior │                  │          │
+   └──────────┘   (return to spawn)      │  routine) │                  └──────────┘
+                                          └───────────┘
+```
+
+**CAMP** — no enemy in sight. Piece can:
+- Wander: move 1 random adjacent cell every N turns (low frequency so it
+  doesn't drift far from spawn). Skip for stationary pieces (Sphere, structures).
+- Hold: stationary, idle animation.
+
+**ENGAGED** — a target is in sight. Piece runs its behavior routine:
+
+| Behavior | Description |
+|---|---|
+| **Aggressive** | Advance to attack range, fire whenever ready. Cannon, Double Gun. |
+| **Standoff** | Stay at max attack range; if enemy closes inside (range × 0.6) retreat one cell. Grenadier. |
+| **Defensive** | Stationary; fire whenever a target enters attack range. Spheres, turrets. |
+| **Sneaky** (future) | Try to flank — route around enemy front line to hit from behind. Assassin. |
+| **Sniper** (future) | Halt and crouch (different sprite state) before firing. Long range, slow rate of fire. |
+| **Suicide rush** (future) | Charge nearest target ignoring losses; explode on contact. |
+
+**Sight range** is separate from attack range:
+- Sight > attack lets a piece spot threats before engaging (most pieces).
+- Sight < attack would make a piece "blind" beyond a certain distance —
+  potential weakness for a long-range piece that needs a spotter.
+
+---
+
 ## Proposed future pieces
 
 These would deepen the rock-paper-scissors. Listed as design seeds — none are
 built yet.
 
-| Side | Name | Cost guess | Special |
-|---|---|---|---|
-| Robots | **Heavy Laser Turret** | 80 | Cardinal-only fire (N/S/E/W). High damage, long cooldown. Cyborgs that approach diagonally avoid it briefly. |
-| Robots | **Sniper Spire** | 60 | Cardinal-only, very long range (450). Single shot per turn. Counters fast cyborgs from across the map. |
-| Robots | **Shield Generator** | 50 | Stationary. Adds shield HP to adjacent friendly pieces per turn. |
-| Cyborgs | **Sapper** | 40 | Slow, low HP. Can disable a wall by sitting next to it for one turn. |
-| Cyborgs | **Sniper Cyborg** | 65 | Cardinal-only, range 380, single shot per turn. Soft counter to the Sphere. |
+| Side | Name | Cost guess | Behavior | Special |
+|---|---|---|---|---|
+| Robots | **Heavy Laser Turret** | 80 | Defensive | Cardinal-only fire (N/S/E/W). High damage, long cooldown. Cyborgs that approach diagonally avoid it briefly. |
+| Robots | **Sniper Spire** | 60 | Sniper | Cardinal-only, very long range (450). Single shot per turn. Counters fast cyborgs from across the map. |
+| Robots | **Shield Generator** | 50 | Defensive | Stationary. Adds shield HP to adjacent friendly pieces per turn. |
+| Robots | **Recon Drone** | 35 | Sneaky | Mobile spotter. Long sight, no weapon. Reveals fog of war for nearby allies (future fog-of-war system). |
+| Cyborgs | **Sapper** | 40 | Aggressive | Slow, low HP. Can disable a wall by sitting next to it for one turn. |
+| Cyborgs | **Sniper Cyborg** | 65 | Sniper | Cardinal-only, attack range 380, sight 450, single shot per turn. Crouches to aim — visible "crouch" sprite. Soft counter to the Sphere. |
+| Cyborgs | **Assassin** | 75 | Sneaky | High speed, low HP, short range melee. Tries to flank around the front line and hit defenders from the side or back. |
+| Cyborgs | **Berserker** | 50 | Suicide rush | Charges nearest target ignoring fire; detonates on contact for big AoE. |
 
 ## Balance Principles
 
@@ -164,3 +205,10 @@ built yet.
   resource pressure but adds inventory tracking.
 - **Same-turn fire by structures?** Turrets fire automatically (AI), or do they
   need defender to spend an AP on them like other pieces?
+- **Camp wandering frequency** — every turn (too chaotic) or every 2-3 turns
+  (more natural)? Stationary pieces never wander.
+- **Sight range blocking** — do walls / other pieces block sight the same way
+  they block projectiles? Probably yes for symmetry, but sniper/spotter pieces
+  may need a "elevated sight" exception.
+- **Sneaky / flank routing** — does an Assassin pathfind around the enemy line,
+  or just prefer cells away from the highest enemy density? Latter is simpler.
