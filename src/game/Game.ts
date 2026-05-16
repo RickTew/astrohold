@@ -41,7 +41,10 @@ export class Game {
   private phase: Phase = 'loading'
 
   private background!: Background
+  // Gameplay core (passed to BattlePhase for win/lose + damage). The two
+  // showcase cores live alongside it for visual comparison only.
   private powerCore!: PowerCore
+  private showcaseCores: PowerCore[] = []
   private hud!: HUD
   private buildPhase: BuildPhase | null = null
   private battlePhase: BattlePhase | null = null
@@ -106,8 +109,14 @@ export class Game {
       preloadPowerCore(),
     ])
 
-    this.powerCore = new PowerCore(this.scene)
-    window.addEventListener('keydown', this.onKeyDown)
+    // Three-up showroom: plain (top), textured (gameplay, middle), super
+    // (bottom). User compares them side-by-side; only the middle one is wired
+    // into BattlePhase for win/lose / damage.
+    const px = Config.POWER_CORE.X
+    const py = Config.POWER_CORE.Y
+    this.showcaseCores.push(new PowerCore(this.scene, 'plain',    px, py + 120))
+    this.powerCore =        new PowerCore(this.scene, 'textured', px, py)
+    this.showcaseCores.push(new PowerCore(this.scene, 'super',    px, py - 120))
 
     this.hud.showGame()
     this.enterBuildPhase()
@@ -289,6 +298,7 @@ private makeGhostRing(color: number, inner: number, outer: number): THREE.Mesh {
     this.attackerUnits.forEach(u => { u.update(delta); u.faceCamera(this.camera) })
     this.powerCore?.update(delta)
     this.powerCore?.faceCamera(this.camera)
+    for (const c of this.showcaseCores) { c.update(delta); c.faceCamera(this.camera) }
     this.spheres.forEach(s => { s.update(delta); s.faceCamera(this.camera) })
     this.buildPhase?.faceCamera(this.camera)
     this.battlePhase?.update(delta)
@@ -415,15 +425,6 @@ private makeGhostRing(color: number, inner: number, outer: number): THREE.Mesh {
 
   private onContextMenu = (e: Event) => e.preventDefault()
 
-  // Dev hotkey: T cycles the Power Core between plain and textured GLB
-  // variants so we can A/B them in-game without rebuilding.
-  private onKeyDown = (e: KeyboardEvent) => {
-    if (e.key !== 't' && e.key !== 'T') return
-    if (!this.powerCore) return
-    const next = this.powerCore.toggleVariant()
-    console.log(`[PowerCore] variant → ${next}`)
-  }
-
   dispose() {
     cancelAnimationFrame(this.rafId)
     window.removeEventListener('resize', this.onResize)
@@ -432,7 +433,6 @@ private makeGhostRing(color: number, inner: number, outer: number): THREE.Mesh {
     window.removeEventListener('mousemove', this.onMouseMove)
     window.removeEventListener('mouseup', this.onMouseUp)
     window.removeEventListener('contextmenu', this.onContextMenu)
-    window.removeEventListener('keydown', this.onKeyDown)
     this.buildPhase?.cleanup()
     this.endPlacement()
     this.removeZoneTint('att')

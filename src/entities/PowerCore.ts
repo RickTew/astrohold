@@ -2,36 +2,35 @@ import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { Config } from '../game/GameConfig'
 
-// Power Core = the base the defender is protecting. The body is a Meshy GLB.
-// Both a textured and a plain (geometry-only) variant are loaded so the user
-// can hot-swap with the 'T' key during testing to compare them.
+// Power Core = the base the defender is protecting. Three Meshy variants
+// (plain / textured / super) are loaded at startup. Game.ts instantiates all
+// three side-by-side so the user can compare without swapping.
 //
-// Both variants get the SAME procedural effect overlay (rotation, emissive
-// pulse, particle aura) so a fair comparison reveals what textures actually
-// add on top of our base presentation.
+// Per user feedback (session 9): we deliberately do NOT overwrite Meshy's
+// materials with a procedural cyan emissive. That made the plain export
+// render as a flat blue silhouette. Each variant now shows its honest output;
+// only ambient overlays (point light + orbiting particles + slow Y rotation
+// + pulse on whatever emissive the variant already has) are layered on top.
 
-export type CoreVariant = 'plain' | 'textured'
+export type CoreVariant = 'plain' | 'textured' | 'super'
 
 const MODELS: Record<CoreVariant, string> = {
   plain:    '/models/powercore/plain.glb',
   textured: '/models/powercore/textured.glb',
+  super:    '/models/powercore/super.glb',
 }
 
-// Target visible height in world units. Both variants are auto-scaled to this
-// regardless of their native model size, so swapping doesn't change footprint.
 const TARGET_HEIGHT = 85
-const ROTATION_RAD_PER_SEC = 0.18    // slow spin — readable but not distracting
+const ROTATION_RAD_PER_SEC = 0.18
 const PARTICLE_COUNT = 10
-const PARTICLE_RADIUS = TARGET_HEIGHT * 0.55  // orbit radius around the core's vertical axis
+const PARTICLE_RADIUS = TARGET_HEIGHT * 0.55
 
-// Module-level cache populated by preloadPowerCore(). Each entry is the raw
-// gltf.scene from the loader — we clone it per PowerCore instance.
 const templates: Partial<Record<CoreVariant, { scene: THREE.Group; scale: number }>> = {}
 
 export async function preloadPowerCore(): Promise<void> {
   const loader = new GLTFLoader()
   await Promise.all((Object.keys(MODELS) as CoreVariant[]).map(key =>
-    new Promise<void>((resolve, reject) => {
+    new Promise<void>((resolve) => {
       loader.load(
         MODELS[key],
         gltf => {
@@ -48,9 +47,6 @@ export async function preloadPowerCore(): Promise<void> {
   ))
 }
 
-// Per-mesh material baselines captured when a variant is swapped in, so the
-// pulse can multiply against the variant's "natural" emissive strength and
-// the hit-flash can restore exactly what it changed.
 type MaterialBaseline = {
   mat: THREE.MeshStandardMaterial
   emissiveHex: number
@@ -62,39 +58,36 @@ interface Particle {
   angle: number
   angularSpeed: number
   yOffset: number
-  yPhase: number   // for vertical bobbing
+  yPhase: number
   yAmp: number
 }
 
 export class PowerCore {
   readonly mesh: THREE.Group
+  readonly variant: CoreVariant
   hp: number
   readonly maxHp: number
   private hpBarGroup: THREE.Group
   private hpBar: THREE.Mesh
   private bodyGroup: THREE.Group | null = null
   private pointLight: THREE.PointLight
-  private pulseTime = 0
-  private currentVariant: CoreVariant = 'plain'
+  private pulseTime = Math.random() * Math.PI * 2   // phase offset so showcase trio isn't synchronized
   private baselines: MaterialBaseline[] = []
   private particles: Particle[] = []
+  private label: THREE.Mesh | null = null
 
-  constructor(scene: THREE.Scene) {
+  constructor(scene: THREE.Scene, variant: CoreVariant, x: number, y: number) {
+    this.variant = variant
     this.hp = this.maxHp = Config.POWER_CORE.HP
     this.mesh = new THREE.Group()
-    this.mesh.position.set(Config.POWER_CORE.X, Config.POWER_CORE.Y, 0)
+    this.mesh.position.set(x, y, 0)
 
-    // Cyan ambient glow, intensity pulsed in update().
-    this.pointLight = new THREE.PointLight(0x00aaff, 3.5, 240)
+    this.pointLight = new THREE.PointLight(0x00aaff, 3.2, 220)
     this.pointLight.position.set(0, TARGET_HEIGHT * 0.5, 0)
     this.mesh.add(this.pointLight)
 
-    // Particle aura — 10 small emissive motes orbiting the core. Sits on the
-    // PowerCore group (not the bodyGroup) so it doesn't get torn down when
-    // variants swap.
     this.buildParticles()
 
-    // HP bar — billboarded.
     this.hpBarGroup = new THREE.Group()
     this.hpBarGroup.position.set(0, TARGET_HEIGHT * 1.12, 0)
     const bgBar = new THREE.Mesh(
@@ -111,48 +104,22 @@ export class PowerCore {
     this.hpBarGroup.add(this.hpBar)
     this.mesh.add(this.hpBarGroup)
 
-    this.setVariant('plain')
+    this.buildLabel(variant)
+
+    this.installVariant()
     scene.add(this.mesh)
   }
 
-  setVariant(variant: CoreVariant) {
-    if (this.bodyGroup) {
-      this.mesh.remove(this.bodyGroup)
-      this.bodyGroup = null
-    }
-    const tpl = templates[variant]
+  private installVariant() {
+    const tpl = templates[this.variant]
     if (!tpl) { this.buildFallback(); return }
 
     const clone = tpl.scene.clone(true)
     clone.scale.setScalar(tpl.scale)
 
-    if (variant === 'plain') {
-      // Plain export ships as flat gray geometry. Replace materials so the
-      // core has a base color identity. Pulse + rotation + particles below
-      // give it the "alive" feel even without any baked Meshy textures.
-      clone.traverse(obj => {
-        if (!(obj instanceof THREE.Mesh)) return
-        const baseMat = obj.material as THREE.MeshStandardMaterial
-        const tinted = new THREE.MeshStandardMaterial({
-          color: 0x1f2e3a,
-          emissive: new THREE.Color(0x00bbff),
-          emissiveIntensity: 1.1,
-          metalness: 0.55,
-          roughness: 0.45,
-        })
-        if (baseMat && 'normalMap' in baseMat && baseMat.normalMap) {
-          tinted.normalMap = baseMat.normalMap
-        }
-        obj.material = tinted
-      })
-    }
-
-    this.bodyGroup = clone
-    this.mesh.add(clone)
-    this.currentVariant = variant
-
-    // Capture per-material baselines so the pulse multiplier + flash-on-hit
-    // can return to exactly what the variant was authored with.
+    // Capture per-material baselines so the pulse can multiply against the
+    // variant's authored emissive, and so flashHit can restore exactly what
+    // it changed. No material replacement — Meshy's output ships as-is.
     this.baselines = []
     clone.traverse(obj => {
       if (!(obj instanceof THREE.Mesh)) return
@@ -164,18 +131,37 @@ export class PowerCore {
         emissiveIntensity: mat.emissiveIntensity ?? 1,
       })
     })
+
+    this.bodyGroup = clone
+    this.mesh.add(clone)
   }
 
-  toggleVariant(): CoreVariant {
-    const next: CoreVariant = this.currentVariant === 'plain' ? 'textured' : 'plain'
-    this.setVariant(next)
-    return next
+  // Small canvas-textured label above the HP bar so each showcase core is
+  // identifiable from the screenshot. Billboards with the HP bar.
+  private buildLabel(name: string) {
+    const canvas = document.createElement('canvas')
+    canvas.width = 256; canvas.height = 48
+    const ctx = canvas.getContext('2d')!
+    ctx.fillStyle = 'rgba(0,0,0,0.55)'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.fillStyle = '#00ddff'
+    ctx.font = 'bold 28px monospace'
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+    ctx.fillText(name.toUpperCase(), canvas.width / 2, canvas.height / 2)
+    const tex = new THREE.CanvasTexture(canvas)
+    tex.colorSpace = THREE.SRGBColorSpace
+    const plane = new THREE.Mesh(
+      new THREE.PlaneGeometry(60, 11),
+      new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false })
+    )
+    plane.position.set(0, TARGET_HEIGHT * 1.05, 0)
+    this.label = plane
+    this.mesh.add(plane)
   }
-
-  get variant(): CoreVariant { return this.currentVariant }
 
   faceCamera(camera: THREE.Camera) {
     this.hpBarGroup.quaternion.copy(camera.quaternion)
+    if (this.label) this.label.quaternion.copy(camera.quaternion)
   }
 
   takeDamage(amount: number) {
@@ -188,8 +174,6 @@ export class PowerCore {
     this.flashHit()
   }
 
-  // Brief red flash on the point light AND every emissive material, then
-  // restore baselines (pulse will re-multiply against those next frame).
   private flashHit() {
     this.pointLight.color.setHex(0xff2200)
     this.pointLight.intensity = 6
@@ -219,9 +203,6 @@ export class PowerCore {
     this.mesh.add(group)
   }
 
-  // 10 emissive cyan motes orbiting the core. Each has its own angular speed
-  // and a small vertical bobbing component so the aura never reads as a
-  // perfect ring — feels organic / energetic.
   private buildParticles() {
     const geo = new THREE.SphereGeometry(1.8, 6, 6)
     const mat = new THREE.MeshBasicMaterial({
@@ -237,7 +218,7 @@ export class PowerCore {
       this.particles.push({
         mesh: m,
         angle: (i / PARTICLE_COUNT) * Math.PI * 2,
-        angularSpeed: 0.6 + Math.random() * 0.6,   // 0.6–1.2 rad/sec
+        angularSpeed: 0.6 + Math.random() * 0.6,
         yOffset: TARGET_HEIGHT * (0.25 + Math.random() * 0.6),
         yPhase: Math.random() * Math.PI * 2,
         yAmp: 4 + Math.random() * 4,
@@ -250,22 +231,18 @@ export class PowerCore {
   update(delta: number) {
     this.pulseTime += delta
 
-    // 1) Idle Y rotation on the body — slow and constant. Skipped on the HP
-    //    bar group (handled by faceCamera) so the bar stays readable.
     if (this.bodyGroup) this.bodyGroup.rotation.y += ROTATION_RAD_PER_SEC * delta
 
-    // 2) Emissive pulse on every captured material, multiplied against its
-    //    baseline so textured exports breathe in their own colors and plain
-    //    pulses in cyan. 0.7–1.4× baseline at ~0.35 Hz.
-    const pulse = 1 + Math.sin(this.pulseTime * 2.2) * 0.35
+    // Pulse only multiplies baseline emissive. Plain export has 0 baseline →
+    // no visible pulse on plain (honest output). Textured/super have authored
+    // emissive → they breathe in their own colors.
+    const pulse = 1 + Math.sin(this.pulseTime * 2.2) * 0.3
     for (const b of this.baselines) {
       b.mat.emissiveIntensity = b.emissiveIntensity * pulse
     }
 
-    // 3) Ambient point light pulses in cyan range, same rate.
-    this.pointLight.intensity = 3.5 + Math.sin(this.pulseTime * 2.2) * 0.9
+    this.pointLight.intensity = 3.2 + Math.sin(this.pulseTime * 2.2) * 0.8
 
-    // 4) Particle motes orbit + bob.
     for (const p of this.particles) {
       p.angle += p.angularSpeed * delta
       const x = Math.cos(p.angle) * PARTICLE_RADIUS
