@@ -424,3 +424,157 @@ User plans to commission the Power Core in Meshy. Delivered the prompt as chat t
 2. **Power Core replacement** — once Meshy returns the GLB, drop it under `/public/models/powercore/`, swap PowerCore.ts's geometric placeholder for a GLB load (mirror the way Unit loaded the cyborg GLB; PowerCore is static so no animation mixer needed).
 3. **Retire the 3D scout?** — if the pixel aesthetic feels right with cannon + grenadier on screen, port scout to SpriteUnit and delete the heavy `/public/models/cyborg/*.glb` files + animation infrastructure in Unit.ts. Optional, not urgent.
 4. **Animation frames in the new zips** — both zips include per-state per-direction animation frame PNGs (`stop_dies_and_drops_dead`, `Medium_Throw`, `Points_canon_arm_forward`, etc.). Not wired up; available if we want firing/death state cycles instead of static rotation poses.
+
+---
+
+## Session 8-9 (2026-05-16 → 2026-05-17) — Chess pivot: top-down grid, pixel power core, sphere multi-shot
+
+This session is a hard pivot toward grid-based chess-like strategy. Power Core
+becomes a pixel sprite, camera goes top-down, every entity snaps to a grid
+cell, and an AI behavior framework (CAMP/ENGAGED + sight ranges) is wired in.
+
+### Direction decisions (locked)
+1. **Game type:** chess-like turn-based grid strategy. Not RTS, not real-time.
+2. **Framework:** stay on Vite + Three.js. Phaser migration evaluated and
+   rejected — Three.js renders 2D sprites fine, migration would be 6-10 hours
+   for no concrete win.
+3. **Assets:** sprite-only for combatants. Meshy retired for characters
+   (session 7 confirmed); now also retired for the Power Core after the GLB
+   super core had unavoidable back-spike occlusion under any tilted camera.
+   See `[[project_chess_design_pivot]]` and `[[meshy-retired-for-characters]]`.
+
+### Power Core — pixel sprite locked
+- Tried three Meshy variants side-by-side (plain / textured / super). Super
+  was the best but its dome geometry occluded back-half spikes under any tilt.
+- Switched to `PixelPowerCore` — 124×124 PNG with 8 rotation directions and a
+  9-frame explosion animation. Sprite-based, never self-occludes.
+- Death sequence: HP=0 → 9-frame explosion plays once → sprite hides. Blast
+  damages all attackers within 180-unit radius (BattlePhase.applyCoreBlast).
+- `super.glb` / `textured.glb` / `plain.glb` remain on disk; `preloadPowerCore`
+  is no longer called. Three.js bundle dropped 70KB (GLTFLoader gone).
+- `textured.glb` is **earmarked as a future defense-tower asset** — drop it in
+  if we add a turret structure that needs a hero visual.
+
+### New attacker — Double Gun
+- 90cr, 160 HP, speed 65, dmg 45, range 230, no AoE. Costliest cyborg, highest
+  direct-fire damage.
+- Cleanest sprite extraction yet: every state has all 8 directions, no mirror
+  fallback needed. 256 PNGs.
+- Cannon zip was also re-extracted this session (user fixed west walking via
+  a separate `walking_WEST_...` clip; merged into the main walking folder).
+- Grenadier NE↔NW sprites swapped per user (Meshy had them flipped).
+
+### Cyborg animation system — fully wired
+Per-state per-direction frame sequences for every cyborg type. Folder layout:
+`/public/sprites/<unit>/<state>/<direction>/frame_NNN.png`.
+- States: `idle` (loop), `walking` (loop), `shoot`/`throw` (one-shot, returns
+  to idle/walking on completion), `die` (one-shot, clamps on last frame).
+- BattlePhase calls `unit.playAttackAnim()` right before every projectile
+  spawn so cyborgs visibly shoot/throw instead of emitting silently.
+- Missing-direction fallback: `MIRROR` map flips `sprite.scale.x` to render
+  the partner clip. Cannon idle/shoot missing dirs handled this way.
+- Grenadier `throw` is two Meshy clips fused — lean_back covers E/NE/NW/W,
+  Medium_Throw covers N/S/SE/SW.
+
+### Sound effects
+- New `src/audio/sfx.ts` — synthesized via Web Audio, no sample files (zero
+  bundle cost). Lazy AudioContext.
+- `playGunshot()` (35ms throttle) — every non-AoE projectile spawn.
+- `playExplosion()` (60ms throttle) — AoE projectile impacts, mine detonations,
+  Power Core death.
+
+### Camera: 45° tilt → TOP-DOWN
+- `camera.position` (0, 300, 300) → (0, 0, 500). lookAt origin unchanged.
+- Grid cells now project as true squares instead of foreshortened rectangles.
+- Sprite anchoring recentered: SpriteUnit + PixelPowerCore both moved from
+  feet-anchor (`position.y = 0.35×size`) to true center (`position.y = 0`).
+  HP bar offsets pulled in accordingly (SpriteUnit 35→22, PixelPowerCore
+  0.78×→0.55×size).
+- SphereDefender sprite shrunk 50% (90 → 45 world units) per user request.
+
+### Grid + placement
+- Map-wide grid: 50×50 cells, 24 cols × 8 rows = 192 cells. Drawn as subtle
+  gray line segments at z=0.3 (under fence borders).
+- `Game.snapToGridCell(x, y, zoneXMin, zoneXMax)` snaps cursor to cell center,
+  restricted to active placement zone. Ghost ring jumps cell-to-cell.
+- `Game.isCellOccupied(x, y)` blocks placement if a piece already sits there.
+- `BattlePhase.isCellOccupiedInBattle(x, y, exclude)` does the same during
+  movement, also covering spheres, structures, and the core's cell.
+- Margin-clamping code (`marginTop` / `marginBottom`) removed — grid bounds
+  supersede it.
+- Bug fix: switching attacker types previously left an orphan ghost ring in
+  the scene. Added `endPlacement()` to start of both placement helpers.
+
+### Movement: grid-stepped, one cell per turn (all units)
+- Speed stat is currently unused for movement — every unit moves at most one
+  cell per turn. Returns to AP-tiered when the full turn system lands.
+- Movement picks the adjacent cell closest to the core; rejects any cell
+  that's already occupied OR doesn't reduce distance to the core.
+
+### Range-based engagement
+- Old code engaged the core only when `dist <= POWER_CORE.RADIUS + 20`
+  (38 units — basically melee). Now: any unit fires at the core from
+  `dist <= unit.range`. Cannons / Grenadiers / DoubleGuns engage from across
+  the battlefield.
+- Core death triggers a 180-unit AoE blast that kills nearby attackers.
+
+### Sphere multi-shot
+- `doSphereTurn` fires up to 3 shots/turn at the 3 nearest distinct enemies
+  inside `sphere.range`. Fewer shots if fewer enemies in range.
+
+### AI behavior framework — CAMP / ENGAGED
+- New `Config.UNITS[type].sightRange` per cyborg (320 / 280 / 300).
+- `BattlePhase.anyTargetInSight(unit)` checks distance to sphere /
+  structure / core against sightRange.
+- In `doUnitTurn`: if no fire opportunity AND nothing in sight (CAMP), 50%
+  chance to call `wanderUnit()` (random unoccupied adjacent cell) and 50%
+  chance to still advance. ENGAGED (target in sight) always advances.
+
+### docs/STATS.md — created and maintained
+Single source of truth for balance. Captures:
+- Every current piece's stats (sphere, structures, cyborgs, core)
+- Proposed AP / behavior per piece
+- AI behavior state machine (CAMP/ENGAGED, behavior list:
+  Aggressive / Standoff / Defensive / Sneaky / Sniper / Suicide rush)
+- Sight ranges, line-of-sight rules (proposed)
+- Build-phase economy expansion (ammo, health, shields, AP boost)
+- Proposed future pieces: Heavy Laser Turret, Sniper Spire, Shield Generator,
+  Recon Drone, Sapper, Sniper Cyborg, Assassin, Berserker
+- Open design questions (plan-then-play vs one-action-at-a-time, diagonal
+  movement, ammo finite/unlimited, wander frequency, sight blocking,
+  flanking pathfinding)
+
+### Bugs identified that turned out to be misdiagnoses (worth recording)
+- "HP bar occluding model spikes" — wasn't the bar; was geometric depth
+  occlusion of the back-half spikes by the model's own dome under the 45°
+  camera. The eventual fix was top-down camera + pixel core.
+- "Lighting issue making model invisible" — wasn't lighting; same geometric
+  occlusion. The lighting rig (hemisphere + back-fill) added during that
+  diagnosis is still in place and is fine for any future PBR meshes (defense
+  tower etc.), just wasn't the right tool for that problem.
+
+### Repo state at session end
+- Branch `main` at `d0ac6a8`, pushed to GitHub, deployed to production.
+- Build clean (`pnpm build`). Bundle: 38 KB index + 527 KB Three.js (down
+  70 KB from session 7 — GLTFLoader removed).
+- Live: https://astrohold3.vercel.app
+
+### Suggested next-session opening moves
+1. **Full turn system** — alternating Robots → Cyborgs → Robots turns. Each
+   piece has Action Points it spends on moves/shots (see STATS.md "Movement
+   / Action Points" table). Currently turns alternate between "all units act"
+   and "all defenders act" simultaneously — the chess pivot needs proper
+   per-piece sequential turns.
+2. **Plan-then-play vs one-action-at-a-time** — pick one before building the
+   turn system. STATS.md has the tradeoff captured.
+3. **Build-phase shop expansion** — buyable upgrades (ammo / health / shield /
+   AP boost) per piece. STATS.md has costs scoped.
+4. **Structures HUD** — turret / cannon / wall / mine code paths all exist
+   in BuildPhase.ts + Structure.ts but no shop buttons. Hooking them up is
+   the cheapest way to add tactical variety on the defender side.
+5. **First future archetype** — Sniper Cyborg or Assassin from the proposed
+   list. Both need new behavior code + a PixelLab asset commission.
+6. **Tuning pass** — wander frequency (50% may be too high), Sphere 3-shot
+   strength (may be too strong against single targets), sight range numbers.
+7. **textured.glb defense tower** — earmarked asset on disk, ready to wire up
+   as a fancy turret variant once the structure shop is in.

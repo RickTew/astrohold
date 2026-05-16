@@ -1,85 +1,144 @@
 # AstroHold — Project Rules for Claude
 
-## Stack 
+## Status: chess-like turn-based grid strategy (session 8-9 pivot)
+The game is **NOT an RTS** and **not real-time**. It's a chess-style turn-based
+strategy on a visible grid. Defenders (Robots, blue) place pieces in their
+zone; attackers (Cyborgs, red) place pieces in theirs; battle alternates sides
+turn-by-turn. **One piece per cell, strict.** Long-term plan and current
+balance numbers live in `docs/STATS.md` — that's the source of truth for
+stats, behaviors, and open design questions. Update STATS.md whenever stats
+or behaviors change.
+
+## Stack
 - Package manager: pnpm
 - Bundler: Vite 8 (Rolldown inside)
-- Renderer: Three.js r184
+- Renderer: Three.js r184 (sprite-first now — no GLBs loaded for gameplay)
 - Language: TypeScript 6 (strict)
 - Linting: Biome (when added)
 
+Framework decision (session 9): stay on Vite + Three.js. Phaser 4 was
+evaluated and rejected — Three.js renders sprites perfectly well; migration
+cost was unwarranted.
+
 ## File conventions
-- All static assets (GLBs, textures, audio) go in `/public/` — loaded via absolute paths like `/models/cyborg/idle.glb`
-- Shaders go in `/src/shaders/` as `.vert`/`.frag` — add `vite-plugin-glsl` when first shader is written
-- Zip archives go in `/_zips/`
+- Static assets in `/public/`. Loaded via absolute paths.
+- Pixel sprite layout:
+  `/public/sprites/<entity>/<dir>.png` (8 directional static rotations)
+  `/public/sprites/<entity>/<state>/<dir>/frame_NNN.png` (animation frames)
+- Source PNG zips and other archives go in `/_zips/`.
+- GLBs are not used for gameplay; `super.glb`, `textured.glb`, `plain.glb`
+  remain under `/public/models/powercore/` only as future repurposable assets
+  (textured is earmarked as a defense-tower visual).
 
-## Key constants to know
-- World: x -600 to 600, y -200 to 200
-- Defender zone: x < -200 | Attacker zone: x > 200 | Battlefield: middle
-- Power Core at (-550, 0)
-- Grid cell: 50×50 in defender zone (8 cols × 8 rows)
-- Start credits: 200 (defender + attacker each start with 200)
+## Key constants
+- World: x [-600, +600], y [-200, +200] = 1200 × 400 world units
+- Grid cell: **50 × 50** world units → 24 cols × 8 rows = **192 cells**
+- Defender zone: x < -200 (8 cols) — Robots place here
+- Attacker zone: x > 200 (8 cols) — Cyborgs spawn / place here
+- Battlefield: middle 8 cols, no placements
+- Power Core at (-550, 0). Pixel sprite, 200 world units tall.
+- Start credits: 1000 (testing budget; STATS.md lists production target)
 
-## Visual stack: hybrid pixel-sprite + 3D
-The game uses **Three.js** as the rendering engine throughout. Inside that, individual entities can be EITHER pixel-art sprites OR 3D GLB models — both are first-class.
+## Camera
+- **Top-down** orthographic at (0, 0, 500) looking at origin. Grid cells
+  project as true on-screen squares.
+- Earlier 45° tilt was retired in session 9 — it foreshortened Y and made
+  cells render as wide rectangles. Top-down also avoids 3D self-occlusion
+  problems for any Meshy export (the spike-occlusion bug that motivated the
+  retire-the-GLB-core decision).
 
-**Default preference: pixel sprite from PixelLab** for simple/one-pose entities. Faster to build, instant load, no clone/material/Meshy-export gotchas.
+## Visual stack — pixel sprites only (combatants)
+Every combatant is a `THREE.Sprite` billboard. Sprites face the camera
+identically at any angle, so the camera change in session 9 didn't require
+asset changes. Required `SpriteMaterial` flags:
+- `transparent: true`
+- `depthTest: false` — billboards share one depth per quad, so depth-test
+  failures cull all four corners at once. With `false` they never get
+  occluded by the ground / fence / other sprites.
+- `depthWrite: false` — and don't poison the buffer for later draws.
+- `alphaTest: 0.1` — clean pixel-art edges.
+- `renderOrder: 10` — sequence after ground / grid / fence.
 
-**3D GLB models still welcome** for humanoid characters with rigs and animations, or any time the 3D version is more fun to author or play with. The cyborg is 3D today and may stay 3D; new bosses, NPCs, or visual centerpieces can be 3D too.
+### Direction picker bug to remember
+`SpriteUnit.updateDirectionSprite()` uses
+`((facingAngle / (π/4)) + 16) % 8`. The `+ 16` must be an **integer multiple
+of 8** for the modulo to preserve bucket values. A previous `+ TAU * 8`
+(= 16π ≈ 50.27) silently rotated every direction (west → south). See
+session 8 in DEVNOTES.
 
-When picking which approach for a new entity, decide based on the entity, not project-wide policy:
-- One static look or simple spin/cycle → pixel sprite (8 directions from PixelLab, ~24 KB total)
-- Many animation states × directions → 3D rigged model (one GLB scales infinitely)
-- Visual flair, particles, dynamic lighting → 3D
-- Tiny UI sprites, projectiles, structures, mines → pixel sprite
-
-### Pixel sprite assets
-- Folder: `/public/sprites/<entity>/{south, south-east, east, north-east, north, north-west, west, south-west}.png`
-- Source: PixelLab. Standard rotation set is 8 directions.
-- Rendered via `THREE.Sprite` with `NearestFilter` for crisp pixel scaling. Required flags: `transparent: true`, `depthTest: false`, `depthWrite: false`, `alphaTest: 0.1`, `renderOrder` bumped (see SphereDefender.ts for the canonical pattern).
-- Spinning effect: cycle through the 8 directional frames on a timer (sphere uses 0.4 s per frame, ~3.2 s per full spin).
-
-### 3D models (still active for the cyborg today)
-- Folder: `/public/models/<entity>/`
-- For animation-heavy characters, prefer the merged-animation format: `character.glb` (mesh + skeleton) + `animations.glb` (all clips in one file).
-- `MODEL_SCALE` and `MODEL_TILT_X` in `src/entities/Unit.ts` are the first knobs to tweak when model size/orientation is wrong.
-- New models: create → add to `/public/models/` → playtest → exhaust improvements → then add next model.
-
-### Required model orientation (for the existing Unit pipeline to "just work")
-- Body axis along **+Y** (standard glTF / Meshy default). At MODEL_TILT_X=0 the cyborg appears upright in the 45° tilted view.
-- Forward / front face along **+Z** (Meshy default). The unit's default rotation.y faces -X (toward power core) by rotating the +Z front around the +Y body axis.
-- Origin at the **feet** so position (worldX, worldY, 0) lands on the ground.
-- A new humanoid model authored to these conventions plugs into Unit.ts without per-model rotation tweaks. If a model deviates, prefer fixing the asset over per-unit special-cases.
+### Sprite anchoring (top-down)
+- `sprite.position.set(0, 0, 5)` — centered on the piece's `mesh.position`.
+  In top-down view, the cell center IS the piece's screen position. Old
+  feet-anchoring (`y = 0.35 × size`) is wrong for grid placement.
+- HP bar group above sprite, billboarded each frame via
+  `hpBarGroup.quaternion.copy(camera.quaternion)`.
 
 ## Architecture
-- `GameConfig.ts` — all constants, change numbers here first before touching logic
-- `Game.ts` — scene, camera, renderer, state machine (loading → build → battle → win/lose); owns sphere placement flow (sphereSelecting / spherePlaced / sphereGhostMesh)
-- `BuildPhase.ts` — grid structure placement; exposes `spendCredits(n)` and `getCredits()` so Game.ts can deduct for sphere purchase
-- `BattlePhase.ts` — turn-based: ALL units act simultaneously, then ALL structures + sphere act simultaneously; TURN_INTERVAL controls speed; damage deferred via Projectile.onHit callbacks
-- `SphereDefender.ts` — defender hero; worldX/worldY are mutable (updated at placement time); range 200, HP 300, cost 100cr
-- `HUD.ts` — DOM overlay only, no Three.js; exposes onBuySphere / onSpawnUnit / onBattle / onSelectStructure callbacks; markSpherePurchased() disables button
-- HMR dispose is wired in `main.ts` + `Game.ts` — do not remove it
+- `GameConfig.ts` — all constants and per-unit stats. Tweak numbers here
+  first; per-unit fields include `cost`, `hp`, `speed`, `damage`, `range`,
+  **`sightRange`** (new), `aoeRadius`, `label`, `color`.
+- `Game.ts` — scene, camera, renderer, state machine, unified
+  `PlacementSession`, grid snap (`snapToGridCell`), one-piece-per-cell
+  enforcement (`isCellOccupied`).
+- `BuildPhase.ts` — credit ledger; structures placement code (no shop UI yet).
+- `BattlePhase.ts` — current real-time-ish combat: units act in a tick,
+  defenders react. **Full turn system not yet implemented.** Contains:
+  `anyTargetInSight`, `wanderUnit`, `advanceToward`, `isCellOccupiedInBattle`,
+  `applyCoreBlast`.
+- `PixelPowerCore.ts` — gameplay core. 8 rotation PNGs + 9-frame explosion.
+- `SphereDefender.ts` — defender hero. 8 rotation PNGs cycled on a spin
+  timer (45 world-units across).
+- `SpriteUnit.ts` — every attacker. Per-state per-direction animation frames
+  with horizontal-mirror fallback for missing directions; `playAttackAnim()`
+  is called from BattlePhase before each projectile spawn.
+- `HUD.ts` — DOM overlay only, no Three.js. Exposes onBuySphere /
+  onSpawnUnit / onBattle / onSelectStructure callbacks.
+- `audio/sfx.ts` — synthesized gunshot + explosion. Lazy AudioContext,
+  rate-limited (35ms / 60ms). No sample files.
+- HMR dispose is wired in `main.ts` + `Game.ts` — do not remove it.
 
-## Canonical placement flow (cyborg + sphere)
-Both placements share this 3-step pattern. **The ghost mesh is the source of truth for placement position.** Don't re-raycast at click time.
+## Placement flow (grid)
+Single source of truth: `Game.placement` (PlacementSession). The ghost ring
+is the position authority — never re-raycast at click time.
+1. **HUD button → start session.** `startSpherePlacement` or
+   `startCyborgPlacement` call `endPlacement()` first (so the prior ghost
+   ring is destroyed), then create a new ghost mesh and set
+   `this.placement`.
+2. **`onMouseMove` → snap.** `snapToGridCell(cursor.x, cursor.y, zoneXMin,
+   zoneXMax)` returns the cell center + a `valid` flag. Ghost jumps to that
+   cell center; hidden if outside the zone.
+3. **`onMouseDown` → place.** Reads `placement.ghost.position`, runs
+   `placement.onPlace(x, y)`. The callback checks `isCellOccupied(x, y)`
+   and returns false to reject (one piece per cell).
 
-1. **HUD button click → enter selecting mode**: set a flag (`sphereSelecting` / `selectedAttUnitType`), call `createXxxGhost()` to add a ring mesh to the scene at a starting world position.
-2. **`onMouseMove` → update ghost**: raycast cursor to world via `screenToWorld(clientX, clientY)`. If the world position is inside the valid zone, set `ghost.position` and `ghost.visible = true`. Otherwise `ghost.visible = false`.
-3. **`onMouseDown` → place at ghost**: `if (!ghost.visible) return` is the gate. Then `spendCredits(...)` and read position from `ghost.position` (NOT a fresh raycast). Then `clearGhost()` and update HUD.
+## Battle movement
+- One cell per turn for every unit (speed stat ignored for now — AP system
+  will tier this).
+- `BattlePhase.advanceToward` picks the adjacent cell (of 8) closest to the
+  target that's not blocked by `isCellOccupiedInBattle`.
+- **CAMP vs ENGAGED:** before moving, `anyTargetInSight(unit)` checks
+  distance to spheres / structures / core against
+  `Config.UNITS[type].sightRange`. If nothing is in sight, 50% chance to
+  call `wanderUnit()` instead of advancing. If anything's in sight, always
+  advance every turn.
 
-Also: in `createSphereGhost`, a bright zone tint is added over the defender zone so the click target is obvious. `clearSphereGhost` removes both the ghost and the zone tint.
-
-## Rendering
-- Use `MeshBasicMaterial` for ground/overlays — MeshStandardMaterial multiplies color by ambient+directional (≈3.7×), making dark earth tones render as washed-out gray
-- Grid: neutral gray (0xaaaaaa/0x777777), opacity 0.3, z=1.5 (must be above zone tint overlays at z=-4)
-- Scene background color should match terrain darkest tone (currently 0x201b14)
+## Sound
+- `playGunshot()` after every non-AoE projectile spawn (cyborg attacks,
+  sphere shots, turret shots).
+- `playExplosion()` on AoE projectile impacts (grenadier, cannon turret,
+  mines), and on Power Core death.
+- Both are throttled to avoid stacking dozens per turn.
 
 ## Deployment
-- Always deploy with `vercel --prod` — `vercel` alone creates a preview URL that users won't see
+- Always deploy with `vercel --prod` — `vercel` alone creates a preview URL
+  the user never sees.
 - Production URL: https://astrohold3.vercel.app
 
 ## Rules
-- Don't hardcode rules or patterns that don't match our actual build — verify before committing
-- Prefer pragmatic/working over theoretically correct
-- Check if a tool/plugin is actually useful for this project before adding it
-- `vite-plugin-gltf` is installed but inactive until GLBs are imported (not just URL-loaded from /public)
-- No test files yet — add Vitest only when there's logic worth testing
+- Don't hardcode rules or patterns that don't match the actual build —
+  verify before committing.
+- Prefer pragmatic / working over theoretically correct.
+- Numbers (stats / behaviors / costs) live in `Config` and `docs/STATS.md`.
+  Update both together when tuning.
+- No test files yet — add Vitest only when there's logic worth testing.
+- `vite-plugin-gltf` installed but inactive (no GLBs are loaded at runtime).
