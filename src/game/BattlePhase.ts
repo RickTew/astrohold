@@ -5,6 +5,7 @@ import { Structure } from '../entities/Structure'
 import { Projectile } from '../entities/Projectile'
 import { Explosion } from '../entities/Explosion'
 import { PixelPowerCore } from '../entities/PixelPowerCore'
+import { playGunshot, playExplosion } from '../audio/sfx'
 import { SphereDefender } from '../entities/SphereDefender'
 
 // All attackers are pixel sprites now — the 3D Unit class was retired in
@@ -52,6 +53,9 @@ export class BattlePhase {
         const proj = this.projectiles[i]
         proj.onHit?.()
         this.explosions.push(new Explosion(this.scene, proj.targetX, proj.targetY, proj.isAoe ? proj.aoeRadius : 20, 0.4))
+        // AoE projectiles get the heavy boom; direct hits keep silent at
+        // impact (the gunshot at spawn already covered the audio).
+        if (proj.isAoe) playExplosion()
         this.projectiles.splice(i, 1)
       }
     }
@@ -139,6 +143,7 @@ export class BattlePhase {
       )
       proj.onHit = () => sphere.takeDamage(unit.damage)
       this.projectiles.push(proj)
+      playGunshot()   // direct-fire shot at a sphere
       return
     }
 
@@ -179,6 +184,7 @@ export class BattlePhase {
         proj.onHit = () => target.takeDamage(unit.damage)
       }
       this.projectiles.push(proj)
+      if (!isAoe) playGunshot()   // gunshot for cannon/doublegun; grenadier handled on impact boom
       return
     }
 
@@ -217,6 +223,7 @@ export class BattlePhase {
         proj.onHit = () => coreRef.takeDamage(unit.damage)
       }
       this.projectiles.push(proj)
+      if (!isAoe) playGunshot()
     } else {
       const nx = unit.worldX + (dx / dist) * unit.speed
       const ny = unit.worldY + (dy / dist) * unit.speed
@@ -234,6 +241,7 @@ export class BattlePhase {
         // Detonate — damage all units in AoE
         const radius = Config.STRUCTURES.mine.range + 10
         this.explosions.push(new Explosion(this.scene, s.worldX, s.worldY, radius, 0.7))
+        playExplosion()
         for (const u of this.units) {
           if (!u.isDead) {
             const udx = u.worldX - s.worldX
@@ -264,6 +272,7 @@ export class BattlePhase {
     )
     proj.onHit = () => target.takeDamage(sphere.damage)
     this.projectiles.push(proj)
+    playGunshot()   // sphere fires a direct shot at an attacker
   }
 
   private doStructureTurn(structure: Structure, aliveUnits: Attacker[]) {
@@ -288,6 +297,7 @@ export class BattlePhase {
       structure.damage, isAoe, isAoe ? 45 : 0
     )
     this.projectiles.push(proj)
+    if (!isAoe) playGunshot()
 
     if (isAoe) {
       const dmg = structure.damage

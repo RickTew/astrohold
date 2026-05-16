@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { Config } from '../game/GameConfig'
+import { playExplosion } from '../audio/sfx'
 
 // 2D-sprite alternative to the GLB PowerCore. Billboarded, so it cannot be
 // occluded by its own geometry the way the 3D Meshy export was.
@@ -12,7 +13,9 @@ const DIRECTIONS = [
   'south', 'south-east', 'east', 'north-east',
   'north', 'north-west', 'west', 'south-west',
 ] as const
-const FRAME_INTERVAL = 0.5             // s per rotation frame → ~4 s full spin
+// Core no longer rotates — user preferred a static, planted look. We just
+// pick one direction at construction (south, facing camera) and stay there.
+const DEFAULT_DIRECTION_INDEX = 0      // 'south'
 const EXPLOSION_FRAME_COUNT = 9
 const EXPLOSION_FRAME_INTERVAL = 0.09  // ~0.8 s total death animation
 
@@ -52,8 +55,6 @@ export class PixelPowerCore {
   private sprite: THREE.Sprite
   private hpBarGroup: THREE.Group
   private hpBar: THREE.Mesh
-  private spinTime = 0
-  private frameIndex = 0
   private dying = false
   private dyingTime = 0
   private dyingFrame = 0
@@ -64,7 +65,7 @@ export class PixelPowerCore {
     this.mesh = new THREE.Group()
     this.mesh.position.set(x, y, 0)
 
-    const firstTex = loaded ? rotTextures[0] : null
+    const firstTex = loaded ? rotTextures[DEFAULT_DIRECTION_INDEX] : null
     const mat = new THREE.SpriteMaterial({
       map: firstTex,
       transparent: true,
@@ -122,6 +123,7 @@ export class PixelPowerCore {
     }
     // Hide the HP bar during the death animation.
     this.hpBarGroup.visible = false
+    playExplosion()
   }
 
   get isDead() { return this.hp <= 0 }
@@ -129,34 +131,25 @@ export class PixelPowerCore {
   update(delta: number) {
     if (!loaded) return
 
-    if (this.dying) {
-      this.dyingTime += delta
-      const next = Math.min(
-        EXPLOSION_FRAME_COUNT - 1,
-        Math.floor(this.dyingTime / EXPLOSION_FRAME_INTERVAL)
-      )
-      if (next !== this.dyingFrame) {
-        this.dyingFrame = next
-        const tex = explosionTextures[next]
-        if (tex) {
-          this.sprite.material.map = tex
-          this.sprite.material.needsUpdate = true
-        }
-      }
-      // Hide the sprite once we've held the final frame for a beat.
-      if (this.dyingFrame === EXPLOSION_FRAME_COUNT - 1
-          && this.dyingTime > EXPLOSION_FRAME_COUNT * EXPLOSION_FRAME_INTERVAL + 0.4) {
-        this.sprite.visible = false
-      }
-      return
-    }
+    if (!this.dying) return   // Static when alive — no rotation cycle.
 
-    this.spinTime += delta
-    const next = Math.floor(this.spinTime / FRAME_INTERVAL) % DIRECTIONS.length
-    if (next !== this.frameIndex) {
-      this.frameIndex = next
-      this.sprite.material.map = rotTextures[next]
-      this.sprite.material.needsUpdate = true
+    this.dyingTime += delta
+    const next = Math.min(
+      EXPLOSION_FRAME_COUNT - 1,
+      Math.floor(this.dyingTime / EXPLOSION_FRAME_INTERVAL)
+    )
+    if (next !== this.dyingFrame) {
+      this.dyingFrame = next
+      const tex = explosionTextures[next]
+      if (tex) {
+        this.sprite.material.map = tex
+        this.sprite.material.needsUpdate = true
+      }
+    }
+    // Hide the sprite once we've held the final frame for a beat.
+    if (this.dyingFrame === EXPLOSION_FRAME_COUNT - 1
+        && this.dyingTime > EXPLOSION_FRAME_COUNT * EXPLOSION_FRAME_INTERVAL + 0.4) {
+      this.sprite.visible = false
     }
   }
 }

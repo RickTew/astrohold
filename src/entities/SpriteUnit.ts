@@ -60,8 +60,10 @@ const animSets: Map<UnitType, UnitAnimSet> = new Map()
 type AnimManifest = Partial<Record<AnimState, { fps: number; loop: boolean; presentDirs: readonly Direction[]; frameCount: number }>>
 const MANIFEST: Record<string, AnimManifest> = {
   cannon: {
-    // 7 directions on disk (east missing → mirrored from west at runtime).
-    idle:    { fps: 6,  loop: true,  presentDirs: ['north', 'north-east', 'north-west', 'south', 'south-east', 'south-west', 'west'], frameCount: 4 },
+    // Updated Cyborg_Canon_Hand zip ships all 8 idle directions. Walking
+    // now also covers all 8 (the user re-exported the WEST clip into a
+    // separate folder which we merged in alongside the rest).
+    idle:    { fps: 6,  loop: true,  presentDirs: ALL_DIRS, frameCount: 4 },
     walking: { fps: 10, loop: true,  presentDirs: ALL_DIRS, frameCount: 9 },
     // 7 directions on disk (north-east missing → mirrored from north-west).
     shoot:   { fps: 14, loop: false, presentDirs: ['east', 'north', 'north-west', 'south', 'south-east', 'south-west', 'west'], frameCount: 9 },

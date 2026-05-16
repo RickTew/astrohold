@@ -41,12 +41,7 @@ export class Game {
   private phase: Phase = 'loading'
 
   private background!: Background
-  // Gameplay core (passed to BattlePhase). Now a pixel sprite — the GLB
-  // super core had unavoidable back-spike occlusion under the 45° camera.
   private powerCore!: PixelPowerCore
-  // Reference-size pixel core for visual comparison — same asset at the
-  // smaller original SCREEN_SIZE so the user can pick a final size.
-  private referenceCore: PixelPowerCore | null = null
   private hud!: HUD
   private buildPhase: BuildPhase | null = null
   private battlePhase: BattlePhase | null = null
@@ -130,11 +125,8 @@ export class Game {
       // + textured.glb + plain.glb stay on disk for future repurposing.
     ])
 
-    // Gameplay core at canonical position, sized larger (200) per user request.
+    // Pixel power core at the canonical gameplay position, sized 200.
     this.powerCore = new PixelPowerCore(this.scene, Config.POWER_CORE.X, Config.POWER_CORE.Y, 200)
-    // Reference core next to it at the original size (130) so the user can
-    // judge whether they prefer big or small.
-    this.referenceCore = new PixelPowerCore(this.scene, -380, 0, 130)
 
     this.hud.showGame()
     this.enterBuildPhase()
@@ -316,8 +308,6 @@ private makeGhostRing(color: number, inner: number, outer: number): THREE.Mesh {
     this.attackerUnits.forEach(u => { u.update(delta); u.faceCamera(this.camera) })
     this.powerCore?.update(delta)
     this.powerCore?.faceCamera(this.camera)
-    this.referenceCore?.update(delta)
-    this.referenceCore?.faceCamera(this.camera)
     this.spheres.forEach(s => { s.update(delta); s.faceCamera(this.camera) })
     this.buildPhase?.faceCamera(this.camera)
     this.battlePhase?.update(delta)
