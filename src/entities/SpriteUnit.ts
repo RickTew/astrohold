@@ -386,8 +386,9 @@ export class SpriteUnit {
 
   private buildHpBar(): { group: THREE.Group; fill: THREE.Mesh } {
     const group = new THREE.Group()
-    // Just above the sprite top (sprite half-height ≈ 30 for SPRITE_SIZE=60).
-    group.position.set(0, 35, 0)
+    // Sprite is 60 world units but the cyborg body only fills ~70% of that
+    // (head reaches ~+20). Bar sits just above the head with a small gap.
+    group.position.set(0, 22, 0)
 
     const bg = new THREE.Mesh(
       new THREE.PlaneGeometry(30, 4),

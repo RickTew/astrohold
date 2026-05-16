@@ -78,7 +78,11 @@ export class BattlePhase {
   private executeTurn() {
     const alive = this.units.filter(u => !u.isDead)
     if (!alive.length) { this.over = true; this.onWin?.(); return }
-    if (this.core.isDead)  { this.over = true; this.onLose?.(); return }
+    if (this.core.isDead) {
+      // Core just blew up — anything close enough to the blast dies with it.
+      this.applyCoreBlast()
+      this.over = true; this.onLose?.(); return
+    }
 
     if (this.isUnitTurn) {
       for (const u of alive) this.doUnitTurn(u)
@@ -93,7 +97,51 @@ export class BattlePhase {
     // Check win/lose after each action
     const stillAlive = this.units.filter(u => !u.isDead)
     if (!stillAlive.length) { this.over = true; this.onWin?.(); return }
-    if (this.core.isDead)   { this.over = true; this.onLose?.(); return }
+    if (this.core.isDead) {
+      this.applyCoreBlast()
+      this.over = true; this.onLose?.(); return
+    }
+  }
+
+  // Core just hit 0 HP — apply a single AoE that wipes attackers in the
+  // blast zone. Defender lost, but the unit(s) that finished it off go down
+  // with the explosion.
+  private applyCoreBlast() {
+    const cx = this.core.mesh.position.x
+    const cy = this.core.mesh.position.y
+    const BLAST_RADIUS = 180   // ~3.5 cells
+    for (const u of this.units) {
+      if (u.isDead) continue
+      const dx = u.worldX - cx
+      const dy = u.worldY - cy
+      if (Math.sqrt(dx * dx + dy * dy) < BLAST_RADIUS) {
+        u.takeDamage(99999)
+      }
+    }
+    this.explosions.push(new Explosion(this.scene, cx, cy, BLAST_RADIUS, 1.2))
+    playExplosion()
+  }
+
+  // Cell-occupancy check used by movement to enforce one-piece-per-cell during
+  // battle. Pieces sit at exact cell centers so equality-with-epsilon is fine.
+  private isCellOccupiedInBattle(x: number, y: number, exclude: Attacker): boolean {
+    const E = 1
+    for (const u of this.units) {
+      if (u === exclude || u.isDead) continue
+      if (Math.abs(u.worldX - x) < E && Math.abs(u.worldY - y) < E) return true
+    }
+    for (const s of this.spheres) {
+      if (s.isDead) continue
+      if (Math.abs(s.worldX - x) < E && Math.abs(s.worldY - y) < E) return true
+    }
+    for (const s of this.structures) {
+      if (s.isDead) continue
+      if (Math.abs(s.worldX - x) < E && Math.abs(s.worldY - y) < E) return true
+    }
+    const cx = this.core.mesh.position.x
+    const cy = this.core.mesh.position.y
+    if (Math.abs(cx - x) < E && Math.abs(cy - y) < E) return true
+    return false
   }
 
   private doUnitTurn(unit: Attacker) {
@@ -195,7 +243,11 @@ export class BattlePhase {
     const dy = ty - unit.worldY
     const dist = Math.sqrt(dx * dx + dy * dy)
 
-    if (dist <= Config.POWER_CORE.RADIUS + 20) {
+    // Fire at the core from RANGE — shooters don't need to walk into it.
+    // Direct-fire units (range 220-240) start shooting from across the
+    // battlefield; bomber-style AoE pieces still pick this path when within
+    // their own range.
+    if (dist <= unit.range) {
       unit.faceTarget(tx, ty)
       unit.playAttackAnim()
       const muzzle = unit.getMuzzlePoint()
@@ -225,10 +277,31 @@ export class BattlePhase {
       this.projectiles.push(proj)
       if (!isAoe) playGunshot()
     } else {
-      const nx = unit.worldX + (dx / dist) * unit.speed
-      const ny = unit.worldY + (dy / dist) * unit.speed
-      unit.moveTo(nx, ny)
-      this.checkMines(unit)
+      // Grid movement: pick the adjacent cell that's closest to the core and
+      // not already occupied. One step per turn (AP-tiered movement comes
+      // with the full turn system).
+      const cell = Config.GRID_CELL
+      type Cand = { x: number; y: number; d: number }
+      const candidates: Cand[] = []
+      for (let cx = -1; cx <= 1; cx++) {
+        for (let cy = -1; cy <= 1; cy++) {
+          if (cx === 0 && cy === 0) continue
+          const px = unit.worldX + cx * cell
+          const py = unit.worldY + cy * cell
+          const d = Math.sqrt((px - tx) * (px - tx) + (py - ty) * (py - ty))
+          candidates.push({ x: px, y: py, d })
+        }
+      }
+      candidates.sort((a, b) => a.d - b.d)
+      for (const c of candidates) {
+        if (c.d >= dist) continue                  // must close the distance
+        if (c.x < Config.WORLD.LEFT || c.x > Config.WORLD.RIGHT) continue
+        if (c.y < Config.WORLD.BOTTOM || c.y > Config.WORLD.TOP) continue
+        if (this.isCellOccupiedInBattle(c.x, c.y, unit)) continue
+        unit.moveTo(c.x, c.y)
+        this.checkMines(unit)
+        break
+      }
     }
   }
 
