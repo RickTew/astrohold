@@ -184,6 +184,10 @@ private enterBuildPhase() {
     this.hud.onBuySphere = () => {
       if (this.placement?.kind === 'sphere') { this.endPlacement(); return }
       if (!this.buildPhase || this.buildPhase.getCredits() < SPHERE_COST) return
+      // Cancel any active structure selection so its click handler doesn't
+      // fire alongside the sphere placement.
+      this.buildPhase?.selectStructure(null)
+      this.hud.clearStructureSelection()
       this.startSpherePlacement()
     }
 
@@ -194,7 +198,16 @@ private enterBuildPhase() {
 
     this.hud.onSpawnUnit = (type) => {
       if (this.placement?.kind === type) { this.endPlacement(); return }
+      this.buildPhase?.selectStructure(null)
+      this.hud.clearStructureSelection()
       this.startCyborgPlacement(type)
+    }
+
+    // Structure selection — cancel any active sphere/cyborg placement first
+    // so both systems don't fire on the same click.
+    this.hud.onSelectStructure = (type) => {
+      this.endPlacement()
+      this.buildPhase?.selectStructure(type)
     }
   }
 

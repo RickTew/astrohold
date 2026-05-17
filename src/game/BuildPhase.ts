@@ -41,10 +41,20 @@ export class BuildPhase {
     this.hitPlane = this.buildHitPlane()
 
     hud.setCredits(this.credits)
-    hud.onSelectStructure = (type) => { this.selectedType = type }
+    // Game wires hud.onSelectStructure itself so it can cancel the
+    // sphere/cyborg placement before forwarding here (otherwise both
+    // placement systems fire on the same click).
 
     window.addEventListener('mousemove', this.onMouseMove)
     window.addEventListener('click', this.onClick)
+  }
+
+  // External API used by Game to swap the active placement mode. Passing null
+  // clears the selection and hides the ghost — call this when a sphere/cyborg
+  // placement starts so a tower/wall doesn't drop on the same click.
+  selectStructure(type: StructureType | null) {
+    this.selectedType = type
+    if (!type) this.hideGhost()
   }
 
 private buildHitPlane(): THREE.Mesh {

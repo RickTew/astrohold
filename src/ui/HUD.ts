@@ -118,6 +118,13 @@ export class HUD {
     }
   }
 
+  // Drop the visual "selected" highlight off any structure button — called
+  // when the player picks a sphere/cyborg so the UI mirrors that the
+  // structure placement was cancelled under the hood.
+  clearStructureSelection() {
+    this.container.querySelectorAll('.shop-btn').forEach(b => b.classList.remove('selected'))
+  }
+
   setPhase(phase: 'build' | 'planning' | 'battle' | 'win' | 'lose') {
     switch (phase) {
       case 'build':
