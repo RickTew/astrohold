@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { Config, StructureType } from '../game/GameConfig'
 import { QueuedAction, STATIONARY_INITIATIVE, nextActorId } from '../game/TurnTypes'
+import { playExplosion } from '../audio/sfx'
 
 // Pixel-sprite atlases for sprite-based structures. Walls/mines stay
 // geometric (Box / Sphere). The five "preview" pieces (defense/dog/gun/laser/
@@ -8,17 +9,23 @@ import { QueuedAction, STATIONARY_INITIATIVE, nextActorId } from '../game/TurnTy
 // player can preview them in-game and decide which to commission full
 // 8-direction renders for.
 const STRUCTURE_SPRITE_FOLDERS: Partial<Record<StructureType, string>> = {
-  turret:  'tower1',   // Robot_Tower_1 — compact directional gun
-  cannon:  'tower2',   // Robot_Tower_2 — heavier/glowing core
+  turret:  'tower',    // Robot_Tower — single canonical tower (replaces tower1/tower2)
   defense: 'defense',  // geodesic dome (preview, no rotations)
   dog:     'dog',      // mechanical quadruped (preview)
   gun:     'gun',      // twin-barrel turret (preview)
   laser:   'laser',    // twin-laser turret (preview)
   signal:  'signal',   // satellite dish (preview)
 }
+// Structures that ship with a 4-frame explosion sequence (folder/explosion/).
+const STRUCTURE_HAS_EXPLOSION: Partial<Record<StructureType, true>> = {
+  turret: true,
+}
 const SPRITE_SIZE = 50   // one cell
+const EXPLOSION_FRAME_COUNT = 4
+const EXPLOSION_FRAME_INTERVAL = 0.09
 
 const structureTextures: Map<StructureType, THREE.Texture> = new Map()
+const structureExplosionTextures: Map<StructureType, THREE.Texture[]> = new Map()
 
 function loadTex(url: string): Promise<THREE.Texture> {
   return new Promise((resolve, reject) => {
@@ -39,6 +46,14 @@ export async function preloadStructureSprites(): Promise<void> {
     (Object.keys(STRUCTURE_SPRITE_FOLDERS) as StructureType[]).map(async type => {
       const folder = STRUCTURE_SPRITE_FOLDERS[type]!
       structureTextures.set(type, await loadTex(`/sprites/${folder}/south.png`))
+      if (STRUCTURE_HAS_EXPLOSION[type]) {
+        const frames: THREE.Texture[] = []
+        for (let i = 0; i < EXPLOSION_FRAME_COUNT; i++) {
+          const num = String(i).padStart(3, '0')
+          frames.push(await loadTex(`/sprites/${folder}/explosion/frame_${num}.png`))
+        }
+        structureExplosionTextures.set(type, frames)
+      }
     })
   )
 }
@@ -68,6 +83,13 @@ export class Structure {
   // IS the HP bar). Stored so takeDamage() can scale it.
   private wallBody: THREE.Mesh | null = null
   private wallBodyHeight = 0
+  // For sprite structures: kept so the death animation can swap textures.
+  private sprite: THREE.Sprite | null = null
+  // Death/explosion state — for sprite structures with an explosion sequence.
+  private dying = false
+  private dyingTime = 0
+  private dyingFrame = 0
+  private removed = false
 
   constructor(scene: THREE.Scene, type: StructureType, col: number, row: number) {
     this.type = type
@@ -87,7 +109,6 @@ export class Structure {
   private buildVisual(): THREE.Mesh {
     switch (this.type) {
       case 'turret':
-      case 'cannon':
       case 'defense':
       case 'dog':
       case 'gun':
@@ -108,6 +129,7 @@ export class Structure {
         sprite.position.set(0, 0, 5)
         sprite.renderOrder = 10
         this.mesh.add(sprite)
+        this.sprite = sprite
         break
       }
       case 'wall': {
@@ -184,7 +206,43 @@ export class Structure {
       mat.color.setHex(ratio > 0.5 ? 0x00cc44 : ratio > 0.25 ? 0xffaa00 : 0xff2200)
     }
 
-    if (this.isDead) this.mesh.removeFromParent()
+    if (this.isDead && !this.dying) this.startDying()
+  }
+
+  private startDying() {
+    this.dying = true
+    if (this.hpBarGroup) this.hpBarGroup.visible = false
+    if (STRUCTURE_HAS_EXPLOSION[this.type] && this.sprite) {
+      const frames = structureExplosionTextures.get(this.type)
+      if (frames && frames[0]) {
+        this.sprite.material.map = frames[0]
+        this.sprite.material.needsUpdate = true
+      }
+    } else {
+      // No explosion sequence — remove immediately like the old behavior.
+      this.mesh.removeFromParent()
+      this.removed = true
+      return
+    }
+    playExplosion()
+  }
+
+  update(delta: number) {
+    if (!this.dying || this.removed) return
+    const frames = structureExplosionTextures.get(this.type)
+    if (!frames || !this.sprite) return
+    this.dyingTime += delta
+    const next = Math.min(EXPLOSION_FRAME_COUNT - 1, Math.floor(this.dyingTime / EXPLOSION_FRAME_INTERVAL))
+    if (next !== this.dyingFrame) {
+      this.dyingFrame = next
+      this.sprite.material.map = frames[next]
+      this.sprite.material.needsUpdate = true
+    }
+    if (this.dyingFrame === EXPLOSION_FRAME_COUNT - 1
+        && this.dyingTime > EXPLOSION_FRAME_COUNT * EXPLOSION_FRAME_INTERVAL + 0.3) {
+      this.mesh.removeFromParent()
+      this.removed = true
+    }
   }
 
   get isDead() { return this.hp <= 0 }

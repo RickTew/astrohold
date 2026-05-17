@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { Config } from '../game/GameConfig'
 import { QueuedAction, STATIONARY_INITIATIVE, nextActorId } from '../game/TurnTypes'
+import { playExplosion } from '../audio/sfx'
 
 // Pre-rendered pixel-art sphere: 8 directions. Cycling through them on a
 // timer creates the "spinning" effect — far cheaper than the 60 MB GLB.
@@ -12,26 +13,32 @@ const SPHERE_FRAME_INTERVAL = 0.4    // seconds per direction = ~3.2 s per full 
 const SPHERE_SCREEN_SIZE = 45        // sprite world-units — sized to match other defender units on screen
 
 const sphereTextures: THREE.Texture[] = []
+const sphereExplosionTextures: THREE.Texture[] = []
+const SPHERE_EXPLOSION_FRAME_COUNT = 4
+const SPHERE_EXPLOSION_FRAME_INTERVAL = 0.09   // ~0.36 s total burst
 let sphereTexturesLoaded = false
 
+function loadTex(url: string): Promise<THREE.Texture> {
+  return new Promise((resolve, reject) => {
+    new THREE.TextureLoader().load(url, tex => {
+      tex.magFilter = THREE.NearestFilter   // crisp pixel-art scaling
+      tex.minFilter = THREE.NearestFilter
+      tex.colorSpace = THREE.SRGBColorSpace
+      resolve(tex)
+    }, undefined, reject)
+  })
+}
+
 export async function preloadSphereSprites(): Promise<void> {
-  const loader = new THREE.TextureLoader()
-  await Promise.all(SPHERE_DIRECTIONS.map((dir, i) =>
-    new Promise<void>((resolve, reject) => {
-      loader.load(
-        `/sprites/sphere/${dir}.png`,
-        tex => {
-          tex.magFilter = THREE.NearestFilter   // crisp pixel-art scaling
-          tex.minFilter = THREE.NearestFilter
-          tex.colorSpace = THREE.SRGBColorSpace
-          sphereTextures[i] = tex
-          resolve()
-        },
-        undefined,
-        reject
-      )
-    })
-  ))
+  await Promise.all([
+    ...SPHERE_DIRECTIONS.map(async (dir, i) => {
+      sphereTextures[i] = await loadTex(`/sprites/sphere/${dir}.png`)
+    }),
+    ...Array.from({ length: SPHERE_EXPLOSION_FRAME_COUNT }, async (_, i) => {
+      const num = String(i).padStart(3, '0')
+      sphereExplosionTextures[i] = await loadTex(`/sprites/sphere/explosion/frame_${num}.png`)
+    }),
+  ])
   sphereTexturesLoaded = true
 }
 
@@ -59,6 +66,9 @@ export class SphereDefender {
   private hpBarFill: THREE.Mesh
   private spinTime = 0
   private frameIndex = 0
+  private dying = false
+  private dyingTime = 0
+  private dyingFrame = 0
 
   constructor(scene: THREE.Scene, x: number, y: number) {
     this.id = nextActorId('sphere')
@@ -96,6 +106,26 @@ export class SphereDefender {
 
   update(delta: number) {
     if (!sphereTexturesLoaded) return
+
+    if (this.dying) {
+      this.dyingTime += delta
+      const next = Math.min(
+        SPHERE_EXPLOSION_FRAME_COUNT - 1,
+        Math.floor(this.dyingTime / SPHERE_EXPLOSION_FRAME_INTERVAL),
+      )
+      if (next !== this.dyingFrame) {
+        this.dyingFrame = next
+        this.sprite.material.map = sphereExplosionTextures[next] ?? null
+        this.sprite.material.needsUpdate = true
+      }
+      // Hide once the burst has held the final frame for a beat.
+      if (this.dyingFrame === SPHERE_EXPLOSION_FRAME_COUNT - 1
+          && this.dyingTime > SPHERE_EXPLOSION_FRAME_COUNT * SPHERE_EXPLOSION_FRAME_INTERVAL + 0.4) {
+        this.mesh.visible = false
+      }
+      return
+    }
+
     this.spinTime += delta
     const next = Math.floor(this.spinTime / SPHERE_FRAME_INTERVAL) % SPHERE_DIRECTIONS.length
     if (next !== this.frameIndex) {
@@ -103,6 +133,16 @@ export class SphereDefender {
       this.sprite.material.map = sphereTextures[next]
       this.sprite.material.needsUpdate = true
     }
+  }
+
+  private startDying() {
+    this.dying = true
+    this.hpBarGroup.visible = false
+    if (sphereExplosionTextures[0]) {
+      this.sprite.material.map = sphereExplosionTextures[0]
+      this.sprite.material.needsUpdate = true
+    }
+    playExplosion()
   }
 
   faceCamera(camera: THREE.Camera) {
@@ -127,9 +167,9 @@ export class SphereDefender {
     this.hpBarFill.position.x = -(1 - ratio) * 15
     const mat = this.hpBarFill.material as THREE.MeshBasicMaterial
     mat.color.setHex(ratio > 0.5 ? 0x00cc44 : ratio > 0.25 ? 0xffaa00 : 0xff2200)
-    if (this.hp <= 0) {
+    if (this.hp <= 0 && !this.dying) {
       this.isDead = true
-      this.mesh.visible = false
+      this.startDying()
     }
   }
 

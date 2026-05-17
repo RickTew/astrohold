@@ -447,6 +447,10 @@ private makeGhostRing(color: number, inner: number, outer: number): THREE.Mesh {
     this.powerCore?.update(delta)
     this.powerCore?.faceCamera(this.camera)
     this.spheres.forEach(s => { s.update(delta); s.faceCamera(this.camera) })
+    // Tick every structure (whether owned by BuildPhase or post-build by Game)
+    // so explosion animations advance regardless of phase.
+    const liveStructures = this.buildPhase?.getStructures() ?? this.structures
+    for (const s of liveStructures) s.update(delta)
     this.buildPhase?.faceCamera(this.camera)
     this.revealPhase?.update(delta)
     this.revealPhase?.faceCamera(this.camera)
