@@ -68,12 +68,14 @@ export class Background {
     const img = ctx.createImageData(SIZE, SIZE)
     const d   = img.data
 
-    // Three brown/grey tones — wider contrast so splotches read without lighting
-    const C0 = [32,  27, 20]   // very dark earth
-    const C1 = [62,  54, 42]   // mid brown
-    const C2 = [98,  87, 68]   // sandy highlight
+    // Tight color range so the noise reads as a uniformly dusty surface
+    // instead of high-contrast wet splotches. User feedback: "looks more like
+    // light reflecting off of water than dirt or space rocks."
+    const C0 = [44,  38, 30]   // dark earth
+    const C1 = [60,  52, 42]   // mid brown
+    const C2 = [74,  65, 52]   // dusty highlight (was sandy)
 
-    const SCALE = 3.5   // noise cycles across the canvas → medium splotch size
+    const SCALE = 9     // higher freq → smaller blobs (was 3.5 = big wet patches)
     const OCT   = 5     // fractal octaves for organic detail
 
     for (let py = 0; py < SIZE; py++) {
@@ -102,32 +104,33 @@ export class Background {
     ctx.putImageData(img, 0, 0)
 
     // ── Surface micro-detail on top of noise ──────────────────────────────────
-    // Rocky specks — semi-transparent for blending
-    for (let i = 0; i < 3000; i++) {
+    // Rocky specks — smaller and denser than before so the surface reads as
+    // gritty dirt instead of wet bubbles.
+    for (let i = 0; i < 8000; i++) {
       const x = Math.random() * SIZE
       const y = Math.random() * SIZE
-      const r = Math.random() * 3.5 + 0.4
-      const v = Math.floor(Math.random() * 22 - 11)
-      ctx.globalAlpha = 0.3 + Math.random() * 0.35
-      ctx.fillStyle = `rgb(${62 + v},${54 + v},${42 + v})`
+      const r = Math.random() * 1.1 + 0.2   // was 0.4..3.9 — now 0.2..1.3
+      const v = Math.floor(Math.random() * 18 - 9)
+      ctx.globalAlpha = 0.25 + Math.random() * 0.3
+      ctx.fillStyle = `rgb(${58 + v},${50 + v},${40 + v})`
       ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill()
     }
 
-    // Bright mineral flecks
-    for (let i = 0; i < 400; i++) {
+    // Bright mineral flecks — also smaller, more numerous.
+    for (let i = 0; i < 900; i++) {
       const x = Math.random() * SIZE
       const y = Math.random() * SIZE
-      const r = Math.random() * 1.8 + 0.3
-      ctx.globalAlpha = 0.35 + Math.random() * 0.3
-      ctx.fillStyle = 'rgb(112,100,84)'
+      const r = Math.random() * 0.7 + 0.2   // was 0.3..2.1 — now 0.2..0.9
+      ctx.globalAlpha = 0.3 + Math.random() * 0.3
+      ctx.fillStyle = 'rgb(108,98,82)'
       ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill()
     }
 
-    // Subtle crack lines
+    // Subtle crack lines — keep but slightly less prominent.
     ctx.globalAlpha = 1
-    ctx.strokeStyle = 'rgba(0,0,0,0.13)'
+    ctx.strokeStyle = 'rgba(0,0,0,0.10)'
     ctx.lineWidth = 1
-    for (let i = 0; i < 25; i++) {
+    for (let i = 0; i < 20; i++) {
       const x = Math.random() * SIZE
       const y = Math.random() * SIZE
       ctx.beginPath()
@@ -140,7 +143,7 @@ export class Background {
     // MirroredRepeat hides seams where noise values don't match at tile edges
     texture.wrapS = THREE.MirroredRepeatWrapping
     texture.wrapT = THREE.MirroredRepeatWrapping
-    texture.repeat.set(3, 3)
+    texture.repeat.set(5, 5)   // tighter pattern → reads as fine dirt, not big puddles
 
     const geo = new THREE.PlaneGeometry(4000, 4000)
     const mat = new THREE.MeshBasicMaterial({ map: texture })

@@ -159,8 +159,10 @@ export class Game {
     }
     const geo = new THREE.BufferGeometry()
     geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3))
+    // Cool blue-gray contrasts against the warm brown dirt; higher opacity so
+    // every cell boundary reads clearly.
     const mat = new THREE.LineBasicMaterial({
-      color: 0x666666, transparent: true, opacity: 0.32,
+      color: 0xaabbcc, transparent: true, opacity: 0.55,
     })
     return new THREE.LineSegments(geo, mat)
   }
