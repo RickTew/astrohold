@@ -80,7 +80,13 @@ const MANIFEST: Record<string, AnimManifest> = {
     die:     { fps: 8,  loop: false, presentDirs: ALL_DIRS, frameCount: 9 },
   },
   grenadier: {
-    idle:    { fps: 6,  loop: true,  presentDirs: ALL_DIRS, frameCount: 4 },
+    // 'west' deliberately omitted from idle's presentDirs: the exported
+    // west idle PNGs show the cyborg facing EAST (export bug — disk file
+    // matches the source zip but content is mis-rendered). The MIRROR
+    // system kicks in and flips the east idle frames horizontally, which
+    // gives a proper west-facing render. Other states + cyborg types
+    // unaffected.
+    idle:    { fps: 6,  loop: true,  presentDirs: ['east', 'north-east', 'north', 'north-west', 'south', 'south-east', 'south-west'], frameCount: 4 },
     walking: { fps: 10, loop: true,  presentDirs: ALL_DIRS, frameCount: 6 },
     // Throw is two Meshy clips merged: lean_back covers E/NE/NW/W, Medium_Throw
     // covers N/S/SE/SW. Each direction's 9 frames are the right clip for that
