@@ -21,10 +21,12 @@ export const AP_COST: Record<QueuedActionKind, number> = {
   hold: 0,
 }
 
-// Stationary pieces (Sphere, structures, core) use this fallback so they still
-// have a deterministic slot in the initiative-sorted reveal — they just resolve
-// late.
-export const STATIONARY_INITIATIVE = 10
+// Stationary pieces (Sphere, structures, core) use this fallback. Set HIGHER
+// than any cyborg's speed (max 75 for Grenadier, 90 for the Dog) so defender
+// structures fire BEFORE the attacker waves close in each turn. Previously
+// 10 meant they fired last, after every cyborg had already moved/fired,
+// which made defenders feel useless.
+export const STATIONARY_INITIATIVE = 100
 
 let nextId = 1
 export function nextActorId(prefix: string): string {

@@ -152,6 +152,13 @@
       color: #7799bb;
     }
 
+    /* Insufficient credits — greyed out so failed placements aren't silent. */
+    .shop-btn.insufficient, .att-btn.insufficient {
+      opacity: 0.35;
+      cursor: not-allowed;
+      filter: grayscale(0.5);
+    }
+
     .att-btn {
       background: #1a0008;
       border: 1px solid #661122;

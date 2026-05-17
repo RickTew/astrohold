@@ -1,5 +1,7 @@
-import { StructureType, UnitType } from '../game/GameConfig'
+import { Config, StructureType, UnitType } from '../game/GameConfig'
 import type { PlanningSelectionInfo } from '../game/PlanningPhase'
+
+const SPHERE_COST = 100   // mirrors Game.SPHERE_COST
 
 export class HUD {
   private container: HTMLElement
@@ -119,10 +121,34 @@ export class HUD {
 
   setCredits(amount: number) {
     this.creditsEl.textContent = String(amount)
+    this.refreshAffordability('robots', amount)
   }
 
   setAttCredits(amount: number) {
     this.attCreditsEl.textContent = String(amount)
+    this.refreshAffordability('cyborgs', amount)
+  }
+
+  // Grey out buttons whose cost exceeds current credits so failed placements
+  // are obvious. Was previously silent — user thought placement was broken.
+  private refreshAffordability(side: 'robots' | 'cyborgs', credits: number) {
+    if (side === 'robots') {
+      const sphereBtn = this.container.querySelector('#sphere-btn')
+      sphereBtn?.classList.toggle('insufficient', credits < SPHERE_COST)
+      const dogBtn = this.container.querySelector('#dog-btn')
+      dogBtn?.classList.toggle('insufficient', credits < Config.UNITS.dog.cost)
+      this.container.querySelectorAll('#top-robot-shop .shop-btn[data-type]').forEach(b => {
+        const type = (b as HTMLElement).dataset.type as StructureType
+        const cost = Config.STRUCTURES[type]?.cost ?? 0
+        b.classList.toggle('insufficient', credits < cost)
+      })
+    } else {
+      this.container.querySelectorAll('#top-cyborg-shop .att-btn[data-type]').forEach(b => {
+        const type = (b as HTMLElement).dataset.type as UnitType
+        const cost = Config.UNITS[type]?.cost ?? 0
+        b.classList.toggle('insufficient', credits < cost)
+      })
+    }
   }
 
   setSelectedUnitType(type: UnitType | null) {

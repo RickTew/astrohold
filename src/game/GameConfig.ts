@@ -15,7 +15,10 @@ export const Config = {
 
   // Sphere defender — values were previously hardcoded in SphereDefender.ts.
   // Centralized here so the turn system can read apBudget alongside everything else.
-  SPHERE: { cost: 100, hp: 300, damage: 10, range: 300, sightRange: 400, apBudget: 3 },
+  // Damage bumped 10→25 so the sphere actually deters cyborgs (was being
+  // ignored because by the time it fired, multiple cyborgs had already
+  // closed in for free).
+  SPHERE: { cost: 100, hp: 300, damage: 25, range: 300, sightRange: 400, apBudget: 3 },
 
   // Per-piece Action Point budgets used by the plan-then-play turn system.
   // Walls/mines stay passive (apBudget 0 → reveal skips them). Turrets/cannons
@@ -24,7 +27,10 @@ export const Config = {
   // (unknown.png) renders dropped in so the player can evaluate visuals
   // before committing to full 8-direction art. Stats are placeholder.
   STRUCTURES: {
-    turret:  { cost: 30, hp: 80,  damage: 15, range: 200, fireInterval: 2, apBudget: 1, label: 'Turret 30cr' },
+    // Tower damage 15→25, range 200→250 — defenders were getting steamrolled
+    // because their first shot didn't kill anything and cyborgs closed in
+    // quickly. Stronger tower means each one actually threatens the wave.
+    turret:  { cost: 30, hp: 80,  damage: 25, range: 250, fireInterval: 2, apBudget: 1, label: 'Turret 30cr' },
     cannon:  { cost: 60, hp: 120, damage: 40, range: 280, fireInterval: 4, apBudget: 1, label: 'Cannon 60cr' },
     wall:    { cost: 20, hp: 300, damage: 0,  range: 0,   fireInterval: 0, apBudget: 0, label: 'Wall   20cr' },
     mine:    { cost: 20, hp: 50,  damage: 60, range: 60,  fireInterval: 0, apBudget: 0, label: 'Mine   20cr' },
@@ -45,10 +51,10 @@ export const Config = {
     grenadier: { cost: 50, hp: 110, speed: 75,  damage: 28, range: 220, sightRange: 280, aoeRadius: 65, apBudget: 3, label: 'Grenadier', color: 0x88dd44 },
     // Double Gun — dual hand-cannons, highest direct-fire damage, costlier and slightly squishier than Cannon.
     doublegun: { cost: 90, hp: 160, speed: 65,  damage: 45, range: 230, sightRange: 300, aoeRadius: 0,  apBudget: 3, label: 'Double Gun',color: 0xff8866 },
-    // Combat Dog — DEFENDER mobile unit. Fast, melee, no ranged fire (range 0 →
-    // never fires; just charges and contacts cyborgs). Placed in the defender
-    // zone; the only mobile robot today.
-    dog:       { cost: 40, hp: 80,  speed: 90,  damage: 0,  range: 0,   sightRange: 280, aoeRadius: 0,  apBudget: 3, label: 'Dog',        color: 0x4488aa },
+    // Combat Dog — DEFENDER mobile unit. Fast and now armed: the sprite
+    // has a gun mounted on top so it should shoot. range 150 + damage 15
+    // = short-medium harasser. Closes the gap to flank cyborgs then fires.
+    dog:       { cost: 40, hp: 80,  speed: 90,  damage: 15, range: 150, sightRange: 280, aoeRadius: 0,  apBudget: 3, label: 'Dog',        color: 0x4488aa },
   },
 } as const
 
