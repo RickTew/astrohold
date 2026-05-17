@@ -23,6 +23,10 @@ export class Structure {
 
   private hpBarGroup!: THREE.Group
   private hpBar: THREE.Mesh
+  // For walls only: the body mesh itself shrinks as it takes damage (the wall
+  // IS the HP bar). Stored so takeDamage() can scale it.
+  private wallBody: THREE.Mesh | null = null
+  private wallBodyHeight = 0
 
   constructor(scene: THREE.Scene, type: StructureType, col: number, row: number) {
     this.type = type
@@ -70,10 +74,15 @@ export class Structure {
         break
       }
       case 'wall': {
-        this.mesh.add(new THREE.Mesh(
-          new THREE.BoxGeometry(16, 48, 12),
+        // Wall body acts as its own HP indicator — scaled in takeDamage().
+        // Fills most of the cell (40×40) so its shrink reads cleanly.
+        const H = 40
+        this.wallBodyHeight = H
+        this.wallBody = new THREE.Mesh(
+          new THREE.BoxGeometry(40, H, 12),
           new THREE.MeshBasicMaterial({ color: 0x996633 })
-        ))
+        )
+        this.mesh.add(this.wallBody)
         break
       }
       case 'mine': {
@@ -89,7 +98,8 @@ export class Structure {
       }
     }
 
-    // HP bar — grouped so we can billboard the group to face the camera
+    // HP bar — grouped so we can billboard the group to face the camera.
+    // Walls use their own body as the HP indicator, so the bar stays hidden.
     this.hpBarGroup = new THREE.Group()
     this.hpBarGroup.position.set(0, 34, 0)
     const bg = new THREE.Mesh(
@@ -106,6 +116,7 @@ export class Structure {
     fill.position.z = 0.2
     this.hpBarGroup.add(fill)
     this.mesh.add(this.hpBarGroup)
+    if (this.type === 'wall') this.hpBarGroup.visible = false
     return fill
   }
 
@@ -116,10 +127,26 @@ export class Structure {
   takeDamage(amount: number) {
     this.hp = Math.max(0, this.hp - amount)
     const ratio = this.hp / this.maxHp
-    this.hpBar.scale.x = ratio
-    this.hpBar.position.x = -(1 - ratio) * 20
-    const mat = this.hpBar.material as THREE.MeshBasicMaterial
-    mat.color.setHex(ratio > 0.5 ? 0x00cc44 : ratio > 0.25 ? 0xffaa00 : 0xff2200)
+
+    if (this.type === 'wall' && this.wallBody) {
+      // Wall IS the HP bar — shrink the body from the top down so the base
+      // stays planted in the cell. ratio clamped to a sliver so a deeply
+      // damaged wall is still visible (and clickable for the player to
+      // notice it's almost gone) until it actually dies.
+      const s = Math.max(0.05, ratio)
+      this.wallBody.scale.y = s
+      this.wallBody.position.y = -(1 - s) * (this.wallBodyHeight / 2)
+      // Tint darker as the wall takes a beating.
+      const mat = this.wallBody.material as THREE.MeshBasicMaterial
+      const tint = 0.5 + 0.5 * ratio
+      mat.color.setRGB(0.6 * tint, 0.4 * tint, 0.2 * tint)
+    } else {
+      this.hpBar.scale.x = ratio
+      this.hpBar.position.x = -(1 - ratio) * 20
+      const mat = this.hpBar.material as THREE.MeshBasicMaterial
+      mat.color.setHex(ratio > 0.5 ? 0x00cc44 : ratio > 0.25 ? 0xffaa00 : 0xff2200)
+    }
+
     if (this.isDead) this.mesh.removeFromParent()
   }
 
