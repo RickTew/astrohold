@@ -2,6 +2,39 @@ import * as THREE from 'three'
 import { Config, StructureType } from '../game/GameConfig'
 import { QueuedAction, STATIONARY_INITIATIVE, nextActorId } from '../game/TurnTypes'
 
+// Pixel-sprite atlases for the directional structures. Walls/mines stay
+// geometric (Box / Sphere) — they don't need a turret look.
+const STRUCTURE_SPRITE_FOLDERS: Partial<Record<StructureType, string>> = {
+  turret: 'tower1',   // Robot_Tower_1 — compact directional gun
+  cannon: 'tower2',   // Robot_Tower_2 — heavier/glowing core
+}
+const SPRITE_SIZE = 50   // one cell
+
+const structureTextures: Map<StructureType, THREE.Texture> = new Map()
+
+function loadTex(url: string): Promise<THREE.Texture> {
+  return new Promise((resolve, reject) => {
+    new THREE.TextureLoader().load(url, tex => {
+      tex.magFilter = THREE.NearestFilter
+      tex.minFilter = THREE.NearestFilter
+      tex.colorSpace = THREE.SRGBColorSpace
+      resolve(tex)
+    }, undefined, reject)
+  })
+}
+
+export async function preloadStructureSprites(): Promise<void> {
+  // Use the south-facing rotation for every directional structure — stationary
+  // pieces don't change facing yet. (Directional firing arcs will introduce
+  // per-piece chosen rotation in a follow-up pass.)
+  await Promise.all(
+    (Object.keys(STRUCTURE_SPRITE_FOLDERS) as StructureType[]).map(async type => {
+      const folder = STRUCTURE_SPRITE_FOLDERS[type]!
+      structureTextures.set(type, await loadTex(`/sprites/${folder}/south.png`))
+    })
+  )
+}
+
 export class Structure {
   readonly mesh: THREE.Group
   readonly id: string
@@ -45,32 +78,24 @@ export class Structure {
 
   private buildVisual(): THREE.Mesh {
     switch (this.type) {
-      case 'turret': {
-        const body = new THREE.Mesh(
-          new THREE.CylinderGeometry(8, 10, 14, 8),
-          new THREE.MeshBasicMaterial({ color: 0x00aa44 })
-        )
-        this.mesh.add(body)
-        const barrel = new THREE.Mesh(
-          new THREE.BoxGeometry(4, 20, 4),
-          new THREE.MeshBasicMaterial({ color: 0x007733 })
-        )
-        barrel.position.set(0, 17, 0)
-        this.mesh.add(barrel)
-        break
-      }
+      case 'turret':
       case 'cannon': {
-        const body = new THREE.Mesh(
-          new THREE.BoxGeometry(22, 20, 14),
-          new THREE.MeshBasicMaterial({ color: 0x888888 })
-        )
-        this.mesh.add(body)
-        const barrel = new THREE.Mesh(
-          new THREE.BoxGeometry(6, 32, 6),
-          new THREE.MeshBasicMaterial({ color: 0x555555 })
-        )
-        barrel.position.set(0, 22, 0)
-        this.mesh.add(barrel)
+        // Pixel sprite (Robot_Tower_1 / Robot_Tower_2). Same SpriteMaterial
+        // flags as cyborgs/spheres — depthTest off so we sit cleanly above
+        // the ground without z-fighting.
+        const tex = structureTextures.get(this.type) ?? null
+        const mat = new THREE.SpriteMaterial({
+          map: tex,
+          transparent: true,
+          depthTest: false,
+          depthWrite: false,
+          alphaTest: 0.1,
+        })
+        const sprite = new THREE.Sprite(mat)
+        sprite.scale.set(SPRITE_SIZE, SPRITE_SIZE, 1)
+        sprite.position.set(0, 0, 5)
+        sprite.renderOrder = 10
+        this.mesh.add(sprite)
         break
       }
       case 'wall': {

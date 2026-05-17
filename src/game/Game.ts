@@ -8,7 +8,7 @@ import { HUD } from '../ui/HUD'
 import { BuildPhase } from './BuildPhase'
 import { PlanningPhase } from './PlanningPhase'
 import { RevealPhase } from './RevealPhase'
-import { Structure } from '../entities/Structure'
+import { Structure, preloadStructureSprites } from '../entities/Structure'
 
 type Phase = 'loading' | 'build' | 'planning' | 'reveal' | 'win' | 'lose'
 
@@ -127,6 +127,7 @@ export class Game {
       preloadSpriteUnit('grenadier', 'grenadier'),
       preloadSpriteUnit('doublegun', 'doublegun'),
       preloadPixelPowerCore(),
+      preloadStructureSprites(),
       // GLB Power Core preload skipped — switched to pixel sprite. super.glb
       // + textured.glb + plain.glb stay on disk for future repurposing.
     ])

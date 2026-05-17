@@ -34,6 +34,7 @@ export class HUD {
         <div id="shop" class="shop-panel">
           <button id="sphere-btn" class="shop-btn">Sphere 100cr</button>
           <button class="shop-btn" data-type="turret">Tower 30cr</button>
+          <button class="shop-btn" data-type="cannon">Heavy Tower 60cr</button>
           <button class="shop-btn" data-type="wall">Wall 20cr</button>
         </div>
         <button id="battle-btn">READY</button>
