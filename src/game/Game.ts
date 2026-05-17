@@ -132,9 +132,10 @@ export class Game {
       // + textured.glb + plain.glb stay on disk for future repurposing.
     ])
 
-    // Pixel power core — 2x2 footprint (100 world units = 2 cells across).
-    // Per the piece-size rule, large pieces step up to the next tier (4 cells).
-    this.powerCore = new PixelPowerCore(this.scene, Config.POWER_CORE.X, Config.POWER_CORE.Y, Config.GRID_CELL * 2)
+    // Pixel power core — 2x2 footprint (100 world units = 2 cells across)
+    // visually scaled up 25% so it reads as the dominant objective piece.
+    // Footprint stays 2x2 so the cell-occupancy math is unchanged.
+    this.powerCore = new PixelPowerCore(this.scene, Config.POWER_CORE.X, Config.POWER_CORE.Y, Config.GRID_CELL * 2.5)
 
     // Map-wide strategy grid. Game is shifting toward chess-like turn-based
     // play with one piece per square (see docs/STATS.md). The grid makes the

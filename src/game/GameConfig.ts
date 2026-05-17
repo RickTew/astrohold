@@ -20,11 +20,19 @@ export const Config = {
   // Per-piece Action Point budgets used by the plan-then-play turn system.
   // Walls/mines stay passive (apBudget 0 → reveal skips them). Turrets/cannons
   // get 1 fire-action per turn, auto-fired by the reveal engine.
+  // defense/dog/gun/laser/signal are PREVIEW pieces — single-angle
+  // (unknown.png) renders dropped in so the player can evaluate visuals
+  // before committing to full 8-direction art. Stats are placeholder.
   STRUCTURES: {
-    turret: { cost: 30, hp: 80,  damage: 15, range: 200, fireInterval: 2, apBudget: 1, label: 'Turret 30cr' },
-    cannon: { cost: 60, hp: 120, damage: 40, range: 280, fireInterval: 4, apBudget: 1, label: 'Cannon 60cr' },
-    wall:   { cost: 20, hp: 300, damage: 0,  range: 0,   fireInterval: 0, apBudget: 0, label: 'Wall   20cr' },
-    mine:   { cost: 20, hp: 50,  damage: 60, range: 60,  fireInterval: 0, apBudget: 0, label: 'Mine   20cr' },
+    turret:  { cost: 30, hp: 80,  damage: 15, range: 200, fireInterval: 2, apBudget: 1, label: 'Turret 30cr' },
+    cannon:  { cost: 60, hp: 120, damage: 40, range: 280, fireInterval: 4, apBudget: 1, label: 'Cannon 60cr' },
+    wall:    { cost: 20, hp: 300, damage: 0,  range: 0,   fireInterval: 0, apBudget: 0, label: 'Wall   20cr' },
+    mine:    { cost: 20, hp: 50,  damage: 60, range: 60,  fireInterval: 0, apBudget: 0, label: 'Mine   20cr' },
+    defense: { cost: 20, hp: 80,  damage: 0,  range: 0,   fireInterval: 0, apBudget: 0, label: 'Defense 20cr (preview)' },
+    dog:     { cost: 30, hp: 60,  damage: 15, range: 200, fireInterval: 2, apBudget: 1, label: 'Dog 30cr (preview)' },
+    gun:     { cost: 30, hp: 80,  damage: 15, range: 200, fireInterval: 2, apBudget: 1, label: 'Gun 30cr (preview)' },
+    laser:   { cost: 40, hp: 70,  damage: 25, range: 300, fireInterval: 3, apBudget: 1, label: 'Laser 40cr (preview)' },
+    signal:  { cost: 20, hp: 50,  damage: 0,  range: 0,   fireInterval: 0, apBudget: 0, label: 'Signal 20cr (preview)' },
   },
 
   UNITS: {

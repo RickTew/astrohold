@@ -60,17 +60,29 @@ export class RevealPhase {
   private buildSteps(): PlannedStep[] {
     const list: PlannedStep[] = []
 
-    // Manually-queued cyborg + sphere actions
+    // Cyborgs: use queued actions, OR auto-default to advance/fire if the
+    // player didn't queue anything (otherwise BATTLE looks like a no-op).
     for (const u of this.units) {
       if (u.isDead) continue
-      for (const a of u.queuedActions) list.push({ actor: u, action: a })
+      if (u.queuedActions.length > 0) {
+        for (const a of u.queuedActions) list.push({ actor: u, action: a })
+      } else {
+        const def = this.defaultCyborgAction(u)
+        if (def) list.push({ actor: u, action: def })
+      }
     }
+    // Spheres: queued shots first, otherwise auto-fire at nearest cyborg.
     for (const s of this.spheres) {
       if (s.isDead) continue
-      for (const a of s.queuedActions) list.push({ actor: s, action: a })
+      if (s.queuedActions.length > 0) {
+        for (const a of s.queuedActions) list.push({ actor: s, action: a })
+      } else {
+        const def = this.defaultSphereAction(s)
+        if (def) list.push({ actor: s, action: def })
+      }
     }
-    // Structures auto-fire on their initiative tick (defender doesn't queue
-    // structure actions). Walls/mines have apBudget 0 → skipped.
+    // Structures auto-fire on their initiative tick. Walls/mines have
+    // apBudget 0 → skipped.
     for (const st of this.structures) {
       if (st.isDead || st.apBudget === 0) continue
       const target = this.pickNearestEnemyOf(st)
@@ -89,6 +101,75 @@ export class RevealPhase {
     })
 
     return list
+  }
+
+  // Default action when a cyborg has no queued plan. If an enemy is in attack
+  // range, fire at the nearest one. Otherwise step one cell toward the core.
+  private defaultCyborgAction(unit: SpriteUnit): QueuedAction | null {
+    const range: number = Config.UNITS[unit.type].range
+    let bestId: string | null = null
+    let bestKind: 'sphere' | 'structure' | 'core' = 'sphere'
+    let bestDist: number = range
+    const consider = (id: string, kind: 'sphere' | 'structure' | 'core', x: number, y: number) => {
+      const d = Math.hypot(x - unit.worldX, y - unit.worldY)
+      if (d <= bestDist) { bestId = id; bestKind = kind; bestDist = d }
+    }
+    for (const s of this.spheres)    if (!s.isDead) consider(s.id, 'sphere',    s.worldX, s.worldY)
+    for (const s of this.structures) if (!s.isDead) consider(s.id, 'structure', s.worldX, s.worldY)
+    if (!this.core.isDead) {
+      // Use closest of the 4 core cells.
+      for (const cc of this.core.cellCenters()) {
+        consider('core', 'core', cc.x, cc.y)
+      }
+    }
+    if (bestId !== null) {
+      return { kind: 'fire', target: { kind: bestKind, id: bestId } }
+    }
+
+    // Nothing in range — advance one cell toward the core.
+    const cell = this.pickStepTowardCore(unit)
+    return cell ? { kind: 'move', cell } : null
+  }
+
+  private pickStepTowardCore(unit: SpriteUnit): CellRef | null {
+    const cs = Config.GRID_CELL
+    const tx = this.core.mesh.position.x
+    const ty = this.core.mesh.position.y
+    const curDist = Math.hypot(tx - unit.worldX, ty - unit.worldY)
+    type Cand = { col: number; row: number; x: number; y: number; d: number }
+    const candidates: Cand[] = []
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        if (dx === 0 && dy === 0) continue
+        const x = unit.worldX + dx * cs
+        const y = unit.worldY + dy * cs
+        const col = Math.floor((x - Config.WORLD.LEFT) / cs)
+        const row = Math.floor((y - Config.WORLD.BOTTOM) / cs)
+        candidates.push({ col, row, x, y, d: Math.hypot(tx - x, ty - y) })
+      }
+    }
+    candidates.sort((a, b) => a.d - b.d)
+    for (const c of candidates) {
+      if (c.d >= curDist) continue
+      if (c.x < Config.WORLD.LEFT || c.x > Config.WORLD.RIGHT) continue
+      if (c.y < Config.WORLD.BOTTOM || c.y > Config.WORLD.TOP) continue
+      if (this.isCellOccupiedAtBattle(c.x, c.y, unit)) continue
+      return { col: c.col, row: c.row }
+    }
+    return null
+  }
+
+  // Default sphere action: fire at nearest cyborg in range.
+  private defaultSphereAction(sphere: SphereDefender): QueuedAction | null {
+    let nearest: SpriteUnit | null = null
+    let nearestDist: number = sphere.range
+    for (const u of this.units) {
+      if (u.isDead) continue
+      const d = Math.hypot(u.worldX - sphere.worldX, u.worldY - sphere.worldY)
+      if (d <= nearestDist) { nearestDist = d; nearest = u }
+    }
+    if (!nearest) return null
+    return { kind: 'fire', target: { kind: 'unit', id: nearest.id } }
   }
 
   private pickNearestEnemyOf(struct: Structure): SpriteUnit | null {

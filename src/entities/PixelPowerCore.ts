@@ -81,8 +81,10 @@ export class PixelPowerCore {
     this.mesh.add(this.sprite)
 
     this.hpBarGroup = new THREE.Group()
-    // Sprite half-height is size/2; bar a hair above that.
-    this.hpBarGroup.position.set(0, size * 0.55, 0)
+    // Bar sits just above the top of the core sprite. Lowered from 0.55 → 0.40
+    // per user feedback ("lower health bar") — closer to the piece, less
+    // floating-overhead UI feel.
+    this.hpBarGroup.position.set(0, size * 0.40, 0)
     const bg = new THREE.Mesh(
       new THREE.PlaneGeometry(70, 8),
       new THREE.MeshBasicMaterial({ color: 0xcc2222 })

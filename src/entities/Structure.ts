@@ -2,11 +2,19 @@ import * as THREE from 'three'
 import { Config, StructureType } from '../game/GameConfig'
 import { QueuedAction, STATIONARY_INITIATIVE, nextActorId } from '../game/TurnTypes'
 
-// Pixel-sprite atlases for the directional structures. Walls/mines stay
-// geometric (Box / Sphere) — they don't need a turret look.
+// Pixel-sprite atlases for sprite-based structures. Walls/mines stay
+// geometric (Box / Sphere). The five "preview" pieces (defense/dog/gun/laser/
+// signal) ship with only a single south.png each — they're in the shop so the
+// player can preview them in-game and decide which to commission full
+// 8-direction renders for.
 const STRUCTURE_SPRITE_FOLDERS: Partial<Record<StructureType, string>> = {
-  turret: 'tower1',   // Robot_Tower_1 — compact directional gun
-  cannon: 'tower2',   // Robot_Tower_2 — heavier/glowing core
+  turret:  'tower1',   // Robot_Tower_1 — compact directional gun
+  cannon:  'tower2',   // Robot_Tower_2 — heavier/glowing core
+  defense: 'defense',  // geodesic dome (preview, no rotations)
+  dog:     'dog',      // mechanical quadruped (preview)
+  gun:     'gun',      // twin-barrel turret (preview)
+  laser:   'laser',    // twin-laser turret (preview)
+  signal:  'signal',   // satellite dish (preview)
 }
 const SPRITE_SIZE = 50   // one cell
 
@@ -79,10 +87,14 @@ export class Structure {
   private buildVisual(): THREE.Mesh {
     switch (this.type) {
       case 'turret':
-      case 'cannon': {
-        // Pixel sprite (Robot_Tower_1 / Robot_Tower_2). Same SpriteMaterial
-        // flags as cyborgs/spheres — depthTest off so we sit cleanly above
-        // the ground without z-fighting.
+      case 'cannon':
+      case 'defense':
+      case 'dog':
+      case 'gun':
+      case 'laser':
+      case 'signal': {
+        // Pixel sprite — same SpriteMaterial flags as cyborgs/spheres.
+        // depthTest off so we sit cleanly above the ground without z-fighting.
         const tex = structureTextures.get(this.type) ?? null
         const mat = new THREE.SpriteMaterial({
           map: tex,

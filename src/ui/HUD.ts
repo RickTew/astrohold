@@ -36,6 +36,11 @@ export class HUD {
           <button class="shop-btn" data-type="turret">Tower 30cr</button>
           <button class="shop-btn" data-type="cannon">Heavy Tower 60cr</button>
           <button class="shop-btn" data-type="wall">Wall 20cr</button>
+          <button class="shop-btn preview" data-type="defense">Defense 20cr</button>
+          <button class="shop-btn preview" data-type="gun">Gun 30cr</button>
+          <button class="shop-btn preview" data-type="laser">Laser 40cr</button>
+          <button class="shop-btn preview" data-type="signal">Signal 20cr</button>
+          <button class="shop-btn preview" data-type="dog">Dog 30cr</button>
         </div>
         <button id="battle-btn">READY</button>
         <div id="attacker-shop" class="shop-panel att-panel">
