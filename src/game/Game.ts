@@ -632,6 +632,20 @@ private makeGhostRing(color: number, inner: number, outer: number): THREE.Mesh {
         return true
       }
     }
+    // Structures (towers, bombers, walls, mines, preview pieces). During
+    // BUILD the live array lives on BuildPhase; once BUILD ends the same
+    // ref is handed to Game. Splice on whichever owns it right now.
+    const structs = this.buildPhase?.getStructures() ?? this.structures
+    for (let i = 0; i < structs.length; i++) {
+      const s = structs[i]
+      const dx = s.worldX - x, dy = s.worldY - y
+      if (dx * dx + dy * dy < REFUND_RADIUS_SQ) {
+        structs.splice(i, 1)
+        s.dispose()
+        this.buildPhase?.addCredits(Config.STRUCTURES[s.type].cost)
+        return true
+      }
+    }
     return false
   }
 
