@@ -16,6 +16,12 @@ export class Projectile {
   targetX: number
   targetY: number
   onHit: (() => void) | null = null
+  // Sprite-projectile arc: scale up then shrink so a top-down lob reads as a
+  // toss (Y-axis arc is invisible from straight above).
+  private arcBaseSize = 0
+  private arcStartX = 0
+  private arcStartY = 0
+  private arcTotalDist = 0
 
   constructor(
     private scene: THREE.Scene,
@@ -47,6 +53,12 @@ export class Projectile {
       sprite.position.set(startX, startY, 1.5)
       sprite.renderOrder = 12
       this.visual = sprite
+      this.arcBaseSize = size
+      this.arcStartX = startX
+      this.arcStartY = startY
+      const adx = fixedTargetX - startX
+      const ady = fixedTargetY - startY
+      this.arcTotalDist = Math.sqrt(adx * adx + ady * ady)
     } else {
       const geo = new THREE.SphereGeometry(isAoe ? 6 : 4, 6, 6)
       const mat = new THREE.MeshBasicMaterial({ color: isAoe ? 0xff4400 : baseColor })
@@ -90,6 +102,17 @@ export class Projectile {
     // of motion top-down where lobbed arcs are hard to convey.
     if (this.visual instanceof THREE.Sprite) {
       this.visual.material.rotation += delta * 6
+      // Lob arc: scale up at apex, shrink back near landing. sin(π·t) peaks
+      // at t=0.5 — combined with the spin this reads as "thrown high".
+      if (this.arcTotalDist > 0) {
+        const dxs = this.visual.position.x - this.arcStartX
+        const dys = this.visual.position.y - this.arcStartY
+        const traveled = Math.sqrt(dxs * dxs + dys * dys)
+        const t = Math.min(1, traveled / this.arcTotalDist)
+        const k = 1 + 0.7 * Math.sin(Math.PI * t)
+        const s = this.arcBaseSize * k
+        this.visual.scale.set(s, s, 1)
+      }
     }
     return false
   }

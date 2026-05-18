@@ -186,6 +186,9 @@ is the position authority — never re-raycast at click time.
 - Both are throttled to avoid stacking dozens per turn.
 
 ## Deployment
+- **We do NOT use the local dev server.** The user tests on the live
+  Vercel URL. Never run `pnpm dev` / `vite` as a verification step.
+- After any code change: commit → `git push origin main` → `vercel --prod`.
 - Always deploy with `vercel --prod` — `vercel` alone creates a preview URL
   the user never sees.
 - Production URL: https://astrohold3.vercel.app
