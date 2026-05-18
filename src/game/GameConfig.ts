@@ -64,6 +64,12 @@ export const Config = {
     // has a gun mounted on top so it should shoot. range 150 + damage 15
     // = short-medium harasser. Closes the gap to flank cyborgs then fires.
     dog:       { cost: 40, hp: 80,  speed: 90,  damage: 15, range: 150, sightRange: 280, aoeRadius: 0,  apBudget: 3, ammo: 5, label: 'Dog',        color: 0x4488aa },
+    // Cyborg Hulk — exo-suited melee bruiser. Highest HP and damage in the
+    // roster, slowest speed, very short range (must close to melee). Ammo
+    // budget is low so each punch matters. Slam-attack-in-front animation
+    // is in the asset bundle for a follow-up special action — for now the
+    // Hulk just punches.
+    hulk:      { cost: 100, hp: 280, speed: 35, damage: 55, range: 70,  sightRange: 220, aoeRadius: 0, apBudget: 2, ammo: 5, label: 'Hulk',       color: 0x886622 },
   },
 } as const
 

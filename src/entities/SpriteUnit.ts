@@ -121,6 +121,19 @@ const MANIFEST: Record<string, AnimManifest> = {
     walking: { fps: 8,  loop: true,  presentDirs: ALL_DIRS, frameCount: 4 },
     die:     { fps: 12, loop: false, presentDirs: ALL_DIRS, frameCount: 4 },
   },
+  // Cyborg Hulk — bruiser. Sparse asset coverage (PixelLab export):
+  //  - walking: 4 cardinal dirs (diagonals mirror-fallback off N/S)
+  //  - shoot (punch): east + west only (others mirror)
+  //  - throw (slam-front): 4 cardinal dirs — reserved for the follow-up
+  //    special action; currently unused in gameplay
+  //  - die (exosuit falls apart): east only — mirrored elsewhere
+  // No idle clip — refreshDirection falls back to the static rotation PNGs.
+  hulk: {
+    walking: { fps: 8,  loop: true,  presentDirs: ['east', 'west', 'north', 'south'], frameCount: 9 },
+    shoot:   { fps: 14, loop: false, presentDirs: ['east', 'west'], frameCount: 9 },
+    throw:   { fps: 12, loop: false, presentDirs: ['east', 'west', 'north', 'south'], frameCount: 9 },
+    die:     { fps: 10, loop: false, presentDirs: ['east'], frameCount: 9 },
+  },
 }
 
 function loadTexture(url: string): Promise<THREE.Texture> {

@@ -50,6 +50,7 @@ export class HUD {
         <button class="att-btn" data-type="cannon">Cannon 70cr</button>
         <button class="att-btn" data-type="grenadier">Grenadier 50cr</button>
         <button class="att-btn" data-type="doublegun">Double Gun 90cr</button>
+        <button class="att-btn" data-type="hulk">Hulk 100cr</button>
       </div>
       <div id="bottom-bar" class="hidden">
         <button id="battle-btn">READY</button>
