@@ -203,6 +203,10 @@ export class SpriteUnit {
   // decrements on each fired/thrown action. When 0, the unit is inert
   // (still moves, but can't attack).
   ammoRemaining: number
+  // Hulk-only — slam attack uses its own ammo counter so a Hulk who's
+  // burned through slams can still punch. Non-Hulks default to 0 and
+  // never trigger the slam branch.
+  slamAmmoRemaining: number
 
   private sprite: THREE.Sprite
   private hpBarGroup: THREE.Group
@@ -253,6 +257,7 @@ export class SpriteUnit {
     this.apBudget = Config.UNITS[type].apBudget
     this.apRemaining = this.apBudget
     this.ammoRemaining = Config.UNITS[type].ammo
+    this.slamAmmoRemaining = (Config.UNITS[type] as { slamAmmo?: number }).slamAmmo ?? 0
     this.moveSpeedPS = Config.UNITS[type].speed / Config.TURN_INTERVAL
     // Defenders look east toward the cyborg side; attackers look west toward
     // the core. Drives the initial sprite direction.
@@ -401,6 +406,15 @@ export class SpriteUnit {
     const state: AnimState = this.type === 'grenadier' ? 'throw' : 'shoot'
     if (!animSets.get(this.type)?.anims[state]) return  // unit has no shoot/throw clip
     this.playState(state)
+  }
+
+  // Hulk slam-front one-shot. The PixelLab export reuses the 'throw' slot
+  // for the slam (4 cardinal dirs); diagonals mirror to the nearest
+  // cardinal. Falls back silently if the clip isn't loaded for this type.
+  playSlamAnim() {
+    if (this.isDead) return
+    if (!animSets.get(this.type)?.anims['throw']) return
+    this.playState('throw')
   }
 
   faceTarget(x: number, y: number) {

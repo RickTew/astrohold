@@ -6,13 +6,18 @@ export type CellRef = { col: number; row: number }
 export type TargetKind = 'unit' | 'sphere' | 'structure' | 'core' | 'bomb'
 export type TargetRef = { kind: TargetKind; id: string }
 
-export type QueuedActionKind = 'move' | 'fire' | 'throw' | 'diffuse' | 'hold'
+export type QueuedActionKind = 'move' | 'fire' | 'throw' | 'diffuse' | 'slam' | 'hold'
 
 export type QueuedAction =
   | { kind: 'move';    cell: CellRef }
   | { kind: 'fire';    target: TargetRef }
   | { kind: 'throw';   cell: CellRef }
   | { kind: 'diffuse'; target: TargetRef }   // Grenadier safe-removes an armed enemy bomb
+  // Cyborg Hulk special. `cell` is the center of the wedge — one cardinal
+  // step forward of the Hulk. The wedge is 3 cells wide perpendicular to
+  // that direction, so a Hulk at (5,3) slamming east targets cell (6,3)
+  // and damages (6,2), (6,3), (6,4).
+  | { kind: 'slam';    cell: CellRef }
   | { kind: 'hold' }
 
 export const AP_COST: Record<QueuedActionKind, number> = {
@@ -20,6 +25,7 @@ export const AP_COST: Record<QueuedActionKind, number> = {
   fire: 1,
   throw: 2,
   diffuse: 1,
+  slam: 2,
   hold: 0,
 }
 

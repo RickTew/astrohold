@@ -175,6 +175,13 @@ export class RevealPhase {
   // cyborgs still advance toward the core (their objective) and defender
   // mobile units (dogs) wander to a random adjacent cell.
   private defaultMobileUnitAction(unit: SpriteUnit): QueuedAction | null {
+    // Hulk-specific: if 2+ enemies cluster in any cardinal slam wedge AND
+    // we have slam ammo, slam them. Lower per-target damage than punch but
+    // hits up to 3 at once — a real "save it for the cluster" decision.
+    if (unit.type === 'hulk' && unit.slamAmmoRemaining > 0) {
+      const slam = this.pickSlamWedge(unit)
+      if (slam) return { kind: 'slam', cell: slam }
+    }
     // Grenadier-specific: if an armed enemy bomb is adjacent (within 1.5
     // cells), prefer DIFFUSING it over anything else. Costs 1 AP, no
     // damage, bomb vanishes — strictly better than walking into the blast.
@@ -223,6 +230,68 @@ export class RevealPhase {
       // Robots wander when no enemy in sight (per user spec).
       const cell = this.pickWanderStep(unit)
       if (cell) return { kind: 'move', cell }
+    }
+    return null
+  }
+
+  // Pick the cardinal slam direction whose 3-cell wedge contains the most
+  // enemies. Returns the wedge-center cell (one step forward of `unit`) iff
+  // that wedge contains at least 2 enemies — anything less and the AI
+  // prefers conserving slam ammo for a real cluster. Ties broken by which
+  // wedge has higher TOTAL HP to chew through (kills aren't guaranteed at
+  // 40 dmg vs typical 80–300 HP, so concentration matters).
+  private pickSlamWedge(unit: SpriteUnit): CellRef | null {
+    const cs = Config.GRID_CELL
+    const col = Math.floor((unit.worldX - Config.WORLD.LEFT) / cs)
+    const row = Math.floor((unit.worldY - Config.WORLD.BOTTOM) / cs)
+    let best: { cell: CellRef; count: number; hp: number } | null = null
+    for (const [dc, dr] of CARDINAL_STEPS) {
+      const targetCol = col + dc
+      const targetRow = row + dr
+      const perpCol = dr === 0 ? 0 : 1
+      const perpRow = dr === 0 ? 1 : 0
+      let count = 0
+      let hp = 0
+      for (let k = -1; k <= 1; k++) {
+        const wcol = targetCol + perpCol * k
+        const wrow = targetRow + perpRow * k
+        const wx = Config.WORLD.LEFT + wcol * cs + cs / 2
+        const wy = Config.WORLD.BOTTOM + wrow * cs + cs / 2
+        if (wx < Config.WORLD.LEFT || wx > Config.WORLD.RIGHT) continue
+        if (wy < Config.WORLD.BOTTOM || wy > Config.WORLD.TOP) continue
+        const hit = this.firstEnemyAt(unit, wx, wy)
+        if (hit) { count++; hp += hit.hp }
+      }
+      if (count >= 2 && (!best || count > best.count || (count === best.count && hp > best.hp))) {
+        best = { cell: { col: targetCol, row: targetRow }, count, hp }
+      }
+    }
+    return best ? best.cell : null
+  }
+
+  // Returns the first live enemy of `unit` whose cell center sits on (x, y),
+  // or null. Used by the Hulk slam scorer.
+  private firstEnemyAt(unit: SpriteUnit, x: number, y: number): { hp: number } | null {
+    const E = 1
+    if (unit.side === 'attacker') {
+      for (const s of this.spheres) {
+        if (!s.isDead && Math.abs(s.worldX - x) < E && Math.abs(s.worldY - y) < E) return { hp: s.hp }
+      }
+      for (const st of this.structures) {
+        if (!st.isDead && Math.abs(st.worldX - x) < E && Math.abs(st.worldY - y) < E) return { hp: st.hp }
+      }
+      for (const du of this.defenderUnits) {
+        if (!du.isDead && Math.abs(du.worldX - x) < E && Math.abs(du.worldY - y) < E) return { hp: du.hp }
+      }
+      if (!this.core.isDead) {
+        for (const cc of this.core.cellCenters()) {
+          if (Math.abs(cc.x - x) < E && Math.abs(cc.y - y) < E) return { hp: this.core.hp }
+        }
+      }
+    } else {
+      for (const u of this.units) {
+        if (!u.isDead && Math.abs(u.worldX - x) < E && Math.abs(u.worldY - y) < E) return { hp: u.hp }
+      }
     }
     return null
   }
@@ -647,7 +716,92 @@ export class RevealPhase {
 
     if (action.kind === 'diffuse') {
       this.executeDiffuse(actor, action.target)
+      return
     }
+
+    if (action.kind === 'slam') {
+      this.executeSlam(actor, action.cell)
+    }
+  }
+
+  // Hulk-only wedge attack. `cell` is the center of the wedge — one cardinal
+  // step from the Hulk's current cell. The wedge is 3 cells wide perpendicular
+  // to that direction; every enemy occupying any of the 3 cells takes the
+  // slam's damage. Hits zero targets is still a legal action — the Hulk slams
+  // the ground, ammo is spent.
+  private executeSlam(actor: Actor, cell: CellRef) {
+    if (!(actor instanceof SpriteUnit)) return
+    if (actor.type !== 'hulk') return
+    if (actor.slamAmmoRemaining <= 0) return
+
+    const cs = Config.GRID_CELL
+    const hulkCol = Math.floor((actor.worldX - Config.WORLD.LEFT) / cs)
+    const hulkRow = Math.floor((actor.worldY - Config.WORLD.BOTTOM) / cs)
+    const dirCol = cell.col - hulkCol
+    const dirRow = cell.row - hulkRow
+    // Must be a cardinal neighbor — guard against stale plans where the Hulk
+    // moved before the slam tick. Diagonal or non-adjacent targets are a
+    // strict skip per the planning model.
+    const isCardinal = (Math.abs(dirCol) + Math.abs(dirRow)) === 1
+    if (!isCardinal) return
+
+    // Wedge perpendicular to the slam direction. East slam → wedge runs N/S,
+    // covering rows -1/0/+1 of the target col.
+    const perpCol = dirRow === 0 ? 0 : 1
+    const perpRow = dirRow === 0 ? 1 : 0
+    const wedgeCells: { x: number; y: number }[] = []
+    for (let k = -1; k <= 1; k++) {
+      const col = cell.col + perpCol * k
+      const row = cell.row + perpRow * k
+      const x = Config.WORLD.LEFT + col * cs + cs / 2
+      const y = Config.WORLD.BOTTOM + row * cs + cs / 2
+      if (x < Config.WORLD.LEFT || x > Config.WORLD.RIGHT) continue
+      if (y < Config.WORLD.BOTTOM || y > Config.WORLD.TOP) continue
+      wedgeCells.push({ x, y })
+    }
+
+    actor.faceTarget(cell.col * cs + Config.WORLD.LEFT + cs / 2,
+                     cell.row * cs + Config.WORLD.BOTTOM + cs / 2)
+    actor.playSlamAnim()
+    actor.slamAmmoRemaining = Math.max(0, actor.slamAmmoRemaining - 1)
+    this.combatThisReveal = true
+
+    // Visual punch — a small impact burst on each wedge cell. Tied to the
+    // slam animation cadence so the boom lands as the Hulk's fist connects.
+    const damage = (Config.UNITS.hulk as { slamDamage: number }).slamDamage
+    const E = 1
+    for (const wc of wedgeCells) {
+      this.explosions.push(new Explosion(this.scene, wc.x, wc.y, 22, 0.35))
+      // Hit any enemy whose cell-centre overlaps this wedge cell.
+      if (actor.side === 'attacker') {
+        for (const s of this.spheres) {
+          if (s.isDead) continue
+          if (Math.abs(s.worldX - wc.x) < E && Math.abs(s.worldY - wc.y) < E) s.takeDamage(damage)
+        }
+        for (const st of this.structures) {
+          if (st.isDead) continue
+          if (Math.abs(st.worldX - wc.x) < E && Math.abs(st.worldY - wc.y) < E) st.takeDamage(damage)
+        }
+        for (const du of this.defenderUnits) {
+          if (du.isDead) continue
+          if (Math.abs(du.worldX - wc.x) < E && Math.abs(du.worldY - wc.y) < E) du.takeDamage(damage)
+        }
+        if (!this.core.isDead) {
+          for (const cc of this.core.cellCenters()) {
+            if (Math.abs(cc.x - wc.x) < E && Math.abs(cc.y - wc.y) < E) {
+              this.core.takeDamage(damage)
+              break
+            }
+          }
+        }
+      } else {
+        for (const u of this.units) {
+          if (u.isDead) continue
+          if (Math.abs(u.worldX - wc.x) < E && Math.abs(u.worldY - wc.y) < E) u.takeDamage(damage)
+        }
+      }
+    }
+    playExplosion()
   }
 
   // Grenadier safe-remove of an armed enemy bomb. The bomb just vanishes —
