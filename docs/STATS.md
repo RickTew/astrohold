@@ -235,6 +235,7 @@ Defender loses if Power Core HP reaches 0.
 | **Grenadier** | **50** | 110 | 75 | 20 | 180 | 280 | 45 | 3 | Standoff — keep distance, lob proximity grenades. Can DIFFUSE adjacent armed enemy bombs (1 AP). Green sprite tint. |
 | **Double Gun** | 90 | 160 | 65 | 45 | 230 | 300 | — | 3 | Aggressive — heavy direct fire from medium range. Warm-orange sprite tint. |
 | **Hulk** | 100 | 280 | 35 | 55 | 70 | 220 | — | 2 | Melee bruiser — heaviest HP / damage, slowest speed, must close to punch range. **Slam (2 AP, 40 dmg, 3 ammo)**: hits all enemies in a 3-cell-wide wedge one tile forward. AI prefers slam when 2+ enemies cluster in any cardinal wedge. Separate ammo from punch (5 punches / 3 slams per game). |
+| **Sniper** | 90 | 80 | 50 | 150 | 400 | 450 | — | 2 | Precision strike. **Single shot** (ammo 1) at the longest range in the game — 150 dmg one-shots every defender structure (max HP 120 cannon turret) and most cyborg-tier units. After firing, the sniper is just a slow, fragile target. Olive sprite tint, sniper-rifle aim animation. |
 
 Cyborgs spawn in the attacker zone (x > 200) and need to traverse the
 battlefield to reach the Power Core at (-550, 0). All cyborg costs are

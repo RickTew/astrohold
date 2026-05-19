@@ -156,6 +156,7 @@ export class Game {
       preloadSpriteUnit('doublegun', 'doublegun'),
       preloadSpriteUnit('dog', 'dog'),
       preloadSpriteUnit('hulk', 'hulk'),
+      preloadSpriteUnit('sniper', 'sniper'),
       preloadPixelPowerCore(),
       preloadStructureSprites(),
       // GLB Power Core preload skipped — switched to pixel sprite. super.glb

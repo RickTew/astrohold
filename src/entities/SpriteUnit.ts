@@ -24,6 +24,9 @@ const SPRITE_SIZE = 60
 const SPRITE_TINT: Partial<Record<UnitType, number>> = {
   grenadier: 0xb0ffb0,
   doublegun: 0xffd0a0,
+  // Cool olive cast on the sniper so the recon role reads at a glance
+  // against the warmer fire-support tints above.
+  sniper:    0xc8e0a0,
 }
 // How far ahead of the unit a projectile should leave from. Tuned so shots
 // emerge from the weapon hand, not the chest/stomach.
@@ -120,6 +123,20 @@ const MANIFEST: Record<string, AnimManifest> = {
   dog: {
     walking: { fps: 8,  loop: true,  presentDirs: ALL_DIRS, frameCount: 4 },
     die:     { fps: 12, loop: false, presentDirs: ALL_DIRS, frameCount: 4 },
+  },
+  // Cyborg Sniper — precision-strike unit. Asset coverage:
+  //  - idle: south + south-east + south-west only (the "ready to scope" pose).
+  //    Other dirs fall back to static rotations.
+  //  - walking: 4 cardinal dirs; diagonals mirror off N/S.
+  //  - shoot (sniper-rifle pose): 7 directions — E/W use the crouches clip,
+  //    N/NE/NW use the back-aiming clip, SE/SW use the holding clip. South
+  //    is the only gap; mirror logic + static south.png covers it.
+  //  - die: full 8 directions, 9-frame ragdoll.
+  sniper: {
+    idle:    { fps: 5,  loop: true,  presentDirs: ['south', 'south-east', 'south-west'], frameCount: 9 },
+    walking: { fps: 8,  loop: true,  presentDirs: ['east', 'west', 'north', 'south'], frameCount: 9 },
+    shoot:   { fps: 12, loop: false, presentDirs: ['east', 'west', 'north', 'north-east', 'north-west', 'south-east', 'south-west'], frameCount: 9 },
+    die:     { fps: 10, loop: false, presentDirs: ALL_DIRS, frameCount: 9 },
   },
   // Cyborg Hulk — bruiser. Sparse asset coverage (PixelLab export):
   //  - walking: 4 cardinal dirs (diagonals mirror-fallback off N/S)
