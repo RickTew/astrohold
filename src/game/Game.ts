@@ -10,6 +10,7 @@ import { PlanningPhase } from './PlanningPhase'
 import { RevealPhase } from './RevealPhase'
 import { Structure, preloadStructureSprites } from '../entities/Structure'
 import { PendingGrenade } from '../entities/PendingGrenade'
+import { FireArcPreview } from '../entities/FireArcPreview'
 
 type Phase = 'loading' | 'build' | 'planning' | 'reveal' | 'win' | 'lose'
 
@@ -81,6 +82,10 @@ export class Game {
 
   // Single source of truth for any active placement.
   private placement: PlacementSession | null = null
+  // Range/arc overlay shown beneath the sphere placement ghost so the player
+  // can see how much of the field one sphere covers before committing. Reused
+  // — created once, show/hide as the placement session starts/ends.
+  private placementArcPreview!: FireArcPreview
 
   // Camera pan/zoom state
   private isPanning = false
@@ -90,6 +95,7 @@ export class Game {
   constructor(private canvas: HTMLCanvasElement) {
     this.scene = new THREE.Scene()
     this.scene.background = new THREE.Color(0x201b14)  // matches terrain darkest tone
+    this.placementArcPreview = new FireArcPreview(this.scene)
 
     const halfH = 600 / (window.innerWidth / window.innerHeight)
     this.camera = new THREE.OrthographicCamera(-600, 600, halfH, -halfH, 1, 1500)
@@ -432,6 +438,7 @@ private enterBuildPhase() {
       p.tint.geometry.dispose()
       ;(p.tint.material as THREE.Material).dispose()
     }
+    this.placementArcPreview.hide()
     p.onEnd?.()
   }
 
@@ -710,11 +717,16 @@ private enterBuildPhase() {
         if (snap.valid) {
           this.placement.ghost.position.set(snap.x, snap.y, 1)
           this.placement.ghost.visible = true
+          if (this.placement.kind === 'sphere') {
+            this.placementArcPreview.showCircle(snap.x, snap.y, Config.SPHERE.range)
+          }
         } else {
           this.placement.ghost.visible = false
+          this.placementArcPreview.hide()
         }
       } else {
         this.placement.ghost.visible = false
+        this.placementArcPreview.hide()
       }
     }
   }

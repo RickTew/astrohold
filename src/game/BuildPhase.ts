@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { Config, StructureType } from './GameConfig'
 import { Structure } from '../entities/Structure'
+import { FireArcPreview } from '../entities/FireArcPreview'
 import { HUD } from '../ui/HUD'
 
 const COLS = 8
@@ -20,6 +21,10 @@ export class BuildPhase {
 
   private hitPlane: THREE.Mesh
   private ghostMesh: THREE.Mesh | null = null
+  // Wedge / circle overlay shown alongside the cell ghost so the player can
+  // see what the structure can actually shoot before they commit. Lifecycle
+  // is tied 1:1 to the ghost — appears when the ghost shows, disposes on hide.
+  private firePreview: FireArcPreview
 
   private raycaster = new THREE.Raycaster()
   private mouse = new THREE.Vector2()
@@ -47,6 +52,7 @@ export class BuildPhase {
     }
 
     this.hitPlane = this.buildHitPlane()
+    this.firePreview = new FireArcPreview(scene)
 
     hud.setCredits(this.credits)
     // Game wires hud.onSelectStructure itself so it can cancel the
@@ -138,6 +144,19 @@ private buildHitPlane(): THREE.Mesh {
     }
     this.ghostMesh.position.x = wx
     this.ghostMesh.position.y = wy
+    this.updateFirePreview(wx, wy)
+  }
+
+  // Re-draw the wedge/circle overlay for the currently selected structure
+  // type at (wx, wy). Walls/mines/signal don't fire — they get no overlay.
+  private updateFirePreview(wx: number, wy: number) {
+    const type = this.selectedType
+    if (!type) { this.firePreview.hide(); return }
+    const stats = Config.STRUCTURES[type]
+    if (!stats || stats.range <= 0 || stats.ammo <= 0) { this.firePreview.hide(); return }
+    // Mirrors Structure's fireFacings default — until the multi-arc UI ships,
+    // every directional structure points east at placement time.
+    this.firePreview.showWedge(wx, wy, stats.range, [0])
   }
 
   private hideGhost() {
@@ -147,6 +166,7 @@ private buildHitPlane(): THREE.Mesh {
       this.ghostMesh.geometry.dispose()
       this.ghostMesh = null
     }
+    this.firePreview.hide()
   }
 
   faceCamera(camera: THREE.Camera) {
@@ -173,6 +193,7 @@ private buildHitPlane(): THREE.Mesh {
     window.removeEventListener('mousemove', this.onMouseMove)
     window.removeEventListener('click', this.onClick)
     this.hideGhost()
+    this.firePreview.hide()
     this.hitPlane.removeFromParent()
   }
 }
