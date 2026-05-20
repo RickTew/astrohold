@@ -20,221 +20,343 @@
     #hud * { pointer-events: auto; }
 
     /* ──────────────────────────────────────────────────────────────────────
-       VISUAL SYSTEM — palette + reusable atoms
-       Defender side: cool blues. Attacker side: warm reds.
-       Each side has hue families:
-         - frame:   panel border / brackets
-         - accent:  highlights, hover, selected
-         - bg-deep: panel background gradient stops
-         - bg-tile: tile background gradient stops
+       VISUAL SYSTEM — industrial-holographic theme
+       Metallic plate base + faint hex-grid pattern + holographic team
+       accents. Each side has a hue family:
+         - plate-*:  base metallic gradient stops
+         - frame:    chunky 2px outer rim
+         - frame-hi: bright accent on hover / corners
+         - accent:   selected / LED color
+         - text-*:   foreground typography
+         - glow:     bloom around the panel + tiles
        ────────────────────────────────────────────────────────────────────── */
     :root {
-      --def-frame: #3672a8;
-      --def-frame-hi: #6cb0ff;
-      --def-accent: #00d4ff;
-      --def-text:   #cfe6ff;
-      --def-text-2: #88bbdd;
-      --def-bg-1:   rgba(10, 24, 46, 0.94);
-      --def-bg-2:   rgba(4, 10, 22, 0.94);
-      --def-tile-1: #122944;
-      --def-tile-2: #081628;
-      --def-glow:   rgba(0, 140, 220, 0.45);
+      /* Metallic neutral — shared base for both sides */
+      --plate-1:    #2a323d;   /* light gunmetal — top edge */
+      --plate-2:    #161a22;   /* darker — body */
+      --plate-3:    #0a0d13;   /* deepest — bottom */
+      --plate-bevel: rgba(255, 255, 255, 0.10);
+      --plate-shadow: rgba(0, 0, 0, 0.55);
 
-      --att-frame: #a8364a;
-      --att-frame-hi: #ff8a8a;
-      --att-accent: #ff5560;
-      --att-text:   #ffd6d6;
-      --att-text-2: #d99898;
-      --att-bg-1:   rgba(46, 10, 18, 0.94);
-      --att-bg-2:   rgba(22, 4, 8, 0.94);
-      --att-tile-1: #3a0a14;
-      --att-tile-2: #1a0008;
-      --att-glow:   rgba(220, 60, 80, 0.45);
+      /* Defender (ROBOTS) — cyan / electric blue */
+      --def-frame:    #2b4d72;
+      --def-frame-hi: #6ac4ff;
+      --def-accent:   #00e0ff;
+      --def-text:     #d8ecff;
+      --def-text-2:   #8aaecc;
+      --def-glow:     rgba(0, 160, 240, 0.45);
+      --def-led:      #2ee0ff;
+      --def-warning-1: #6ac4ff;
+      --def-warning-2: rgba(106, 196, 255, 0.10);
 
-      --cost-color: #d4ff7a;
+      /* Attacker (CYBORGS) — amber / blood red */
+      --att-frame:    #7a2630;
+      --att-frame-hi: #ff8c8c;
+      --att-accent:   #ff5a55;
+      --att-text:     #ffdadc;
+      --att-text-2:   #cc9494;
+      --att-glow:     rgba(230, 70, 70, 0.45);
+      --att-led:      #ff5a55;
+      --att-warning-1: #ff8c8c;
+      --att-warning-2: rgba(255, 140, 140, 0.10);
+
+      --cost-color:  #c8ff5a;
+      --cost-shadow: rgba(140, 220, 50, 0.6);
+
+      /* Hex-grid overlay — subtle structural texture on every panel. */
+      --hex-overlay:
+        repeating-linear-gradient(
+          60deg,
+          transparent 0 18px,
+          rgba(255, 255, 255, 0.018) 18px 19px
+        ),
+        repeating-linear-gradient(
+          -60deg,
+          transparent 0 18px,
+          rgba(255, 255, 255, 0.018) 18px 19px
+        );
     }
 
     /* ── Top bar (BUILD + PLAN) ────────────────────────────────────────────
-       Three-column strip: player panel · centre controls · opponent readout.
-       Single-player mode (set via .player-defender / .player-attacker on
-       #top-bar) hides the AI side's full panel and shows only its credits
-       readout — the layout stays balanced because the readout occupies the
-       same column. The faint top-edge gradient blends into the battlefield
-       so the bar reads as inset against the world. */
+       Three-column strip. Player panel goes in column 1 or 3 depending on
+       chosen side; the other outer column stays empty so the battlefield
+       breathes. Center column holds the matchup badge, phase label, and
+       READY button. No opponent panel or readout is rendered — opponent
+       intel stays hidden until BATTLE. */
     #top-bar {
       position: absolute;
       top: 0; left: 0; right: 0;
       display: grid;
       grid-template-columns: 1fr auto 1fr;
-      align-items: stretch;
-      gap: 16px;
-      padding: 12px 16px 14px;
-      background: linear-gradient(180deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.40) 75%, transparent 100%);
+      align-items: start;
+      gap: 18px;
+      padding: 12px 18px 14px;
+      /* Soft top-of-screen vignette so the bar reads as inset against the
+         battlefield rather than floating on top of it. */
+      background: linear-gradient(180deg, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.30) 70%, transparent 100%);
       pointer-events: none;
     }
     #top-bar > * { pointer-events: auto; }
 
-    /* Each top-bar element is anchored to an explicit grid column so the two
-       possible occupants of column 1 (robot-panel + robot-readout) and column
-       3 (cyborg-panel + cyborg-readout) overlap on the same track. Then we
-       use display:none on the inactive one to leave only the visible
-       occupant in the layout. */
-    #robot-panel,   #robot-readout   { grid-column: 1; }
-    #center-controls                 { grid-column: 2; }
-    #cyborg-panel,  #cyborg-readout  { grid-column: 3; }
-    #robot-readout, #cyborg-readout  { justify-self: stretch; }
+    #robot-panel    { grid-column: 1; justify-self: start; }
+    #center-controls{ grid-column: 2; justify-self: center; }
+    #cyborg-panel   { grid-column: 3; justify-self: end; }
 
-    /* In single-player mode, swap the opposing full panel for the slim
-       opponent readout, and vice-versa. */
-    #top-bar.player-defender #cyborg-panel,
-    #top-bar.player-attacker #robot-panel    { display: none; }
-    #top-bar.player-defender #robot-readout,
-    #top-bar.player-attacker #cyborg-readout { display: none; }
+    /* Player side gating — the AI's panel is removed from layout entirely
+       (no slim readout — opponent intel is hidden). */
+    #top-bar.player-defender #cyborg-panel { display: none; }
+    #top-bar.player-attacker #robot-panel  { display: none; }
 
-    /* ── Team panel (full interactive shop) ────────────────────────────── */
+    /* ── Team panel (full interactive shop) ────────────────────────────────
+       Industrial-holographic look:
+         - Metallic plate base (neutral gunmetal gradient)
+         - Holographic team-coloured accent rim + inner bevel
+         - Faint hex-grid pattern overlay (texture)
+         - Corner brackets + 4 corner "rivets" (small filled squares)
+         - Header has a stenciled team name + LCD-style credits readout
+         - Thin warning-stripe accent band under the header
+    */
     .team-panel {
       position: relative;
       display: flex;
       flex-direction: column;
       gap: 10px;
-      padding: 12px 16px 14px;
-      background: linear-gradient(180deg, var(--def-bg-1) 0%, var(--def-bg-2) 100%);
+      padding: 14px 18px 16px;
+      width: 560px;
+      background:
+        var(--hex-overlay),
+        linear-gradient(180deg, var(--plate-1) 0%, var(--plate-2) 45%, var(--plate-3) 100%);
       border: 2px solid var(--def-frame);
       box-shadow:
-        0 0 22px var(--def-glow) inset,
-        0 0 14px rgba(0, 80, 160, 0.25),
-        0 1px 0 rgba(255, 255, 255, 0.05) inset;
+        /* outer holographic bloom */
+        0 0 18px var(--def-glow),
+        /* inner top-edge highlight */
+        0 1px 0 var(--plate-bevel) inset,
+        /* inner bottom-edge shadow */
+        0 -1px 0 var(--plate-shadow) inset,
+        /* inset glow from the team colour */
+        0 0 28px var(--def-glow) inset;
     }
     .team-panel.att {
-      background: linear-gradient(180deg, var(--att-bg-1) 0%, var(--att-bg-2) 100%);
       border-color: var(--att-frame);
       box-shadow:
-        0 0 22px var(--att-glow) inset,
-        0 0 14px rgba(160, 0, 40, 0.25),
-        0 1px 0 rgba(255, 255, 255, 0.05) inset;
+        0 0 18px var(--att-glow),
+        0 1px 0 var(--plate-bevel) inset,
+        0 -1px 0 var(--plate-shadow) inset,
+        0 0 28px var(--att-glow) inset;
     }
 
-    /* Corner brackets — four per panel, drawn slightly OUTSIDE the border
-       so they read as decorative armatures, not as extra lines on the
-       border. Stronger than before (3px stroke, 18px arm) so they actually
-       contribute to the silhouette. */
+    /* Corner brackets — chunky 4px / 22px L-shapes anchored to all four
+       corners. Read as armatures bolted onto the plate. */
     .corner-bracket {
       position: absolute;
-      width: 18px;
-      height: 18px;
-      border: 3px solid var(--def-frame-hi);
+      width: 22px;
+      height: 22px;
+      border: 4px solid var(--def-frame-hi);
+      pointer-events: none;
+      filter: drop-shadow(0 0 4px var(--def-glow));
+    }
+    .team-panel.att .corner-bracket {
+      border-color: var(--att-frame-hi);
+      filter: drop-shadow(0 0 4px var(--att-glow));
+    }
+    .corner-bracket.tl { top: -4px;    left: -4px;   border-right: none; border-bottom: none; }
+    .corner-bracket.tr { top: -4px;    right: -4px;  border-left: none;  border-bottom: none; }
+    .corner-bracket.bl { bottom: -4px; left: -4px;   border-right: none; border-top: none;    }
+    .corner-bracket.br { bottom: -4px; right: -4px;  border-left: none;  border-top: none;    }
+
+    /* Rivets — small filled squares at the four corners just inside the
+       bracket. Read as fasteners holding the corner armature onto the plate.
+       Implemented as box-shadow on a single ::before / ::after pseudo-element
+       per panel (each pseudo-element gives 2 rivets via two shadows). */
+    .team-panel::before,
+    .team-panel::after {
+      content: '';
+      position: absolute;
+      width: 4px; height: 4px;
+      background: var(--def-frame-hi);
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
       pointer-events: none;
     }
-    .team-panel.att .corner-bracket { border-color: var(--att-frame-hi); }
-    .corner-bracket.tl { top: -3px;    left: -3px;   border-right: none; border-bottom: none; }
-    .corner-bracket.tr { top: -3px;    right: -3px;  border-left: none;  border-bottom: none; }
-    .corner-bracket.bl { bottom: -3px; left: -3px;   border-right: none; border-top: none;    }
-    .corner-bracket.br { bottom: -3px; right: -3px;  border-left: none;  border-top: none;    }
+    .team-panel.att::before,
+    .team-panel.att::after {
+      background: var(--att-frame-hi);
+    }
+    .team-panel::before { top: 10px; left: 10px; }
+    .team-panel::after  { top: 10px; right: 10px; }
+    /* A second pair via the corner-bracket pseudo-element box-shadows would
+       require pseudo-element stacking; instead the bottom-row "rivets" are
+       baked into the bottom corner brackets visually. Two top rivets keep
+       the look clean without clutter. */
 
-    /* ── Panel header (team name + credits + divider) ──────────────────── */
+    /* ── Panel header (team name + credits + warning stripe) ───────────── */
     .team-panel .panel-header {
       display: flex;
-      align-items: baseline;
+      align-items: center;
       justify-content: space-between;
-      gap: 14px;
+      gap: 18px;
       font-family: 'Courier New', monospace;
-      letter-spacing: 3px;
-      padding-bottom: 8px;
+      letter-spacing: 4px;
+      padding: 0 0 12px;
       position: relative;
     }
+    /* Warning-stripe accent band under the header. Diagonal yellow/black
+       hazard pattern at low opacity tinted to the team colour. */
     .team-panel .panel-header::after {
       content: '';
       position: absolute;
       left: 0; right: 0; bottom: 0;
-      height: 1px;
-      background: linear-gradient(90deg, transparent, var(--def-frame-hi) 20%, var(--def-frame-hi) 80%, transparent);
-      opacity: 0.55;
+      height: 4px;
+      background:
+        repeating-linear-gradient(
+          135deg,
+          var(--def-warning-1) 0 8px,
+          var(--def-warning-2) 8px 16px
+        );
+      opacity: 0.75;
+      box-shadow: 0 0 6px var(--def-glow);
     }
     .team-panel.att .panel-header::after {
-      background: linear-gradient(90deg, transparent, var(--att-frame-hi) 20%, var(--att-frame-hi) 80%, transparent);
+      background:
+        repeating-linear-gradient(
+          135deg,
+          var(--att-warning-1) 0 8px,
+          var(--att-warning-2) 8px 16px
+        );
+      box-shadow: 0 0 6px var(--att-glow);
     }
     .team-panel .team-name {
-      font-size: 15px;
+      font-size: 17px;
       font-weight: bold;
       color: var(--def-frame-hi);
-      text-shadow: 0 0 10px var(--def-glow);
+      text-shadow:
+        0 0 14px var(--def-glow),
+        0 0 2px rgba(0, 0, 0, 0.8);
+      /* Stenciled feel — slight horizontal scratch via background-clip text. */
+      position: relative;
     }
     .team-panel.att .team-name {
       color: var(--att-frame-hi);
-      text-shadow: 0 0 10px var(--att-glow);
+      text-shadow:
+        0 0 14px var(--att-glow),
+        0 0 2px rgba(0, 0, 0, 0.8);
     }
+    /* LCD-style credit readout — recessed black slot with green numerals. */
     .team-panel .team-credits {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 12px;
+      background: linear-gradient(180deg, #050a10 0%, #0b1320 100%);
+      border: 1px solid rgba(0, 0, 0, 0.6);
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.06) inset,
+        0 2px 4px rgba(0, 0, 0, 0.5) inset;
       font-size: 13px;
-      letter-spacing: 2px;
-      color: var(--def-text);
+      letter-spacing: 3px;
+      color: rgba(200, 230, 255, 0.55);
     }
-    .team-panel.att .team-credits { color: var(--att-text); }
     .team-panel .team-credits .cr-num {
       color: var(--cost-color);
-      margin-left: 4px;
+      font-weight: bold;
+      text-shadow: 0 0 8px var(--cost-shadow);
+      letter-spacing: 1px;
     }
 
     .team-panel .panel-grid {
       display: grid;
       grid-template-columns: repeat(5, minmax(0, 1fr));
-      gap: 8px;
+      gap: 10px;
     }
 
-    /* ── Shop tile (icon + label + cost) ───────────────────────────────── */
+    /* ── Shop tile (icon + label + cost + LED) ─────────────────────────────
+       Industrial slot: dark recessed body, lit-up team-coloured LED bar
+       along the bottom, sprite icon centred, label + cost beneath in
+       stenciled monospace. */
     .shop-icon-btn {
       position: relative;
       display: flex;
       flex-direction: column;
       align-items: center;
       gap: 4px;
-      padding: 8px 6px 7px;
+      padding: 9px 6px 9px;
       cursor: pointer;
-      background: linear-gradient(180deg, var(--def-tile-1) 0%, var(--def-tile-2) 100%);
-      border: 1px solid var(--def-frame);
+      background: linear-gradient(180deg, #1a2230 0%, #0b1018 100%);
+      border: 1px solid #353d4a;
       color: var(--def-text-2);
       font-family: 'Courier New', monospace;
       font-size: 10px;
       box-shadow:
-        0 1px 0 rgba(255, 255, 255, 0.06) inset,
-        0 -1px 0 rgba(0, 0, 0, 0.4) inset;
-      transition: transform 0.08s ease-out, border-color 0.12s, box-shadow 0.12s, background 0.12s;
+        0 1px 0 rgba(255, 255, 255, 0.08) inset,
+        0 -2px 4px rgba(0, 0, 0, 0.45) inset;
+      transition: transform 0.08s ease-out, border-color 0.12s, box-shadow 0.12s, color 0.12s;
+    }
+    /* Inner highlight — a 1px line at the top edge to suggest a lit bevel. */
+    .shop-icon-btn::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+    }
+    /* Bottom LED indicator strip — dim by default, lights up on hover/selected. */
+    .shop-icon-btn::after {
+      content: '';
+      position: absolute;
+      left: 8px; right: 8px;
+      bottom: 2px;
+      height: 2px;
+      background: var(--def-led);
+      opacity: 0.35;
+      box-shadow: 0 0 6px var(--def-led);
+      transition: opacity 0.12s, box-shadow 0.12s;
+    }
+    .team-panel.att .shop-icon-btn::after {
+      background: var(--att-led);
+      box-shadow: 0 0 6px var(--att-led);
     }
     .shop-icon-btn:hover {
       border-color: var(--def-frame-hi);
       color: var(--def-text);
       transform: translateY(-1px);
       box-shadow:
-        0 1px 0 rgba(255, 255, 255, 0.08) inset,
-        0 -1px 0 rgba(0, 0, 0, 0.5) inset,
-        0 0 10px var(--def-glow);
+        0 1px 0 rgba(255, 255, 255, 0.10) inset,
+        0 -2px 4px rgba(0, 0, 0, 0.50) inset,
+        0 0 14px var(--def-glow);
     }
+    .shop-icon-btn:hover::after { opacity: 0.85; box-shadow: 0 0 10px var(--def-led); }
+    .team-panel.att .shop-icon-btn:hover::after { box-shadow: 0 0 10px var(--att-led); }
     .shop-icon-btn.selected {
       border-color: var(--def-accent);
       color: #eaf8ff;
-      background: linear-gradient(180deg, #173e66 0%, #0b223a 100%);
       box-shadow:
         0 0 0 1px var(--def-accent) inset,
-        0 0 14px var(--def-glow);
+        0 0 18px var(--def-glow);
     }
+    .shop-icon-btn.selected::after { opacity: 1; box-shadow: 0 0 14px var(--def-led); }
+    .team-panel.att .shop-icon-btn.selected::after { box-shadow: 0 0 14px var(--att-led); }
 
     .shop-icon-btn .icon {
       position: relative;
-      width: 62px;
-      height: 62px;
+      width: 64px;
+      height: 64px;
       display: flex;
       align-items: center;
       justify-content: center;
       overflow: hidden;
       background:
-        radial-gradient(ellipse at center, rgba(0, 30, 60, 0.55) 0%, rgba(0, 0, 0, 0.85) 100%);
-      border: 1px solid rgba(108, 176, 255, 0.35);
-      box-shadow: 0 0 6px rgba(0, 60, 120, 0.45) inset;
+        /* radial vignette for a "lit slot" feel */
+        radial-gradient(ellipse at 50% 45%, rgba(50, 70, 100, 0.30) 0%, rgba(0, 0, 0, 0.85) 75%),
+        linear-gradient(180deg, #050810 0%, #020407 100%);
+      border: 1px solid #2a3140;
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.03) inset,
+        0 3px 4px rgba(0, 0, 0, 0.55) inset;
     }
     .team-panel.att .shop-icon-btn .icon {
       background:
-        radial-gradient(ellipse at center, rgba(60, 0, 20, 0.55) 0%, rgba(0, 0, 0, 0.85) 100%);
-      border-color: rgba(255, 138, 138, 0.40);
-      box-shadow: 0 0 6px rgba(120, 0, 40, 0.45) inset;
+        radial-gradient(ellipse at 50% 45%, rgba(100, 50, 50, 0.30) 0%, rgba(0, 0, 0, 0.85) 75%),
+        linear-gradient(180deg, #100408 0%, #060203 100%);
     }
     /* Sprites carry transparent padding around the subject — upscaling
        inside the tile is the only way to make small pixel-art read at
@@ -283,27 +405,22 @@
       color: var(--cost-color);
     }
 
-    /* Cyborg side colours mirror the defender treatment. */
-    .team-panel.att .shop-icon-btn {
-      background: linear-gradient(180deg, var(--att-tile-1) 0%, var(--att-tile-2) 100%);
-      border-color: var(--att-frame);
-      color: var(--att-text-2);
-    }
+    /* Cyborg side — same chassis colour, red accent ring. */
+    .team-panel.att .shop-icon-btn { color: var(--att-text-2); }
     .team-panel.att .shop-icon-btn:hover {
       border-color: var(--att-frame-hi);
       color: var(--att-text);
       box-shadow:
-        0 1px 0 rgba(255, 255, 255, 0.08) inset,
-        0 -1px 0 rgba(0, 0, 0, 0.5) inset,
-        0 0 10px var(--att-glow);
+        0 1px 0 rgba(255, 255, 255, 0.10) inset,
+        0 -2px 4px rgba(0, 0, 0, 0.50) inset,
+        0 0 14px var(--att-glow);
     }
     .team-panel.att .shop-icon-btn.selected {
       border-color: var(--att-accent);
       color: #ffeaea;
-      background: linear-gradient(180deg, #6a1024 0%, #2a0008 100%);
       box-shadow:
         0 0 0 1px var(--att-accent) inset,
-        0 0 14px var(--att-glow);
+        0 0 18px var(--att-glow);
     }
 
     /* Preview pieces — single-direction renders pending full rotations.
@@ -327,135 +444,162 @@
       filter: saturate(0.6);
     }
 
-    /* ── Opponent credits readout (single-player mode) ─────────────────────
-       Slim non-interactive plate that takes the place of the AI side's full
-       panel. Uses the same corner-bracket treatment so the layout reads as
-       balanced; the AI tag makes it obvious who's playing the other side. */
-    .opponent-readout {
-      position: relative;
-      display: flex;
-      flex-direction: column;
-      align-items: stretch;
-      justify-content: center;
-      gap: 6px;
-      padding: 14px 18px;
-      background: linear-gradient(180deg, var(--def-bg-1) 0%, var(--def-bg-2) 100%);
-      border: 1px solid var(--def-frame);
-      box-shadow: 0 0 14px rgba(0, 80, 160, 0.20) inset;
-      font-family: 'Courier New', monospace;
-      min-width: 220px;
-    }
-    .opponent-readout.att {
-      background: linear-gradient(180deg, var(--att-bg-1) 0%, var(--att-bg-2) 100%);
-      border-color: var(--att-frame);
-      box-shadow: 0 0 14px rgba(160, 0, 40, 0.20) inset;
-    }
-    .opponent-readout .opp-row-1 {
-      display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
-      letter-spacing: 2px;
-    }
-    .opponent-readout .opp-name {
-      font-size: 13px;
-      font-weight: bold;
-      color: var(--def-frame-hi);
-    }
-    .opponent-readout.att .opp-name { color: var(--att-frame-hi); }
-    .opponent-readout .opp-tag {
-      font-size: 10px;
-      letter-spacing: 2px;
-      padding: 2px 7px;
-      border: 1px solid currentColor;
-      color: var(--def-text-2);
-      opacity: 0.85;
-    }
-    .opponent-readout.att .opp-tag { color: var(--att-text-2); }
-    .opponent-readout .opp-row-2 {
-      display: flex; justify-content: space-between; gap: 10px;
-      font-size: 12px;
-      letter-spacing: 1.5px;
-      color: var(--def-text);
-    }
-    .opponent-readout.att .opp-row-2 { color: var(--att-text); }
-    .opponent-readout .opp-cr {
-      color: var(--cost-color);
-      font-weight: bold;
-    }
-
-    /* ── Centre controls (phase pip + READY/BATTLE button) ─────────────── */
+    /* ── Centre controls: VS badge · phase label · READY button · intel ─── */
     #center-controls {
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      gap: 8px;
-      padding: 4px 10px;
-      min-width: 200px;
+      justify-content: flex-start;
+      gap: 10px;
+      padding: 6px 14px;
+      min-width: 240px;
     }
-    /* Phase label rendered as a chiplet with tick-marks flanking the text. */
+
+    /* Matchup badge — small chip identifying the opponent + AI tag. No
+       numbers — only the team name + "AI" label. */
+    #vs-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 12px;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      letter-spacing: 3px;
+      color: var(--def-text-2);
+      background: linear-gradient(180deg, rgba(20, 28, 40, 0.85) 0%, rgba(8, 12, 18, 0.85) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4);
+    }
+    #vs-badge.att { color: var(--att-text-2); }
+    #vs-badge .vs-label { opacity: 0.55; }
+    #vs-badge .vs-opponent {
+      font-weight: bold;
+      color: var(--def-frame-hi);
+      text-shadow: 0 0 6px var(--def-glow);
+    }
+    #vs-badge.att .vs-opponent {
+      color: var(--att-frame-hi);
+      text-shadow: 0 0 6px var(--att-glow);
+    }
+    #vs-badge .vs-tag {
+      font-size: 9px;
+      letter-spacing: 2px;
+      padding: 1px 6px;
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.20);
+      color: #b0c4d6;
+    }
+
+    /* Phase display — clean monospaced chiplet with bracket marks. The
+       inner span carries the actual text so the brackets stay stable
+       regardless of phase length. */
     #phase-display {
       display: inline-flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
       font-family: 'Courier New', monospace;
-      font-size: 12px;
-      letter-spacing: 5px;
-      color: #cfe6ff;
-      text-shadow: 0 0 8px rgba(0, 160, 220, 0.6);
+      font-size: 13px;
+      letter-spacing: 6px;
+      color: #d4ecff;
+      text-shadow: 0 0 10px rgba(0, 200, 255, 0.55);
     }
     #phase-display::before,
     #phase-display::after {
       content: '';
-      width: 24px;
+      width: 28px;
       height: 1px;
-      background: linear-gradient(90deg, transparent, #6cb0ff);
-      opacity: 0.65;
+      background: linear-gradient(90deg, transparent, var(--def-frame-hi));
+      opacity: 0.70;
     }
     #phase-display::after {
-      background: linear-gradient(90deg, #6cb0ff, transparent);
+      background: linear-gradient(90deg, var(--def-frame-hi), transparent);
     }
 
-    /* READY / BATTLE — single primary action across phases. Clean rounded-
-       inset rectangle with a glowing border ring; the colour shifts depending
-       on phase via the .phase-* classes set by HUD. */
+    /* READY / BATTLE — industrial pushbutton. A raised "cap" sits on a
+       deeper recessed "well", with a small LED indicator on the left. */
     #battle-btn {
       position: relative;
-      background: linear-gradient(180deg, #5a0c14 0%, #2a0408 100%);
-      border: 2px solid #c4441c;
-      color: #ffd8ba;
-      padding: 12px 44px;
-      font-size: 22px;
-      font-weight: bold;
-      letter-spacing: 5px;
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 36px 12px 24px;
       cursor: pointer;
       font-family: 'Courier New', monospace;
+      font-size: 22px;
+      font-weight: bold;
+      letter-spacing: 6px;
       white-space: nowrap;
+      color: #ffe8c4;
+      /* Industrial chrome — orange-amber pushbutton */
+      background:
+        linear-gradient(180deg, #4a1810 0%, #2a0a06 60%, #0e0402 100%);
+      border: 2px solid #ff7a2a;
       box-shadow:
-        0 0 0 1px rgba(255, 90, 30, 0.35) inset,
-        0 0 18px rgba(196, 68, 28, 0.55),
-        0 1px 0 rgba(255, 255, 255, 0.10) inset;
-      transition: transform 0.08s ease-out, border-color 0.12s, color 0.12s, box-shadow 0.12s, background 0.12s;
+        /* outer halo */
+        0 0 24px rgba(255, 120, 40, 0.55),
+        /* inner top highlight */
+        0 1px 0 rgba(255, 200, 130, 0.35) inset,
+        /* deeper inset */
+        0 -3px 6px rgba(0, 0, 0, 0.55) inset,
+        /* sharp inner ring */
+        0 0 0 1px rgba(255, 140, 60, 0.40) inset;
+      transition: transform 0.06s ease-out, color 0.12s, box-shadow 0.12s, background 0.12s, border-color 0.12s;
+    }
+    #battle-btn .btn-led {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, #fff2c8 0%, #ffaa44 35%, #663010 100%);
+      box-shadow:
+        0 0 8px #ff8030,
+        0 0 0 1px rgba(0, 0, 0, 0.5);
+    }
+    #battle-btn .btn-text {
+      text-shadow:
+        0 0 10px rgba(255, 140, 60, 0.85),
+        0 1px 0 rgba(0, 0, 0, 0.5);
     }
     #battle-btn:hover {
       transform: translateY(-1px);
-      background: linear-gradient(180deg, #7a1622 0%, #3a0810 100%);
-      border-color: #ff7a3a;
-      color: #fff1d8;
+      border-color: #ffa050;
+      color: #fff4dc;
+      background:
+        linear-gradient(180deg, #6a2418 0%, #3a1008 60%, #150602 100%);
       box-shadow:
-        0 0 0 1px rgba(255, 140, 60, 0.55) inset,
-        0 0 26px rgba(255, 100, 40, 0.85),
-        0 1px 0 rgba(255, 255, 255, 0.12) inset;
+        0 0 36px rgba(255, 150, 50, 0.85),
+        0 1px 0 rgba(255, 220, 160, 0.45) inset,
+        0 -3px 6px rgba(0, 0, 0, 0.55) inset,
+        0 0 0 1px rgba(255, 180, 90, 0.60) inset;
+    }
+    #battle-btn:hover .btn-led {
+      box-shadow:
+        0 0 14px #ffaa30,
+        0 0 0 1px rgba(0, 0, 0, 0.5);
     }
     #battle-btn:active {
       transform: translateY(0);
+      box-shadow:
+        0 0 18px rgba(255, 120, 40, 0.50),
+        0 -1px 0 rgba(255, 220, 160, 0.20) inset,
+        0 3px 5px rgba(0, 0, 0, 0.55) inset,
+        0 0 0 1px rgba(255, 140, 60, 0.45) inset;
     }
-    /* Glow halo behind the button — sits behind via inset shadow so it
-       layers naturally with the parent gradient. */
-    #battle-btn::before {
-      content: '';
-      position: absolute;
-      inset: -6px;
-      border: 1px solid rgba(255, 140, 60, 0.20);
-      pointer-events: none;
+
+    /* Intel-redacted status line — fog-of-war indicator under the button. */
+    #intel-status {
+      font-family: 'Courier New', monospace;
+      font-size: 10px;
+      letter-spacing: 4px;
+      color: #6a7c90;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border: 1px dashed rgba(140, 160, 180, 0.30);
+      background: rgba(0, 0, 0, 0.3);
+      animation: intelPulse 2.8s ease-in-out infinite;
+    }
+    @keyframes intelPulse {
+      0%, 100% { opacity: 0.55; }
+      50%      { opacity: 0.85; }
     }
 
     /* ── Plan-phase instruction strip ─────────────────────────────────── */
@@ -488,8 +632,9 @@
     }
 
     /* ── Side picker (shown after load, before BUILD) ─────────────────────
-       Full-screen modal with two large team cards. Selecting one sets
-       playerSide; the AI takes the other team for the rest of the game. */
+       Full-screen modal with two industrial team cards. Same metallic-
+       plate base as the in-game panels so the side-picker feels like part
+       of the same UI system, not a separate splash screen. */
     #side-picker {
       position: absolute;
       inset: 0;
@@ -497,97 +642,143 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 36px;
+      gap: 48px;
       background:
-        radial-gradient(ellipse at center, rgba(8, 20, 38, 0.85) 0%, rgba(0, 0, 0, 0.94) 70%);
+        /* faint star-field-ish noise dots */
+        radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.06) 0%, transparent 1px),
+        radial-gradient(circle at 75% 70%, rgba(255, 255, 255, 0.04) 0%, transparent 1px),
+        radial-gradient(circle at 40% 80%, rgba(255, 255, 255, 0.05) 0%, transparent 1px),
+        /* deep space vignette */
+        radial-gradient(ellipse at center, rgba(12, 18, 32, 0.92) 0%, rgba(0, 0, 0, 0.98) 70%);
       font-family: 'Courier New', monospace;
       z-index: 100;
     }
     #side-picker .sp-title {
-      font-size: 16px;
-      letter-spacing: 8px;
-      color: #8fb4d4;
-      text-shadow: 0 0 14px rgba(60, 140, 220, 0.55);
+      display: inline-flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 14px;
+      letter-spacing: 12px;
+      color: #6ac4ff;
+      text-shadow: 0 0 14px var(--def-glow);
+    }
+    #side-picker .sp-title::before,
+    #side-picker .sp-title::after {
+      content: '';
+      width: 70px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, #6ac4ff);
+      opacity: 0.55;
+    }
+    #side-picker .sp-title::after {
+      background: linear-gradient(90deg, #6ac4ff, transparent);
     }
     #side-picker .sp-headline {
-      font-size: 38px;
-      letter-spacing: 12px;
+      font-size: 30px;
+      letter-spacing: 14px;
       color: #e6f3ff;
-      text-shadow: 0 0 22px rgba(60, 140, 220, 0.7);
-      margin-top: -22px;
+      text-shadow:
+        0 0 22px rgba(60, 140, 220, 0.7),
+        0 1px 0 rgba(0, 0, 0, 0.8);
+      margin-top: -36px;
     }
     #side-picker .sp-cards {
       display: flex;
-      gap: 36px;
+      gap: 48px;
       align-items: stretch;
     }
     .sp-card {
       position: relative;
-      width: 320px;
-      padding: 22px 24px 26px;
-      background: linear-gradient(180deg, var(--def-bg-1) 0%, var(--def-bg-2) 100%);
+      width: 340px;
+      padding: 26px 28px 30px;
+      background:
+        var(--hex-overlay),
+        linear-gradient(180deg, var(--plate-1) 0%, var(--plate-2) 45%, var(--plate-3) 100%);
       border: 2px solid var(--def-frame);
       color: var(--def-text);
       cursor: pointer;
       text-align: center;
       transition: transform 0.15s ease-out, border-color 0.15s, box-shadow 0.15s;
       box-shadow:
-        0 0 22px var(--def-glow) inset,
-        0 0 14px rgba(0, 80, 160, 0.30);
+        0 0 24px var(--def-glow),
+        0 1px 0 var(--plate-bevel) inset,
+        0 -1px 0 var(--plate-shadow) inset,
+        0 0 32px var(--def-glow) inset;
     }
     .sp-card.att {
-      background: linear-gradient(180deg, var(--att-bg-1) 0%, var(--att-bg-2) 100%);
       border-color: var(--att-frame);
       color: var(--att-text);
       box-shadow:
-        0 0 22px var(--att-glow) inset,
-        0 0 14px rgba(160, 0, 40, 0.30);
+        0 0 24px var(--att-glow),
+        0 1px 0 var(--plate-bevel) inset,
+        0 -1px 0 var(--plate-shadow) inset,
+        0 0 32px var(--att-glow) inset;
     }
     .sp-card:hover {
-      transform: translateY(-2px);
+      transform: translateY(-3px);
       border-color: var(--def-frame-hi);
       box-shadow:
-        0 0 28px var(--def-glow) inset,
-        0 0 24px rgba(0, 140, 220, 0.55);
+        0 0 36px var(--def-glow),
+        0 1px 0 var(--plate-bevel) inset,
+        0 -1px 0 var(--plate-shadow) inset,
+        0 0 44px var(--def-glow) inset;
     }
     .sp-card.att:hover {
       border-color: var(--att-frame-hi);
       box-shadow:
-        0 0 28px var(--att-glow) inset,
-        0 0 24px rgba(220, 60, 80, 0.55);
+        0 0 36px var(--att-glow),
+        0 1px 0 var(--plate-bevel) inset,
+        0 -1px 0 var(--plate-shadow) inset,
+        0 0 44px var(--att-glow) inset;
     }
     .sp-card .sp-team-name {
-      font-size: 26px;
-      letter-spacing: 6px;
+      font-size: 28px;
+      font-weight: bold;
+      letter-spacing: 8px;
       color: var(--def-frame-hi);
-      text-shadow: 0 0 12px var(--def-glow);
-      margin-bottom: 6px;
+      text-shadow: 0 0 14px var(--def-glow);
+      margin-bottom: 4px;
     }
     .sp-card.att .sp-team-name {
       color: var(--att-frame-hi);
-      text-shadow: 0 0 12px var(--att-glow);
+      text-shadow: 0 0 14px var(--att-glow);
     }
     .sp-card .sp-role {
-      font-size: 11px;
+      font-size: 10px;
       letter-spacing: 3px;
       color: var(--def-text-2);
-      margin-bottom: 18px;
+      margin-bottom: 22px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(106, 196, 255, 0.20);
     }
-    .sp-card.att .sp-role { color: var(--att-text-2); }
+    .sp-card.att .sp-role {
+      color: var(--att-text-2);
+      border-bottom-color: rgba(255, 140, 140, 0.20);
+    }
     .sp-card .sp-hero {
-      width: 140px;
-      height: 140px;
-      margin: 0 auto 18px;
-      background: radial-gradient(ellipse at center, rgba(0, 30, 60, 0.55) 0%, rgba(0, 0, 0, 0.85) 100%);
-      border: 1px solid rgba(108, 176, 255, 0.40);
-      box-shadow: 0 0 14px rgba(0, 60, 120, 0.45) inset;
+      position: relative;
+      width: 160px;
+      height: 160px;
+      margin: 0 auto 22px;
+      background:
+        radial-gradient(ellipse at 50% 45%, rgba(50, 70, 100, 0.30) 0%, rgba(0, 0, 0, 0.85) 75%),
+        linear-gradient(180deg, #050810 0%, #020407 100%);
+      border: 1px solid #2a3140;
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.04) inset,
+        0 3px 6px rgba(0, 0, 0, 0.55) inset,
+        0 0 18px var(--def-glow);
       display: flex; align-items: center; justify-content: center;
       overflow: hidden;
     }
     .sp-card.att .sp-hero {
-      background: radial-gradient(ellipse at center, rgba(60, 0, 20, 0.55) 0%, rgba(0, 0, 0, 0.85) 100%);
-      border-color: rgba(255, 138, 138, 0.40);
-      box-shadow: 0 0 14px rgba(120, 0, 40, 0.45) inset;
+      background:
+        radial-gradient(ellipse at 50% 45%, rgba(100, 50, 50, 0.30) 0%, rgba(0, 0, 0, 0.85) 75%),
+        linear-gradient(180deg, #100408 0%, #060203 100%);
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.04) inset,
+        0 3px 6px rgba(0, 0, 0, 0.55) inset,
+        0 0 18px var(--att-glow);
     }
     .sp-card .sp-hero img {
       width: 100%;
@@ -600,32 +791,53 @@
     .sp-card .sp-tagline {
       font-size: 12px;
       letter-spacing: 1.5px;
-      line-height: 1.5;
+      line-height: 1.6;
       color: var(--def-text-2);
-      margin-bottom: 18px;
-      min-height: 36px;
+      margin-bottom: 22px;
+      min-height: 40px;
     }
     .sp-card.att .sp-tagline { color: var(--att-text-2); }
     .sp-card .sp-cta {
-      display: inline-block;
-      padding: 9px 22px;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 24px;
       font-family: inherit;
-      font-size: 14px;
-      letter-spacing: 4px;
+      font-size: 13px;
+      font-weight: bold;
+      letter-spacing: 5px;
       color: var(--def-text);
-      background: linear-gradient(180deg, #143a60 0%, #082040 100%);
+      background:
+        linear-gradient(180deg, #143a60 0%, #082040 60%, #03101e 100%);
       border: 2px solid var(--def-frame-hi);
       box-shadow:
-        0 0 0 1px rgba(108, 176, 255, 0.25) inset,
+        0 0 0 1px rgba(108, 196, 255, 0.25) inset,
+        0 1px 0 rgba(255, 255, 255, 0.12) inset,
+        0 -2px 4px rgba(0, 0, 0, 0.40) inset,
         0 0 14px var(--def-glow);
     }
     .sp-card.att .sp-cta {
       color: var(--att-text);
-      background: linear-gradient(180deg, #5a121c 0%, #2a0408 100%);
+      background:
+        linear-gradient(180deg, #5a121c 0%, #2a0408 60%, #100204 100%);
       border-color: var(--att-frame-hi);
       box-shadow:
         0 0 0 1px rgba(255, 138, 138, 0.25) inset,
+        0 1px 0 rgba(255, 255, 255, 0.12) inset,
+        0 -2px 4px rgba(0, 0, 0, 0.40) inset,
         0 0 14px var(--att-glow);
+    }
+    .sp-card:hover .sp-cta { box-shadow:
+      0 0 0 1px rgba(108, 196, 255, 0.50) inset,
+      0 1px 0 rgba(255, 255, 255, 0.16) inset,
+      0 -2px 4px rgba(0, 0, 0, 0.40) inset,
+      0 0 22px var(--def-glow);
+    }
+    .sp-card.att:hover .sp-cta { box-shadow:
+      0 0 0 1px rgba(255, 138, 138, 0.50) inset,
+      0 1px 0 rgba(255, 255, 255, 0.16) inset,
+      0 -2px 4px rgba(0, 0, 0, 0.40) inset,
+      0 0 22px var(--att-glow);
     }
 
     /* Selected-piece panel during planning — sits just below the top bar

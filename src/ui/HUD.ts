@@ -114,29 +114,18 @@ export class HUD {
           </div>
         </div>
 
-        <div id="cyborg-readout" class="opponent-readout att">
-          <div class="opp-row-1">
-            <span class="opp-name">CYBORGS</span>
-            <span class="opp-tag">AI</span>
-          </div>
-          <div class="opp-row-2">
-            <span>Credits</span><span class="opp-cr"><span id="att-credits-val">200</span>cr</span>
-          </div>
-        </div>
-
         <div id="center-controls">
-          <div id="phase-display">BUILD</div>
-          <button id="battle-btn">READY</button>
-        </div>
-
-        <div id="robot-readout" class="opponent-readout def">
-          <div class="opp-row-1">
-            <span class="opp-name">ROBOTS</span>
-            <span class="opp-tag">AI</span>
+          <div id="vs-badge">
+            <span class="vs-label">VS</span>
+            <span class="vs-opponent" id="vs-opponent">CYBORGS</span>
+            <span class="vs-tag">AI</span>
           </div>
-          <div class="opp-row-2">
-            <span>Credits</span><span class="opp-cr"><span id="credits-val-readout">200</span>cr</span>
-          </div>
+          <div id="phase-display"><span class="phase-label">BUILD</span></div>
+          <button id="battle-btn">
+            <span class="btn-led"></span>
+            <span class="btn-text">READY</span>
+          </button>
+          <div id="intel-status">OPPONENT INTEL · REDACTED</div>
         </div>
 
         <div id="cyborg-panel" class="team-panel att">
@@ -177,15 +166,13 @@ export class HUD {
     this.planSelectionEl  = this.container.querySelector('#plan-selection')!
     this.combatLogEl      = this.container.querySelector('#combat-log')!
 
-    // Defender credits show in the robot panel header (when playing robots)
-    // and in the opponent-readout (when playing cyborgs). Both get updated.
+    // Credits display lives in each panel header. The AI side's credits are
+    // never shown to the player — opponent intel stays hidden until BATTLE.
     this.creditsEls = [
       this.container.querySelector('#credits-val'),
-      this.container.querySelector('#credits-val-readout'),
     ].filter(Boolean) as HTMLElement[]
     this.attCreditsEls = [
       this.container.querySelector('#att-credits-val-panel'),
-      this.container.querySelector('#att-credits-val'),
     ].filter(Boolean) as HTMLElement[]
 
     // Side picker — clicking either card sets the player's side. Mouse-only
@@ -242,13 +229,18 @@ export class HUD {
     this.sidePickerEl.classList.remove('hidden')
   }
 
-  // Lock in the player's chosen side. Adds the gating class on #top-bar that
-  // hides the AI side's full panel and shows the slim opponent readout. Must
-  // be called before setPhase('build') for the first turn.
+  // Lock in the player's chosen side. Adds the gating class on #top-bar
+  // that hides the AI side's panel and pins the player's panel to the
+  // matching column. The VS badge picks up the opponent's name so the
+  // player still knows the matchup — without leaking any AI intel.
   setPlayerSide(side: 'defender' | 'attacker') {
     this.sidePickerEl.classList.add('hidden')
     this.topBarEl.classList.remove('player-defender', 'player-attacker')
     this.topBarEl.classList.add(side === 'defender' ? 'player-defender' : 'player-attacker')
+    const vsEl = this.container.querySelector('#vs-opponent')
+    if (vsEl) vsEl.textContent = side === 'defender' ? 'CYBORGS' : 'ROBOTS'
+    const badge = this.container.querySelector('#vs-badge')
+    if (badge) badge.classList.toggle('att', side === 'defender')  // opponent IS attacker when player is defender
   }
 
   setCredits(amount: number) {

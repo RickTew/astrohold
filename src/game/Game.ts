@@ -372,6 +372,27 @@ private enterBuildPhase() {
     // Hand the AI side its BUILD turn now that credits + structure storage
     // are wired. Runs once per game (BUILD is one-shot in this chess flow).
     this.opponentAI?.runBuildTurn()
+    // Hide everything the AI just placed — the player must not see opponent
+    // pieces (or credits, handled in HUD) until BATTLE plays out. Re-shown
+    // at the start of enterRevealPhase.
+    this.setAiPiecesVisible(false)
+  }
+
+  // Show/hide every piece on the AI's side of the field. Called with false
+  // after the AI's BUILD turn and true at the start of the first REVEAL.
+  // No-op if the player picked no side yet.
+  private setAiPiecesVisible(visible: boolean) {
+    if (!this.playerSide) return
+    const aiSide: OpponentSide = this.playerSide === 'defender' ? 'attacker' : 'defender'
+    if (aiSide === 'attacker') {
+      for (const u of this.attackerUnits) u.mesh.visible = visible
+    } else {
+      for (const u of this.defenderUnits) u.mesh.visible = visible
+      for (const s of this.spheres)       s.mesh.visible = visible
+      // Structures live on BuildPhase before reveal, on Game.structures after.
+      const structs = this.buildPhase?.getStructures() ?? this.structures
+      for (const st of structs) st.mesh.visible = visible
+    }
   }
 
   // Compass-rose purchase. Returns true on success. Silently rejects if the
@@ -495,6 +516,9 @@ private enterBuildPhase() {
     this.phase = 'reveal'
     this.hud.setPhase('reveal')
     this.hud.onBattle = null   // reveal can't be skipped via the button
+    // Drop the fog: AI pieces become visible so the player can see what
+    // they're up against as the round plays out.
+    this.setAiPiecesVisible(true)
 
     this.revealPhase = new RevealPhase(
       this.scene, this.powerCore, this.attackerUnits, this.structures, this.spheres, this.defenderUnits,
