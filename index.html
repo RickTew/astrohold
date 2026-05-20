@@ -7,21 +7,13 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     :root {
-      /* Reserved TOP strip for the command-deck HUD. Canvas + camera
-         shrink vertically by this amount and sit below the HUD so the
-         battlefield is never overlapped by panels. Keep in sync with
-         Game.HUD_TOP_HEIGHT and BuildPhase canvas-height calc. */
-      --hud-top-h: 210px;
+      /* Visual height of the HUD strip — used for panel sizing only. The
+         canvas fills the FULL window underneath; the HUD floats over it
+         transparently so the map is visible behind + between the panels. */
+      --hud-top-h: 195px;
     }
     body { background: #000; overflow: hidden; }
-    canvas {
-      display: block;
-      position: absolute;
-      top: var(--hud-top-h);
-      left: 0;
-      width: 100vw;
-      height: calc(100vh - var(--hud-top-h));
-    }
+    canvas { display: block; width: 100vw; height: 100vh; }
 
     #hud {
       position: fixed;
@@ -72,20 +64,24 @@
       filter: drop-shadow(0 0 6px rgba(212, 90, 122, 0.30));
     }
 
-    /* Content overlay — leaves room for the chamfered corners by inseting
-       on left/right and giving a top offset that respects the SVG outline.
-       Center panel's top inset is deeper to clear its raised banner. */
+    /* Content overlay — sits INSIDE the SVG silhouette. Side panels have
+       8px chamfered corners (all four), so content needs at least 10px of
+       padding to avoid sitting in a chamfer triangle. Center panel has a
+       raised banner on top, so its top inset is deeper. */
     .hud-panel .panel-content {
       position: absolute;
-      inset: 12px 18px 12px 18px;
+      inset: 10px 12px 10px 12px;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 4px;
     }
     .hud-center .panel-content {
-      inset: 14px 24px 12px 24px;
+      /* Top inset clears the raised banner (banner is ~26px tall on top
+         of the body; body top starts at viewBox y=30 → ~28px at our scale).
+         Bottom inset clears the chamfered bottom corners. */
+      inset: 14px 32px 14px 32px;
       justify-content: center;
-      gap: 14px;
+      gap: 10px;
     }
 
     /* ── Tile grid ───────────────────────────────────────────────────── */
@@ -198,75 +194,110 @@
       color: #c8ff7a;
     }
 
-    /* ── Center panel content ─────────────────────────────────────────── */
+    /* ── Center panel content — command-deck centerpiece ──────────────────
+       BUILD PHASE is the focal element. We frame it with flanking bracket
+       glyphs ([ ]), strong letter-spacing, and a glow. The CR chip and
+       VS chip sit beneath as smaller secondary readouts. */
     .hud-center .center-banner-row {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      gap: 12px;
+      justify-content: center;
+      gap: 18px;
       padding: 0 6px;
     }
     .hud-center .center-phase {
-      flex: 1;
-      text-align: center;
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 14px;
       font-family: 'Courier New', monospace;
-      font-size: 15px;
+      font-size: 22px;
       font-weight: bold;
-      letter-spacing: 5px;
-      color: #e6f3ff;
-      text-shadow: 0 0 10px rgba(60, 170, 230, 0.7);
+      letter-spacing: 8px;
+      color: #ecf6ff;
+      text-shadow:
+        0 0 14px rgba(90, 200, 255, 0.85),
+        0 0 4px rgba(0, 0, 0, 0.7);
     }
+    /* Bracket accents on either side of BUILD PHASE — read as command-
+       deck punctuation. */
+    .hud-center .center-phase::before,
+    .hud-center .center-phase::after {
+      content: '';
+      width: 14px;
+      height: 14px;
+      border: 1.5px solid #5aa7d4;
+      filter: drop-shadow(0 0 4px rgba(90, 200, 255, 0.6));
+    }
+    .hud-center .center-phase::before { border-right: none; border-bottom: none; }
+    .hud-center .center-phase::after  { border-left:  none; border-top:    none; }
     .hud-panel[data-side="att"] .center-phase {
-      text-shadow: 0 0 10px rgba(230, 80, 120, 0.7);
+      text-shadow:
+        0 0 14px rgba(230, 90, 130, 0.85),
+        0 0 4px rgba(0, 0, 0, 0.7);
+    }
+    .hud-panel[data-side="att"] .center-phase::before,
+    .hud-panel[data-side="att"] .center-phase::after {
+      border-color: #d45a7a;
+      filter: drop-shadow(0 0 4px rgba(230, 90, 130, 0.6));
     }
     .hud-center .center-credits {
       display: inline-flex;
       align-items: center;
-      gap: 4px;
-      padding: 2px 8px;
-      background: linear-gradient(180deg, #050a10 0%, #0b1320 100%);
-      border: 1px solid rgba(0, 0, 0, 0.6);
+      gap: 6px;
+      padding: 3px 12px;
+      background: linear-gradient(180deg, #030710 0%, #0b1320 100%);
+      border: 1px solid rgba(90, 167, 212, 0.45);
       box-shadow:
-        0 0 0 1px rgba(255, 255, 255, 0.06) inset,
-        0 2px 4px rgba(0, 0, 0, 0.5) inset;
+        0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+        0 2px 4px rgba(0, 0, 0, 0.5) inset,
+        0 0 8px rgba(90, 167, 212, 0.25);
       font-family: 'Courier New', monospace;
-      font-size: 10px;
-      letter-spacing: 2px;
-      color: rgba(200, 230, 255, 0.55);
+      font-size: 11px;
+      letter-spacing: 3px;
+      color: rgba(200, 230, 255, 0.6);
+    }
+    .hud-panel[data-side="att"] .center-credits {
+      border-color: rgba(212, 90, 122, 0.45);
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+        0 2px 4px rgba(0, 0, 0, 0.5) inset,
+        0 0 8px rgba(212, 90, 122, 0.25);
     }
     .hud-center .center-credits .cr-num {
       color: #c8ff7a;
       font-weight: bold;
-      font-size: 12px;
+      font-size: 14px;
       margin-left: 4px;
-      text-shadow: 0 0 6px rgba(160, 220, 60, 0.6);
+      text-shadow: 0 0 6px rgba(160, 220, 60, 0.7);
     }
     .hud-center .center-vs {
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 6px;
-      padding: 2px 8px;
+      gap: 8px;
+      padding: 4px 10px;
       font-family: 'Courier New', monospace;
-      font-size: 10px;
-      letter-spacing: 2px;
+      font-size: 11px;
+      letter-spacing: 3px;
       color: #8aabc4;
     }
     .hud-center .center-vs .vs-label { opacity: 0.55; }
     .hud-center .center-vs .vs-team {
       font-weight: bold;
       color: #ff7a9a;
-      text-shadow: 0 0 6px rgba(230, 80, 120, 0.55);
+      text-shadow: 0 0 6px rgba(230, 80, 120, 0.65);
     }
     .hud-panel[data-side="att"] .center-vs .vs-team {
       color: #6ac4ff;
-      text-shadow: 0 0 6px rgba(60, 170, 230, 0.55);
+      text-shadow: 0 0 6px rgba(60, 170, 230, 0.65);
     }
     .hud-center .center-vs .vs-ai {
       font-size: 9px;
-      padding: 0 5px;
+      letter-spacing: 2px;
+      padding: 1px 6px;
       background: rgba(0, 0, 0, 0.55);
-      border: 1px solid rgba(255, 255, 255, 0.20);
+      border: 1px solid rgba(255, 255, 255, 0.22);
       color: #b8cad8;
     }
 

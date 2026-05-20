@@ -101,36 +101,40 @@ export class HUD {
       `</button>`
     }
 
-    // Single chamfered-corner SVG path used by all three panels (stretched).
-    // viewBox 200x210; preserveAspectRatio="none" lets it fill any width.
-    // Side panels use this path. The center panel adds a raised banner.
-    const sidePanelPath = 'M 14,4 L 186,4 L 196,14 L 196,182 L 186,194 L 186,206 L 14,206 L 14,194 L 4,182 L 4,14 Z'
+    // Clean octagonal silhouette for the side panels — chamfered top + bottom
+    // corners so tiles fit cleanly inside without overflowing the outline.
+    // 8px chamfers (viewBox 200×210, scaled by preserveAspectRatio="none").
+    const sidePanelPath = 'M 12,4 L 188,4 L 196,12 L 196,198 L 188,206 L 12,206 L 4,198 L 4,12 Z'
     const sidePanelSvg = (side: 'def' | 'att', flip: boolean) => `
       <svg class="panel-frame" viewBox="0 0 200 210" preserveAspectRatio="none" aria-hidden="true"${flip ? ' style="transform:scaleX(-1)"' : ''}>
         <path d="${sidePanelPath}"
-              fill="#091624"
+              fill="rgba(8, 18, 32, 0.85)"
               stroke="${side === 'def' ? '#5aa7d4' : '#d45a7a'}"
               stroke-width="1.6" stroke-linejoin="miter"
-              vector-effect="non-scaling-stroke"/>
-        <path d="M 14,4 L 186,4 M 196,14 L 196,182 M 14,206 L 186,206 M 4,14 L 4,182"
-              fill="none"
-              stroke="${side === 'def' ? '#8fd0f2' : '#f28fa6'}"
-              stroke-width="0.6" stroke-opacity="0.55"
               vector-effect="non-scaling-stroke"/>
       </svg>`
-    // Center panel — chamfered sides + raised banner that protrudes above
-    // the main body. Banner houses BUILD PHASE + CR chip.
+    // Center panel — raised banner on top that protrudes upward, chamfered
+    // corners on all sides, internal divider line under the banner area.
     const centerPanelSvg = (side: 'def' | 'att') => `
       <svg class="panel-frame" viewBox="0 0 320 210" preserveAspectRatio="none" aria-hidden="true">
-        <path d="M 16,40 L 30,26 L 90,26 L 100,8 L 220,8 L 230,26 L 290,26 L 304,40 L 304,182 L 290,196 L 290,206 L 30,206 L 30,196 L 16,182 Z"
-              fill="#091624"
+        <path d="M 12,30 L 28,14 L 100,14 L 112,4 L 208,4 L 220,14 L 292,14 L 308,30 L 308,198 L 296,210 L 24,210 L 12,198 Z"
+              fill="rgba(8, 18, 32, 0.85)"
               stroke="${side === 'def' ? '#5aa7d4' : '#d45a7a'}"
               stroke-width="1.6" stroke-linejoin="miter"
               vector-effect="non-scaling-stroke"/>
-        <path d="M 100,8 L 220,8"
-              fill="none"
+        <!-- Internal banner divider — separates BUILD PHASE area from below. -->
+        <line x1="40" y1="62" x2="280" y2="62"
+              stroke="${side === 'def' ? '#5aa7d4' : '#d45a7a'}"
+              stroke-width="0.6" stroke-opacity="0.55"
+              vector-effect="non-scaling-stroke"/>
+        <!-- Decorative tick marks flanking the BUILD PHASE area. -->
+        <line x1="32" y1="38" x2="48" y2="38"
               stroke="${side === 'def' ? '#8fd0f2' : '#f28fa6'}"
-              stroke-width="0.8"
+              stroke-width="1.4" stroke-opacity="0.85"
+              vector-effect="non-scaling-stroke"/>
+        <line x1="272" y1="38" x2="288" y2="38"
+              stroke="${side === 'def' ? '#8fd0f2' : '#f28fa6'}"
+              stroke-width="1.4" stroke-opacity="0.85"
               vector-effect="non-scaling-stroke"/>
       </svg>`
 
