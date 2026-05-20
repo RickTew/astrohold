@@ -134,13 +134,6 @@ export class HUD {
               vector-effect="non-scaling-stroke"/>
       </svg>`
 
-    const cornerStatusSvg = `
-      <div class="hud-corner-status" aria-hidden="true">
-        <svg class="status-glyph" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/></svg>
-        <svg class="status-glyph" viewBox="0 0 24 24"><path d="M 4,16 Q 12,4 20,16" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="12" y1="10" x2="12" y2="20" stroke="currentColor" stroke-width="1.5"/></svg>
-        <svg class="status-glyph" viewBox="0 0 24 24"><path d="M 6,18 L 12,4 L 18,18 Z" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="12" y1="18" x2="12" y2="22" stroke="currentColor" stroke-width="1.5"/></svg>
-      </div>`
-
     this.container.innerHTML = `
       <div id="loading-screen">LOADING ASSETS...</div>
 
@@ -166,9 +159,6 @@ export class HUD {
               <span class="vs-team">CYBORGS</span>
               <span class="vs-ai">AI</span>
             </div>
-            <div class="event-log" id="event-log">
-              <div class="event-row"><span class="ev-time">[00:00]</span> <span class="ev-text">System: Awaiting deployment.</span></div>
-            </div>
           </div>
         </div>
 
@@ -181,7 +171,6 @@ export class HUD {
           </div>
         </div>
 
-        ${cornerStatusSvg}
       </div>
 
       <!-- Cyborg variant. Same structure; swapped tile content and red palette. -->
@@ -207,9 +196,6 @@ export class HUD {
               <span class="vs-team">ROBOTS</span>
               <span class="vs-ai">AI</span>
             </div>
-            <div class="event-log">
-              <div class="event-row"><span class="ev-time">[00:00]</span> <span class="ev-text">System: Awaiting deployment.</span></div>
-            </div>
           </div>
         </div>
 
@@ -222,7 +208,6 @@ export class HUD {
           </div>
         </div>
 
-        ${cornerStatusSvg.replace(/hud-corner-status/, 'hud-corner-status att')}
       </div>
 
       <div id="bottom-bar" class="hidden">

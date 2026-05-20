@@ -84,6 +84,8 @@
     }
     .hud-center .panel-content {
       inset: 14px 24px 12px 24px;
+      justify-content: center;
+      gap: 14px;
     }
 
     /* ── Tile grid ───────────────────────────────────────────────────── */
@@ -138,7 +140,10 @@
       color: #ffd0e0;
       box-shadow: 0 0 8px rgba(255, 90, 120, 0.65), 0 0 0 1px #ff5a78 inset;
     }
-    .hud-tile.preview { border-style: dashed; opacity: 0.78; }
+    /* Preview pieces previously rendered with a dashed border; user wants
+       all tiles in one consistent style now. We keep the .preview class on
+       the DOM so we still know which pieces are placeholders, but it no
+       longer changes the visual frame. */
     .hud-tile.insufficient { opacity: 0.32; cursor: not-allowed; filter: grayscale(0.5); }
     /* When the WHOLE strip is disabled (PLAN phase), the tiles still show
        but can't be clicked. */
@@ -265,48 +270,7 @@
       color: #b8cad8;
     }
 
-    /* Event log — recessed dark slot inside the center panel. */
-    .hud-center .event-log {
-      flex: 1;
-      min-height: 0;
-      overflow-y: auto;
-      padding: 4px 8px;
-      background: linear-gradient(180deg, #030710 0%, #02050b 100%);
-      border: 1px solid rgba(0, 0, 0, 0.7);
-      box-shadow:
-        0 0 0 1px rgba(106, 196, 255, 0.15) inset,
-        0 3px 4px rgba(0, 0, 0, 0.55) inset;
-      font-family: 'Courier New', monospace;
-      font-size: 10px;
-      line-height: 1.45;
-      color: #a3bdd3;
-      scrollbar-width: thin;
-      scrollbar-color: rgba(106, 196, 255, 0.20) transparent;
-    }
-    .hud-panel[data-side="att"] .event-log {
-      box-shadow:
-        0 0 0 1px rgba(255, 122, 154, 0.15) inset,
-        0 3px 4px rgba(0, 0, 0, 0.55) inset;
-      color: #d8b8b8;
-    }
-    .hud-center .event-log .event-row { padding: 1px 0; }
-    .hud-center .event-log .ev-time { color: #5a7a90; margin-right: 4px; }
-
-    /* ── Corner status glyphs (top-right) ─────────────────────────────── */
-    .hud-corner-status {
-      position: absolute;
-      top: 6px; right: 8px;
-      display: flex;
-      gap: 8px;
-      color: #6ac4ff;
-      opacity: 0.6;
-      pointer-events: none;
-    }
-    .hud-corner-status.att { color: #ff7a9a; }
-    .hud-corner-status .status-glyph {
-      width: 20px; height: 20px;
-      filter: drop-shadow(0 0 4px currentColor);
-    }
+    /* (Event log removed — center panel only carries title + VS chip.) */
 
     /* Hide AI side's HUD entirely. */
     .ai-side { display: none !important; }
