@@ -12,8 +12,9 @@ export class HUD {
   // to know which is active.
   private creditsEls: HTMLElement[] = []
   private attCreditsEls: HTMLElement[] = []
-  private phaseEl!: HTMLElement
+  private phaseEls: HTMLElement[] = []
   private topBarEl!: HTMLElement
+  private bottomBarEl!: HTMLElement
   private robotShopEl!: HTMLElement
   private cyborgShopEl!: HTMLElement
   private sidePickerEl!: HTMLElement
@@ -97,9 +98,10 @@ export class HUD {
       <div id="top-bar" class="hidden">
         <div id="robot-panel" class="team-panel def">
           ${corners}
-          <div class="panel-header">
-            <span class="team-name">ROBOTS</span>
-            <span class="team-credits">CR<span class="cr-num" id="credits-val">200</span></span>
+          <div class="panel-banner">
+            <span class="banner-side-tag">ROBOTS</span>
+            <span class="banner-phase" id="phase-banner-r">BUILD PHASE</span>
+            <span class="credits-chip">CR <span class="cr-num" id="credits-val">200</span></span>
           </div>
           <div class="panel-grid">
             ${robotBtn('sphere-btn', 'Sphere',  100, '/sprites/sphere/south.png')}
@@ -112,27 +114,22 @@ export class HUD {
             ${robotBtn('',           'Laser',    40, '/sprites/laser/south.png',   { dataType: 'laser',   preview: true })}
             ${robotBtn('',           'Signal',   20, '/sprites/signal/south.png',  { dataType: 'signal',  preview: true })}
           </div>
-        </div>
-
-        <div id="center-controls">
-          <div id="vs-badge">
-            <span class="vs-label">VS</span>
-            <span class="vs-opponent" id="vs-opponent">CYBORGS</span>
-            <span class="vs-tag">AI</span>
+          <div class="panel-footer">
+            <div class="vs-badge">
+              <span class="vs-label">VS</span>
+              <span class="vs-opponent">CYBORGS</span>
+              <span class="vs-tag">AI</span>
+            </div>
+            <div class="intel-status">OPPONENT INTEL · REDACTED</div>
           </div>
-          <div id="phase-display"><span class="phase-label">BUILD</span></div>
-          <button id="battle-btn">
-            <span class="btn-led"></span>
-            <span class="btn-text">READY</span>
-          </button>
-          <div id="intel-status">OPPONENT INTEL · REDACTED</div>
         </div>
 
         <div id="cyborg-panel" class="team-panel att">
           ${corners}
-          <div class="panel-header">
-            <span class="team-name">CYBORGS</span>
-            <span class="team-credits">CR<span class="cr-num" id="att-credits-val-panel">200</span></span>
+          <div class="panel-banner">
+            <span class="banner-side-tag">CYBORGS</span>
+            <span class="banner-phase" id="phase-banner-c">BUILD PHASE</span>
+            <span class="credits-chip">CR <span class="cr-num" id="att-credits-val-panel">200</span></span>
           </div>
           <div class="panel-grid">
             ${cybBtn('Cannon',    70, '/sprites/cannon/south.png',    'cannon')}
@@ -141,7 +138,22 @@ export class HUD {
             ${cybBtn('Hulk',     100, '/sprites/hulk/south.png',      'hulk')}
             ${cybBtn('Sniper',    90, '/sprites/sniper/south.png',    'sniper')}
           </div>
+          <div class="panel-footer">
+            <div class="vs-badge">
+              <span class="vs-label">VS</span>
+              <span class="vs-opponent">ROBOTS</span>
+              <span class="vs-tag">AI</span>
+            </div>
+            <div class="intel-status">OPPONENT INTEL · REDACTED</div>
+          </div>
         </div>
+      </div>
+
+      <div id="bottom-bar" class="hidden">
+        <button id="battle-btn">
+          <span class="btn-led"></span>
+          <span class="btn-text">READY</span>
+        </button>
       </div>
 
       <div id="plan-bar" class="hidden">
@@ -156,8 +168,8 @@ export class HUD {
     `
 
     this.loadingEl        = this.container.querySelector('#loading-screen')!
-    this.phaseEl          = this.container.querySelector('#phase-display')!
     this.topBarEl         = this.container.querySelector('#top-bar')!
+    this.bottomBarEl      = this.container.querySelector('#bottom-bar')!
     this.robotShopEl      = this.container.querySelector('#robot-panel')!
     this.cyborgShopEl     = this.container.querySelector('#cyborg-panel')!
     this.sidePickerEl     = this.container.querySelector('#side-picker')!
@@ -165,6 +177,9 @@ export class HUD {
     this.planBarEl        = this.container.querySelector('#plan-bar')!
     this.planSelectionEl  = this.container.querySelector('#plan-selection')!
     this.combatLogEl      = this.container.querySelector('#combat-log')!
+    // Each panel has its own phase banner — both stay in sync via setPhase
+    // so the inactive panel's text doesn't go stale if the player switches.
+    this.phaseEls = Array.from(this.container.querySelectorAll<HTMLElement>('.banner-phase'))
 
     // Credits display lives in each panel header. The AI side's credits are
     // never shown to the player — opponent intel stays hidden until BATTLE.
@@ -230,17 +245,12 @@ export class HUD {
   }
 
   // Lock in the player's chosen side. Adds the gating class on #top-bar
-  // that hides the AI side's panel and pins the player's panel to the
-  // matching column. The VS badge picks up the opponent's name so the
-  // player still knows the matchup — without leaking any AI intel.
+  // that hides the AI side's panel. The VS badge inside each panel footer
+  // already names the opposite side, so no extra wiring needed.
   setPlayerSide(side: 'defender' | 'attacker') {
     this.sidePickerEl.classList.add('hidden')
     this.topBarEl.classList.remove('player-defender', 'player-attacker')
     this.topBarEl.classList.add(side === 'defender' ? 'player-defender' : 'player-attacker')
-    const vsEl = this.container.querySelector('#vs-opponent')
-    if (vsEl) vsEl.textContent = side === 'defender' ? 'CYBORGS' : 'ROBOTS'
-    const badge = this.container.querySelector('#vs-badge')
-    if (badge) badge.classList.toggle('att', side === 'defender')  // opponent IS attacker when player is defender
   }
 
   setCredits(amount: number) {
@@ -290,17 +300,20 @@ export class HUD {
   }
 
   setPhase(phase: 'build' | 'planning' | 'reveal' | 'win' | 'lose') {
-    // #top-bar hosts the team panels + the center READY/BATTLE button. It's
-    // visible during BUILD and PLANNING, hidden during reveal so the
+    // Top bar = player's team panel + banner. Bottom bar = READY button.
+    // Both visible during BUILD + PLAN, hidden during REVEAL so the
     // battlefield is unobstructed.
-    const battleBtn = this.container.querySelector<HTMLButtonElement>('#battle-btn')!
+    const setPhaseText = (s: string) => { for (const el of this.phaseEls) el.textContent = s }
+    const setButtonText = (s: string) => {
+      const btnText = this.container.querySelector('#battle-btn .btn-text')
+      if (btnText) btnText.textContent = s
+    }
     switch (phase) {
       case 'build':
-        this.phaseEl.textContent = 'BUILD'
-        battleBtn.textContent = 'READY'
+        setPhaseText('BUILD PHASE')
+        setButtonText('READY')
         this.topBarEl.classList.remove('hidden')
-        // Both team panels stay mounted; the per-side gating happens at the
-        // panel level later (player-isolated views). For now, both visible.
+        this.bottomBarEl.classList.remove('hidden')
         this.robotShopEl.classList.remove('disabled')
         this.cyborgShopEl.classList.remove('disabled')
         this.planBarEl.classList.add('hidden')
@@ -309,10 +322,10 @@ export class HUD {
         this.messageEl.classList.add('hidden')
         break
       case 'planning':
-        this.phaseEl.textContent = 'PLAN'
-        battleBtn.textContent = 'BATTLE'
+        setPhaseText('PLAN PHASE')
+        setButtonText('BATTLE')
         this.topBarEl.classList.remove('hidden')
-        // Disable the shop grids during planning — no new pieces, only orders.
+        this.bottomBarEl.classList.remove('hidden')
         this.robotShopEl.classList.add('disabled')
         this.cyborgShopEl.classList.add('disabled')
         this.planBarEl.classList.remove('hidden')
@@ -320,19 +333,20 @@ export class HUD {
         this.messageEl.classList.add('hidden')
         break
       case 'reveal':
-        this.phaseEl.textContent = 'BATTLE'
+        setPhaseText('BATTLE')
         this.topBarEl.classList.add('hidden')
+        this.bottomBarEl.classList.add('hidden')
         this.planBarEl.classList.add('hidden')
         this.planSelectionEl.classList.add('hidden')
         this.combatLogEl.classList.remove('hidden')
         this.messageEl.classList.add('hidden')
         break
       case 'win':
-        this.phaseEl.textContent = 'BATTLE'
+        setPhaseText('BATTLE')
         this.showEndMessage('DEFENDER WINS', 'Power Core survived', '#00ffaa')
         break
       case 'lose':
-        this.phaseEl.textContent = 'BATTLE'
+        setPhaseText('BATTLE')
         this.showEndMessage('ATTACKER WINS', 'Power Core destroyed', '#ff4444')
         break
     }

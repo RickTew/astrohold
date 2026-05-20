@@ -78,34 +78,34 @@
     }
 
     /* ── Top bar (BUILD + PLAN) ────────────────────────────────────────────
-       Three-column strip. Player panel goes in column 1 or 3 depending on
-       chosen side; the other outer column stays empty so the battlefield
-       breathes. Center column holds the matchup badge, phase label, and
-       READY button. No opponent panel or readout is rendered — opponent
-       intel stays hidden until BATTLE. */
+       Single-player HUD — ONE panel centered at the top of the screen.
+       Battlefield extends below. The unused side's panel is removed from
+       the layout entirely. */
     #top-bar {
       position: absolute;
-      top: 0; left: 0; right: 0;
-      display: grid;
-      grid-template-columns: 1fr auto 1fr;
-      align-items: start;
-      gap: 18px;
-      padding: 12px 18px 14px;
-      /* Soft top-of-screen vignette so the bar reads as inset against the
-         battlefield rather than floating on top of it. */
-      background: linear-gradient(180deg, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.30) 70%, transparent 100%);
+      top: 12px; left: 0; right: 0;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
       pointer-events: none;
     }
     #top-bar > * { pointer-events: auto; }
 
-    #robot-panel    { grid-column: 1; justify-self: start; }
-    #center-controls{ grid-column: 2; justify-self: center; }
-    #cyborg-panel   { grid-column: 3; justify-self: end; }
-
-    /* Player side gating — the AI's panel is removed from layout entirely
-       (no slim readout — opponent intel is hidden). */
+    /* Player side gating — the AI's panel is removed entirely. */
     #top-bar.player-defender #cyborg-panel { display: none; }
     #top-bar.player-attacker #robot-panel  { display: none; }
+
+    /* Bottom bar — single READY button at the bottom centre. Sits low so it
+       doesn't compete with the panel up top and is easy to reach. */
+    #bottom-bar {
+      position: absolute;
+      bottom: 22px; left: 0; right: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      pointer-events: none;
+    }
+    #bottom-bar > * { pointer-events: auto; }
 
     /* ── Team panel (full interactive shop) ────────────────────────────────
        Industrial-holographic look:
@@ -120,21 +120,19 @@
       position: relative;
       display: flex;
       flex-direction: column;
-      gap: 10px;
-      padding: 14px 18px 16px;
-      width: 560px;
+      gap: 12px;
+      padding: 12px 16px 14px;
+      /* Width follows content + max so the panel never exceeds the screen */
+      width: fit-content;
+      max-width: min(820px, 92vw);
       background:
         var(--hex-overlay),
         linear-gradient(180deg, var(--plate-1) 0%, var(--plate-2) 45%, var(--plate-3) 100%);
       border: 2px solid var(--def-frame);
       box-shadow:
-        /* outer holographic bloom */
         0 0 18px var(--def-glow),
-        /* inner top-edge highlight */
         0 1px 0 var(--plate-bevel) inset,
-        /* inner bottom-edge shadow */
         0 -1px 0 var(--plate-shadow) inset,
-        /* inset glow from the team colour */
         0 0 28px var(--def-glow) inset;
     }
     .team-panel.att {
@@ -189,84 +187,151 @@
        baked into the bottom corner brackets visually. Two top rivets keep
        the look clean without clutter. */
 
-    /* ── Panel header (team name + credits + warning stripe) ───────────── */
-    .team-panel .panel-header {
-      display: flex;
+    /* ── Panel banner ──────────────────────────────────────────────────────
+       Top strip inside the panel: side tag (ROBOTS) on the left, phase
+       title centred, credits chip on the right. Plus a thin warning-stripe
+       accent under it as a section divider. */
+    .team-panel .panel-banner {
+      display: grid;
+      grid-template-columns: minmax(70px, auto) 1fr minmax(110px, auto);
       align-items: center;
-      justify-content: space-between;
-      gap: 18px;
+      gap: 16px;
       font-family: 'Courier New', monospace;
-      letter-spacing: 4px;
-      padding: 0 0 12px;
+      padding: 2px 6px 12px;
       position: relative;
     }
-    /* Warning-stripe accent band under the header. Diagonal yellow/black
-       hazard pattern at low opacity tinted to the team colour. */
-    .team-panel .panel-header::after {
+    .team-panel .panel-banner::after {
       content: '';
       position: absolute;
       left: 0; right: 0; bottom: 0;
-      height: 4px;
+      height: 3px;
       background:
-        repeating-linear-gradient(
-          135deg,
+        repeating-linear-gradient(135deg,
           var(--def-warning-1) 0 8px,
-          var(--def-warning-2) 8px 16px
-        );
-      opacity: 0.75;
+          var(--def-warning-2) 8px 16px);
+      opacity: 0.7;
       box-shadow: 0 0 6px var(--def-glow);
     }
-    .team-panel.att .panel-header::after {
+    .team-panel.att .panel-banner::after {
       background:
-        repeating-linear-gradient(
-          135deg,
+        repeating-linear-gradient(135deg,
           var(--att-warning-1) 0 8px,
-          var(--att-warning-2) 8px 16px
-        );
+          var(--att-warning-2) 8px 16px);
       box-shadow: 0 0 6px var(--att-glow);
     }
-    .team-panel .team-name {
-      font-size: 17px;
+    .team-panel .banner-side-tag {
+      font-size: 13px;
       font-weight: bold;
+      letter-spacing: 4px;
       color: var(--def-frame-hi);
-      text-shadow:
-        0 0 14px var(--def-glow),
-        0 0 2px rgba(0, 0, 0, 0.8);
-      /* Stenciled feel — slight horizontal scratch via background-clip text. */
-      position: relative;
+      text-shadow: 0 0 10px var(--def-glow), 0 0 2px rgba(0, 0, 0, 0.8);
     }
-    .team-panel.att .team-name {
+    .team-panel.att .banner-side-tag {
       color: var(--att-frame-hi);
-      text-shadow:
-        0 0 14px var(--att-glow),
-        0 0 2px rgba(0, 0, 0, 0.8);
+      text-shadow: 0 0 10px var(--att-glow), 0 0 2px rgba(0, 0, 0, 0.8);
     }
-    /* LCD-style credit readout — recessed black slot with green numerals. */
-    .team-panel .team-credits {
+    .team-panel .banner-phase {
+      text-align: center;
+      font-size: 18px;
+      font-weight: bold;
+      letter-spacing: 8px;
+      color: #e6f3ff;
+      text-shadow: 0 0 14px var(--def-glow), 0 1px 0 rgba(0, 0, 0, 0.7);
+    }
+    .team-panel.att .banner-phase {
+      text-shadow: 0 0 14px var(--att-glow), 0 1px 0 rgba(0, 0, 0, 0.7);
+    }
+    /* LCD-style credits chip — recessed black slot with green numerals. */
+    .team-panel .credits-chip {
+      justify-self: end;
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      padding: 4px 12px;
+      padding: 5px 14px;
       background: linear-gradient(180deg, #050a10 0%, #0b1320 100%);
       border: 1px solid rgba(0, 0, 0, 0.6);
       box-shadow:
         0 0 0 1px rgba(255, 255, 255, 0.06) inset,
         0 2px 4px rgba(0, 0, 0, 0.5) inset;
-      font-size: 13px;
+      font-size: 12px;
       letter-spacing: 3px;
       color: rgba(200, 230, 255, 0.55);
     }
-    .team-panel .team-credits .cr-num {
+    .team-panel .credits-chip .cr-num {
       color: var(--cost-color);
       font-weight: bold;
+      font-size: 14px;
       text-shadow: 0 0 8px var(--cost-shadow);
       letter-spacing: 1px;
     }
 
+    /* Grid of shop tiles. */
     .team-panel .panel-grid {
       display: grid;
       grid-template-columns: repeat(5, minmax(0, 1fr));
       gap: 10px;
+    }
+
+    /* ── Panel footer (VS badge + intel-redacted status) ───────────────── */
+    .team-panel .panel-footer {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding-top: 8px;
+      position: relative;
+    }
+    .team-panel .panel-footer::before {
+      content: '';
+      position: absolute;
+      left: 12%; right: 12%; top: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--def-frame-hi), transparent);
+      opacity: 0.45;
+    }
+    .team-panel.att .panel-footer::before {
+      background: linear-gradient(90deg, transparent, var(--att-frame-hi), transparent);
+    }
+    .team-panel .vs-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 14px;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      letter-spacing: 3px;
+      color: rgba(200, 220, 235, 0.55);
+      background: linear-gradient(180deg, rgba(20, 28, 40, 0.85) 0%, rgba(8, 12, 18, 0.85) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .team-panel .vs-badge .vs-label  { opacity: 0.6; }
+    .team-panel .vs-badge .vs-opponent {
+      font-weight: bold;
+      color: var(--att-frame-hi);          /* opponent of robots = cyborgs */
+      text-shadow: 0 0 6px var(--att-glow);
+    }
+    .team-panel.att .vs-badge .vs-opponent {
+      color: var(--def-frame-hi);          /* opponent of cyborgs = robots */
+      text-shadow: 0 0 6px var(--def-glow);
+    }
+    .team-panel .vs-badge .vs-tag {
+      font-size: 9px;
+      letter-spacing: 2px;
+      padding: 1px 6px;
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.20);
+      color: #b0c4d6;
+    }
+    .team-panel .intel-status {
+      font-family: 'Courier New', monospace;
+      font-size: 10px;
+      letter-spacing: 4px;
+      color: #6a7c90;
+      text-transform: uppercase;
+      padding: 3px 10px;
+      border: 1px dashed rgba(140, 160, 180, 0.30);
+      background: rgba(0, 0, 0, 0.3);
+      animation: intelPulse 2.8s ease-in-out infinite;
     }
 
     /* ── Shop tile (icon + label + cost + LED) ─────────────────────────────
@@ -380,6 +445,10 @@
     .shop-icon-btn[data-type="turret"]    .icon img { --icon-scale: 1.55; }
     .shop-icon-btn[data-type="bomber"]    .icon img { --icon-scale: 1.55; }
     .shop-icon-btn#dog-btn                .icon img { --icon-scale: 1.85; }
+    /* Preview pieces (defense/gun/laser/signal) fill their PNG edge-to-edge
+       — they don't have the transparent padding the other sprites do, so
+       any scale > 1 crops them. Keep them at 1×. */
+    .shop-icon-btn.preview                .icon img { --icon-scale: 1.0; transform-origin: center center; }
 
     /* Wall placeholder — diagonal-hatch slab styled to feel like an in-game
        barrier rather than a missing-asset stub. */
@@ -442,77 +511,6 @@
       pointer-events: none;
       opacity: 0.55;
       filter: saturate(0.6);
-    }
-
-    /* ── Centre controls: VS badge · phase label · READY button · intel ─── */
-    #center-controls {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-start;
-      gap: 10px;
-      padding: 6px 14px;
-      min-width: 240px;
-    }
-
-    /* Matchup badge — small chip identifying the opponent + AI tag. No
-       numbers — only the team name + "AI" label. */
-    #vs-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 4px 12px;
-      font-family: 'Courier New', monospace;
-      font-size: 11px;
-      letter-spacing: 3px;
-      color: var(--def-text-2);
-      background: linear-gradient(180deg, rgba(20, 28, 40, 0.85) 0%, rgba(8, 12, 18, 0.85) 100%);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4);
-    }
-    #vs-badge.att { color: var(--att-text-2); }
-    #vs-badge .vs-label { opacity: 0.55; }
-    #vs-badge .vs-opponent {
-      font-weight: bold;
-      color: var(--def-frame-hi);
-      text-shadow: 0 0 6px var(--def-glow);
-    }
-    #vs-badge.att .vs-opponent {
-      color: var(--att-frame-hi);
-      text-shadow: 0 0 6px var(--att-glow);
-    }
-    #vs-badge .vs-tag {
-      font-size: 9px;
-      letter-spacing: 2px;
-      padding: 1px 6px;
-      background: rgba(0, 0, 0, 0.5);
-      border: 1px solid rgba(255, 255, 255, 0.20);
-      color: #b0c4d6;
-    }
-
-    /* Phase display — clean monospaced chiplet with bracket marks. The
-       inner span carries the actual text so the brackets stay stable
-       regardless of phase length. */
-    #phase-display {
-      display: inline-flex;
-      align-items: center;
-      gap: 12px;
-      font-family: 'Courier New', monospace;
-      font-size: 13px;
-      letter-spacing: 6px;
-      color: #d4ecff;
-      text-shadow: 0 0 10px rgba(0, 200, 255, 0.55);
-    }
-    #phase-display::before,
-    #phase-display::after {
-      content: '';
-      width: 28px;
-      height: 1px;
-      background: linear-gradient(90deg, transparent, var(--def-frame-hi));
-      opacity: 0.70;
-    }
-    #phase-display::after {
-      background: linear-gradient(90deg, var(--def-frame-hi), transparent);
     }
 
     /* READY / BATTLE — industrial pushbutton. A raised "cap" sits on a
@@ -585,18 +583,7 @@
         0 0 0 1px rgba(255, 140, 60, 0.45) inset;
     }
 
-    /* Intel-redacted status line — fog-of-war indicator under the button. */
-    #intel-status {
-      font-family: 'Courier New', monospace;
-      font-size: 10px;
-      letter-spacing: 4px;
-      color: #6a7c90;
-      text-transform: uppercase;
-      padding: 4px 10px;
-      border: 1px dashed rgba(140, 160, 180, 0.30);
-      background: rgba(0, 0, 0, 0.3);
-      animation: intelPulse 2.8s ease-in-out infinite;
-    }
+    /* Intel-redacted pulse — shared by the panel-footer intel chip. */
     @keyframes intelPulse {
       0%, 100% { opacity: 0.55; }
       50%      { opacity: 0.85; }
