@@ -51,31 +51,180 @@ export class HUD {
   }
 
   private build() {
+    // 10 tiles per side panel. Reference image has Sphere/Tower/Bomber/Wall/
+    // Dog over Defense/Gun/Gun/Laser/Signal — we duplicate Gun to fill the
+    // 10th slot since we don't have a tenth distinct piece yet. Each panel
+    // (left + right) shows the same set; both are clickable and route to
+    // the same handlers via class selectors.
+    type Tile = {
+      label: string; cost: number; icon: string;
+      action?: 'sphere' | 'dog'; dataType?: string; preview?: boolean
+    }
+    const robotTiles: Tile[] = [
+      { label: 'SPHERE',  cost: 100, icon: '/sprites/sphere/south.png', action: 'sphere' },
+      { label: 'TOWER',   cost:  30, icon: '/sprites/tower/south.png',  dataType: 'turret' },
+      { label: 'BOMBER',  cost:  70, icon: '/sprites/bomber/south.png', dataType: 'bomber' },
+      { label: 'WALL',    cost:  20, icon: 'wall',                       dataType: 'wall' },
+      { label: 'DOG',     cost:  40, icon: '/sprites/dog/south.png',    action: 'dog' },
+      { label: 'DEFENSE', cost:  20, icon: '/sprites/defense/south.png', dataType: 'defense', preview: true },
+      { label: 'GUN',     cost:  30, icon: '/sprites/gun/south.png',     dataType: 'gun',     preview: true },
+      { label: 'GUN',     cost:  30, icon: '/sprites/gun/south.png',     dataType: 'gun',     preview: true },
+      { label: 'LASER',   cost:  40, icon: '/sprites/laser/south.png',   dataType: 'laser',   preview: true },
+      { label: 'SIGNAL',  cost:  20, icon: '/sprites/signal/south.png',  dataType: 'signal',  preview: true },
+    ]
+    const cyborgTiles: Tile[] = [
+      { label: 'CANNON',   cost:  70, icon: '/sprites/cannon/south.png',    dataType: 'cannon' },
+      { label: 'GRENADIER',cost:  50, icon: '/sprites/grenadier/south.png', dataType: 'grenadier' },
+      { label: 'DOUBLEGUN',cost:  90, icon: '/sprites/doublegun/south.png', dataType: 'doublegun' },
+      { label: 'HULK',     cost: 100, icon: '/sprites/hulk/south.png',      dataType: 'hulk' },
+      { label: 'SNIPER',   cost:  90, icon: '/sprites/sniper/south.png',    dataType: 'sniper' },
+      // duplicates to fill the 10-slot grid until we have more cyborg pieces.
+      { label: 'CANNON',   cost:  70, icon: '/sprites/cannon/south.png',    dataType: 'cannon' },
+      { label: 'GRENADIER',cost:  50, icon: '/sprites/grenadier/south.png', dataType: 'grenadier' },
+      { label: 'DOUBLEGUN',cost:  90, icon: '/sprites/doublegun/south.png', dataType: 'doublegun' },
+      { label: 'HULK',     cost: 100, icon: '/sprites/hulk/south.png',      dataType: 'hulk' },
+      { label: 'SNIPER',   cost:  90, icon: '/sprites/sniper/south.png',    dataType: 'sniper' },
+    ]
+    const tileHtml = (t: Tile, sideTag: 'def' | 'att') => {
+      const classes = ['hud-tile', sideTag]
+      if (t.preview) classes.push('preview')
+      const data = t.action ? `data-action="${t.action}"`
+                : t.dataType ? `data-type="${t.dataType}"`
+                : ''
+      const iconEl = t.icon === 'wall'
+        ? '<div class="tile-icon icon-wall"></div>'
+        : `<div class="tile-icon"><img src="${t.icon}" alt=""/></div>`
+      return `<button class="${classes.join(' ')}" ${data}>` +
+        iconEl +
+        `<div class="tile-label">${t.label}</div>` +
+        `<div class="tile-cost">${t.cost}cr</div>` +
+      `</button>`
+    }
+
+    // Single chamfered-corner SVG path used by all three panels (stretched).
+    // viewBox 200x210; preserveAspectRatio="none" lets it fill any width.
+    // Side panels use this path. The center panel adds a raised banner.
+    const sidePanelPath = 'M 14,4 L 186,4 L 196,14 L 196,182 L 186,194 L 186,206 L 14,206 L 14,194 L 4,182 L 4,14 Z'
+    const sidePanelSvg = (side: 'def' | 'att', flip: boolean) => `
+      <svg class="panel-frame" viewBox="0 0 200 210" preserveAspectRatio="none" aria-hidden="true"${flip ? ' style="transform:scaleX(-1)"' : ''}>
+        <path d="${sidePanelPath}"
+              fill="#091624"
+              stroke="${side === 'def' ? '#5aa7d4' : '#d45a7a'}"
+              stroke-width="1.6" stroke-linejoin="miter"
+              vector-effect="non-scaling-stroke"/>
+        <path d="M 14,4 L 186,4 M 196,14 L 196,182 M 14,206 L 186,206 M 4,14 L 4,182"
+              fill="none"
+              stroke="${side === 'def' ? '#8fd0f2' : '#f28fa6'}"
+              stroke-width="0.6" stroke-opacity="0.55"
+              vector-effect="non-scaling-stroke"/>
+      </svg>`
+    // Center panel — chamfered sides + raised banner that protrudes above
+    // the main body. Banner houses BUILD PHASE + CR chip.
+    const centerPanelSvg = (side: 'def' | 'att') => `
+      <svg class="panel-frame" viewBox="0 0 320 210" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M 16,40 L 30,26 L 90,26 L 100,8 L 220,8 L 230,26 L 290,26 L 304,40 L 304,182 L 290,196 L 290,206 L 30,206 L 30,196 L 16,182 Z"
+              fill="#091624"
+              stroke="${side === 'def' ? '#5aa7d4' : '#d45a7a'}"
+              stroke-width="1.6" stroke-linejoin="miter"
+              vector-effect="non-scaling-stroke"/>
+        <path d="M 100,8 L 220,8"
+              fill="none"
+              stroke="${side === 'def' ? '#8fd0f2' : '#f28fa6'}"
+              stroke-width="0.8"
+              vector-effect="non-scaling-stroke"/>
+      </svg>`
+
+    const cornerStatusSvg = `
+      <div class="hud-corner-status" aria-hidden="true">
+        <svg class="status-glyph" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/></svg>
+        <svg class="status-glyph" viewBox="0 0 24 24"><path d="M 4,16 Q 12,4 20,16" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="12" y1="10" x2="12" y2="20" stroke="currentColor" stroke-width="1.5"/></svg>
+        <svg class="status-glyph" viewBox="0 0 24 24"><path d="M 6,18 L 12,4 L 18,18 Z" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="12" y1="18" x2="12" y2="22" stroke="currentColor" stroke-width="1.5"/></svg>
+      </div>`
+
     this.container.innerHTML = `
       <div id="loading-screen">LOADING ASSETS...</div>
-      <div id="phase-display" class="hidden">BUILD PHASE</div>
-      <div id="team-label-def" class="hidden">ROBOTS</div>
-      <div id="credits-display" class="hidden">Credits: <span id="credits-val">200</span></div>
-      <div id="team-label-att" class="hidden">CYBORGS</div>
-      <div id="att-credits-display" class="hidden">Credits: <span id="att-credits-val">200</span></div>
-      <div id="top-robot-shop" class="shop-panel hidden">
-        <button id="sphere-btn" class="shop-btn">Sphere 100cr</button>
-        <button class="shop-btn" data-type="turret">Tower 30cr</button>
-        <button class="shop-btn" data-type="bomber">Bomber 70cr</button>
-        <button class="shop-btn" data-type="wall">Wall 20cr</button>
-        <button id="dog-btn" class="shop-btn">Dog 40cr</button>
-        <button class="shop-btn preview" data-type="defense">Defense 20cr</button>
-        <button class="shop-btn preview" data-type="gun">Gun 30cr</button>
-        <button class="shop-btn preview" data-type="laser">Laser 40cr</button>
-        <button class="shop-btn preview" data-type="signal">Signal 20cr</button>
+
+      <div id="hud-top" class="hidden">
+        <div class="hud-panel hud-left" data-side="def">
+          ${sidePanelSvg('def', false)}
+          <div class="panel-content">
+            <div class="tile-grid">
+              ${robotTiles.map(t => tileHtml(t, 'def')).join('')}
+            </div>
+          </div>
+        </div>
+
+        <div class="hud-panel hud-center" data-side="def">
+          ${centerPanelSvg('def')}
+          <div class="panel-content">
+            <div class="center-banner-row">
+              <div class="center-phase" id="phase-display">BUILD PHASE</div>
+              <div class="center-credits">CR<span class="cr-num" id="credits-val">1000</span></div>
+            </div>
+            <div class="center-vs">
+              <span class="vs-label">VS</span>
+              <span class="vs-team">CYBORGS</span>
+              <span class="vs-ai">AI</span>
+            </div>
+            <div class="event-log" id="event-log">
+              <div class="event-row"><span class="ev-time">[00:00]</span> <span class="ev-text">System: Awaiting deployment.</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="hud-panel hud-right" data-side="def">
+          ${sidePanelSvg('def', true)}
+          <div class="panel-content">
+            <div class="tile-grid">
+              ${robotTiles.map(t => tileHtml(t, 'def')).join('')}
+            </div>
+          </div>
+        </div>
+
+        ${cornerStatusSvg}
       </div>
-      <div id="top-cyborg-shop" class="shop-panel att-panel hidden">
-        <button class="att-btn" data-type="cannon">Cannon 70cr</button>
-        <button class="att-btn" data-type="grenadier">Grenadier 50cr</button>
-        <button class="att-btn" data-type="doublegun">Double Gun 90cr</button>
-        <button class="att-btn" data-type="hulk">Hulk 100cr</button>
-        <button class="att-btn" data-type="sniper">Sniper 90cr</button>
+
+      <!-- Cyborg variant. Same structure; swapped tile content and red palette. -->
+      <div id="hud-top-att" class="hidden">
+        <div class="hud-panel hud-left" data-side="att">
+          ${sidePanelSvg('att', false)}
+          <div class="panel-content">
+            <div class="tile-grid">
+              ${cyborgTiles.map(t => tileHtml(t, 'att')).join('')}
+            </div>
+          </div>
+        </div>
+
+        <div class="hud-panel hud-center" data-side="att">
+          ${centerPanelSvg('att')}
+          <div class="panel-content">
+            <div class="center-banner-row">
+              <div class="center-phase">BUILD PHASE</div>
+              <div class="center-credits">CR<span class="cr-num" id="att-credits-val">1000</span></div>
+            </div>
+            <div class="center-vs">
+              <span class="vs-label">VS</span>
+              <span class="vs-team">ROBOTS</span>
+              <span class="vs-ai">AI</span>
+            </div>
+            <div class="event-log">
+              <div class="event-row"><span class="ev-time">[00:00]</span> <span class="ev-text">System: Awaiting deployment.</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="hud-panel hud-right" data-side="att">
+          ${sidePanelSvg('att', true)}
+          <div class="panel-content">
+            <div class="tile-grid">
+              ${cyborgTiles.map(t => tileHtml(t, 'att')).join('')}
+            </div>
+          </div>
+        </div>
+
+        ${cornerStatusSvg.replace(/hud-corner-status/, 'hud-corner-status att')}
       </div>
+
       <div id="bottom-bar" class="hidden">
         <button id="battle-btn">READY</button>
       </div>
@@ -116,33 +265,37 @@ export class HUD {
     this.creditsEl        = this.container.querySelector('#credits-val')!
     this.attCreditsEl     = this.container.querySelector('#att-credits-val')!
     this.bottomBarEl      = this.container.querySelector('#bottom-bar')!
-    this.robotShopEl      = this.container.querySelector('#top-robot-shop')!
-    this.cyborgShopEl     = this.container.querySelector('#top-cyborg-shop')!
+    this.robotShopEl      = this.container.querySelector('#hud-top')!
+    this.cyborgShopEl     = this.container.querySelector('#hud-top-att')!
     this.messageEl        = this.container.querySelector('#game-message')!
     this.planBarEl        = this.container.querySelector('#plan-bar')!
     this.planSelectionEl  = this.container.querySelector('#plan-selection')!
     this.combatLogEl      = this.container.querySelector('#combat-log')!
 
-    this.container.querySelector('#sphere-btn')?.addEventListener('click', () => {
-      this.onBuySphere?.()
+    // Tile clicks. Both LEFT and RIGHT panels carry the same tiles, so we
+    // bind by class selector. data-action covers sphere/dog (unit-based
+    // robot pieces); data-type covers structures + cyborg units.
+    this.container.querySelectorAll('.hud-tile[data-action="sphere"]').forEach(btn => {
+      btn.addEventListener('click', () => this.onBuySphere?.())
     })
-
-    this.container.querySelector('#dog-btn')?.addEventListener('click', () => {
-      this.onBuyDog?.()
+    this.container.querySelectorAll('.hud-tile[data-action="dog"]').forEach(btn => {
+      btn.addEventListener('click', () => this.onBuyDog?.())
     })
-
-    this.container.querySelectorAll('.shop-btn:not(#sphere-btn):not(#dog-btn)').forEach(btn => {
+    // Robot structures
+    this.container.querySelectorAll<HTMLElement>('#hud-top .hud-tile[data-type]').forEach(btn => {
       btn.addEventListener('click', e => {
         const type = (e.currentTarget as HTMLElement).dataset.type as StructureType
-        this.container.querySelectorAll('.shop-btn').forEach(b => b.classList.remove('selected'))
+        this.container.querySelectorAll('#hud-top .hud-tile').forEach(b => b.classList.remove('selected'))
         ;(e.currentTarget as HTMLElement).classList.add('selected')
         this.onSelectStructure?.(type)
       })
     })
-
-    this.container.querySelectorAll('.att-btn').forEach(btn => {
+    // Cyborg units
+    this.container.querySelectorAll<HTMLElement>('#hud-top-att .hud-tile[data-type]').forEach(btn => {
       btn.addEventListener('click', e => {
         const type = (e.currentTarget as HTMLElement).dataset.type as UnitType
+        this.container.querySelectorAll('#hud-top-att .hud-tile').forEach(b => b.classList.remove('selected'))
+        ;(e.currentTarget as HTMLElement).classList.add('selected')
         this.onSpawnUnit?.(type)
       })
     })
@@ -176,21 +329,21 @@ export class HUD {
     picker?.classList.remove('hidden')
   }
 
-  // Lock in the player's chosen side. Hides the opposing shop panel; the
-  // AI handles spawning for that side. Also hides the side-picker overlay.
+  // Lock in the player's chosen side. The two HUD-top variants (#hud-top
+  // for robots, #hud-top-att for cyborgs) are pre-built; we just toggle
+  // visibility. Phase visibility (BUILD/PLAN vs REVEAL) is layered on top
+  // by setPhase().
+  private playerSide: 'defender' | 'attacker' = 'defender'
   setPlayerSide(side: 'defender' | 'attacker') {
     const picker = this.container.querySelector('#side-picker')
     picker?.classList.add('hidden')
-    // Hide the AI side's shop panel — the player must not click it, nor
-    // see its credits.
+    this.playerSide = side
+    // Mark the inactive HUD with .ai-side; setPhase will show the active
+    // one when appropriate.
     if (side === 'defender') {
-      this.container.querySelector('#top-cyborg-shop')?.classList.add('ai-side')
-      this.container.querySelector('#att-credits-display')?.classList.add('ai-side')
-      this.container.querySelector('#team-label-att')?.classList.add('ai-side')
+      this.container.querySelector('#hud-top-att')?.classList.add('ai-side')
     } else {
-      this.container.querySelector('#top-robot-shop')?.classList.add('ai-side')
-      this.container.querySelector('#credits-display')?.classList.add('ai-side')
-      this.container.querySelector('#team-label-def')?.classList.add('ai-side')
+      this.container.querySelector('#hud-top')?.classList.add('ai-side')
     }
   }
 
@@ -202,11 +355,8 @@ export class HUD {
 
   showGame() {
     this.loadingEl.classList.add('hidden')
-    this.phaseEl.classList.remove('hidden')
-    this.container.querySelector('#credits-display')!.classList.remove('hidden')
-    this.container.querySelector('#att-credits-display')!.classList.remove('hidden')
-    this.container.querySelector('#team-label-def')!.classList.remove('hidden')
-    this.container.querySelector('#team-label-att')!.classList.remove('hidden')
+    // HUD-top visibility is driven by setPhase() once the side picker
+    // resolves; nothing else to reveal here.
   }
 
   setCredits(amount: number) {
@@ -223,17 +373,19 @@ export class HUD {
   // are obvious. Was previously silent — user thought placement was broken.
   private refreshAffordability(side: 'robots' | 'cyborgs', credits: number) {
     if (side === 'robots') {
-      const sphereBtn = this.container.querySelector('#sphere-btn')
-      sphereBtn?.classList.toggle('insufficient', credits < SPHERE_COST)
-      const dogBtn = this.container.querySelector('#dog-btn')
-      dogBtn?.classList.toggle('insufficient', credits < Config.UNITS.dog.cost)
-      this.container.querySelectorAll('#top-robot-shop .shop-btn[data-type]').forEach(b => {
+      this.container.querySelectorAll('.hud-tile[data-action="sphere"]').forEach(b => {
+        b.classList.toggle('insufficient', credits < SPHERE_COST)
+      })
+      this.container.querySelectorAll('.hud-tile[data-action="dog"]').forEach(b => {
+        b.classList.toggle('insufficient', credits < Config.UNITS.dog.cost)
+      })
+      this.container.querySelectorAll('#hud-top .hud-tile[data-type]').forEach(b => {
         const type = (b as HTMLElement).dataset.type as StructureType
         const cost = Config.STRUCTURES[type]?.cost ?? 0
         b.classList.toggle('insufficient', credits < cost)
       })
     } else {
-      this.container.querySelectorAll('#top-cyborg-shop .att-btn[data-type]').forEach(b => {
+      this.container.querySelectorAll('#hud-top-att .hud-tile[data-type]').forEach(b => {
         const type = (b as HTMLElement).dataset.type as UnitType
         const cost = Config.UNITS[type]?.cost ?? 0
         b.classList.toggle('insufficient', credits < cost)
@@ -242,17 +394,17 @@ export class HUD {
   }
 
   setSelectedUnitType(type: UnitType | null) {
-    this.container.querySelectorAll('.att-btn').forEach(b => b.classList.remove('selected'))
+    this.container.querySelectorAll('#hud-top-att .hud-tile').forEach(b => b.classList.remove('selected'))
     if (type) {
-      this.container.querySelector(`.att-btn[data-type="${type}"]`)?.classList.add('selected')
+      this.container.querySelectorAll(`#hud-top-att .hud-tile[data-type="${type}"]`).forEach(b => b.classList.add('selected'))
     }
   }
 
-  // Drop the visual "selected" highlight off any structure button — called
-  // when the player picks a sphere/cyborg so the UI mirrors that the
-  // structure placement was cancelled under the hood.
+  // Drop the visual "selected" highlight off any tile — called when the
+  // player picks a sphere/cyborg so the UI mirrors that the structure
+  // placement was cancelled under the hood.
   clearStructureSelection() {
-    this.container.querySelectorAll('.shop-btn').forEach(b => b.classList.remove('selected'))
+    this.container.querySelectorAll('.hud-tile').forEach(b => b.classList.remove('selected'))
   }
 
   setPhase(phase: 'build' | 'planning' | 'reveal' | 'win' | 'lose') {

@@ -6,8 +6,22 @@
   <title>AstroHold</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      /* Reserved TOP strip for the command-deck HUD. Canvas + camera
+         shrink vertically by this amount and sit below the HUD so the
+         battlefield is never overlapped by panels. Keep in sync with
+         Game.HUD_TOP_HEIGHT and BuildPhase canvas-height calc. */
+      --hud-top-h: 210px;
+    }
     body { background: #000; overflow: hidden; }
-    canvas { display: block; width: 100vw; height: 100vh; }
+    canvas {
+      display: block;
+      position: absolute;
+      top: var(--hud-top-h);
+      left: 0;
+      width: 100vw;
+      height: calc(100vh - var(--hud-top-h));
+    }
 
     #hud {
       position: fixed;
@@ -19,53 +33,285 @@
     }
     #hud * { pointer-events: auto; }
 
-    #phase-display {
+    /* ── Top HUD strip (BUILD + PLAN) ─────────────────────────────────────
+       Three-panel command deck per reference image. LEFT and RIGHT side
+       panels hold the unit/structure tiles (2 rows × 5 cols = 10 each);
+       CENTER panel holds the phase banner, credits chip, VS chip, and
+       event log. Three small status glyphs cluster in the top-right
+       corner outside the panels.
+
+       All panels render their silhouette via inline SVG with non-scaling
+       strokes so the corners stay crisp at any width. Content sits over
+       the SVG in absolutely-positioned overlays. */
+    #hud-top, #hud-top-att {
       position: absolute;
-      top: 18px; left: 50%;
-      transform: translateX(-50%);
-      font-size: 22px;
-      letter-spacing: 4px;
-      color: #66ccff;
-      text-shadow: 0 0 12px #0088ff;
+      top: 0; left: 0; right: 0;
+      height: var(--hud-top-h);
+      display: grid;
+      grid-template-columns: 1fr minmax(360px, 28%) 1fr;
+      gap: 6px;
+      padding: 6px 16px 8px;
+      pointer-events: none;
+    }
+    #hud-top > *, #hud-top-att > * { pointer-events: auto; }
+
+    .hud-panel {
+      position: relative;
+      min-width: 0;
+      height: 100%;
+    }
+    .hud-panel .panel-frame {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      filter: drop-shadow(0 0 6px rgba(90, 167, 212, 0.30));
+    }
+    .hud-panel[data-side="att"] .panel-frame {
+      filter: drop-shadow(0 0 6px rgba(212, 90, 122, 0.30));
     }
 
-    #team-label-def {
+    /* Content overlay — leaves room for the chamfered corners by inseting
+       on left/right and giving a top offset that respects the SVG outline.
+       Center panel's top inset is deeper to clear its raised banner. */
+    .hud-panel .panel-content {
       position: absolute;
-      top: 8px; left: 20px;
-      font-size: 13px;
-      letter-spacing: 3px;
-      color: #66aaff;
-      text-shadow: 0 0 8px #0066cc;
+      inset: 12px 18px 12px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .hud-center .panel-content {
+      inset: 14px 24px 12px 24px;
     }
 
-    #team-label-att {
-      position: absolute;
-      top: 8px; right: 20px;
-      font-size: 13px;
-      letter-spacing: 3px;
-      color: #ff6666;
-      text-shadow: 0 0 8px #cc0000;
-      text-align: right;
+    /* ── Tile grid ───────────────────────────────────────────────────── */
+    .tile-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      grid-template-rows: repeat(2, 1fr);
+      gap: 5px;
+      width: 100%;
+      height: 100%;
+    }
+    .hud-tile {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 1px;
+      padding: 4px 2px 4px;
+      cursor: pointer;
+      background: linear-gradient(180deg, #0d1c2e 0%, #061320 100%);
+      border: 1px solid #2a5577;
+      color: #88c5e0;
+      font-family: 'Courier New', monospace;
+      font-size: 9px;
+      transition: border-color 0.1s, box-shadow 0.1s, transform 0.06s;
+      min-width: 0;
+    }
+    .hud-tile.att {
+      background: linear-gradient(180deg, #2e0d18 0%, #200612 100%);
+      border-color: #77294a;
+      color: #e088a0;
+    }
+    .hud-tile:hover {
+      border-color: #6ac4ff;
+      box-shadow: 0 0 6px rgba(106, 196, 255, 0.55);
+      transform: translateY(-1px);
+    }
+    .hud-tile.att:hover {
+      border-color: #ff7a9a;
+      box-shadow: 0 0 6px rgba(255, 122, 154, 0.55);
+    }
+    .hud-tile.selected {
+      border-color: #00e0ff;
+      background: linear-gradient(180deg, #144066 0%, #082240 100%);
+      color: #d0f0ff;
+      box-shadow: 0 0 8px rgba(0, 224, 255, 0.65), 0 0 0 1px #00e0ff inset;
+    }
+    .hud-tile.att.selected {
+      border-color: #ff5a78;
+      background: linear-gradient(180deg, #5a1230 0%, #2a0612 100%);
+      color: #ffd0e0;
+      box-shadow: 0 0 8px rgba(255, 90, 120, 0.65), 0 0 0 1px #ff5a78 inset;
+    }
+    .hud-tile.preview { border-style: dashed; opacity: 0.78; }
+    .hud-tile.insufficient { opacity: 0.32; cursor: not-allowed; filter: grayscale(0.5); }
+    /* When the WHOLE strip is disabled (PLAN phase), the tiles still show
+       but can't be clicked. */
+    #hud-top.disabled .tile-grid, #hud-top-att.disabled .tile-grid {
+      pointer-events: none;
+      opacity: 0.55;
+      filter: saturate(0.6);
     }
 
-    #credits-display {
-      position: absolute;
-      top: 26px; left: 20px;
-      font-size: 14px;
-      color: #aaddff;
+    .hud-tile .tile-icon {
+      width: 38px;
+      height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      background: radial-gradient(ellipse at 50% 45%, rgba(40, 70, 100, 0.30) 0%, rgba(0, 0, 0, 0.85) 75%);
+      border: 1px solid rgba(106, 196, 255, 0.30);
+    }
+    .hud-tile.att .tile-icon {
+      background: radial-gradient(ellipse at 50% 45%, rgba(100, 40, 60, 0.30) 0%, rgba(0, 0, 0, 0.85) 75%);
+      border-color: rgba(255, 122, 154, 0.30);
+    }
+    .hud-tile .tile-icon img {
+      width: 100%; height: 100%;
+      object-fit: contain;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      transform: scale(1.55);
+      transform-origin: center 55%;
+    }
+    .hud-tile.preview .tile-icon img {
+      transform: scale(1.0);
+      transform-origin: center;
+    }
+    .hud-tile .icon-wall {
+      width: 32px; height: 32px;
+      background:
+        linear-gradient(135deg, rgba(255,255,255,0.10) 0%, rgba(0,0,0,0.10) 100%),
+        repeating-linear-gradient(45deg, #6688aa 0 4px, #334455 4px 8px);
+      border: 1px solid #88aacc;
+    }
+    .hud-tile .tile-label {
+      font-size: 9px;
+      letter-spacing: 1px;
+      margin-top: 1px;
+      color: inherit;
+    }
+    .hud-tile .tile-cost {
+      font-size: 9px;
+      letter-spacing: 0.5px;
+      color: #c8ff7a;
     }
 
-    #att-credits-display {
-      position: absolute;
-      top: 26px; right: 20px;
-      font-size: 14px;
-      color: #ffaaaa;
-      text-align: right;
+    /* ── Center panel content ─────────────────────────────────────────── */
+    .hud-center .center-banner-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0 6px;
+    }
+    .hud-center .center-phase {
+      flex: 1;
+      text-align: center;
+      font-family: 'Courier New', monospace;
+      font-size: 15px;
+      font-weight: bold;
+      letter-spacing: 5px;
+      color: #e6f3ff;
+      text-shadow: 0 0 10px rgba(60, 170, 230, 0.7);
+    }
+    .hud-panel[data-side="att"] .center-phase {
+      text-shadow: 0 0 10px rgba(230, 80, 120, 0.7);
+    }
+    .hud-center .center-credits {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      background: linear-gradient(180deg, #050a10 0%, #0b1320 100%);
+      border: 1px solid rgba(0, 0, 0, 0.6);
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.06) inset,
+        0 2px 4px rgba(0, 0, 0, 0.5) inset;
+      font-family: 'Courier New', monospace;
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: rgba(200, 230, 255, 0.55);
+    }
+    .hud-center .center-credits .cr-num {
+      color: #c8ff7a;
+      font-weight: bold;
+      font-size: 12px;
+      margin-left: 4px;
+      text-shadow: 0 0 6px rgba(160, 220, 60, 0.6);
+    }
+    .hud-center .center-vs {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 2px 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: #8aabc4;
+    }
+    .hud-center .center-vs .vs-label { opacity: 0.55; }
+    .hud-center .center-vs .vs-team {
+      font-weight: bold;
+      color: #ff7a9a;
+      text-shadow: 0 0 6px rgba(230, 80, 120, 0.55);
+    }
+    .hud-panel[data-side="att"] .center-vs .vs-team {
+      color: #6ac4ff;
+      text-shadow: 0 0 6px rgba(60, 170, 230, 0.55);
+    }
+    .hud-center .center-vs .vs-ai {
+      font-size: 9px;
+      padding: 0 5px;
+      background: rgba(0, 0, 0, 0.55);
+      border: 1px solid rgba(255, 255, 255, 0.20);
+      color: #b8cad8;
     }
 
-    /* Bottom bar — now just hosts the READY/BATTLE button. Shops moved up
-       to their own corner panels (top-left = Robots, top-right = Cyborgs)
-       so they never crash into each other. */
+    /* Event log — recessed dark slot inside the center panel. */
+    .hud-center .event-log {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 4px 8px;
+      background: linear-gradient(180deg, #030710 0%, #02050b 100%);
+      border: 1px solid rgba(0, 0, 0, 0.7);
+      box-shadow:
+        0 0 0 1px rgba(106, 196, 255, 0.15) inset,
+        0 3px 4px rgba(0, 0, 0, 0.55) inset;
+      font-family: 'Courier New', monospace;
+      font-size: 10px;
+      line-height: 1.45;
+      color: #a3bdd3;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(106, 196, 255, 0.20) transparent;
+    }
+    .hud-panel[data-side="att"] .event-log {
+      box-shadow:
+        0 0 0 1px rgba(255, 122, 154, 0.15) inset,
+        0 3px 4px rgba(0, 0, 0, 0.55) inset;
+      color: #d8b8b8;
+    }
+    .hud-center .event-log .event-row { padding: 1px 0; }
+    .hud-center .event-log .ev-time { color: #5a7a90; margin-right: 4px; }
+
+    /* ── Corner status glyphs (top-right) ─────────────────────────────── */
+    .hud-corner-status {
+      position: absolute;
+      top: 6px; right: 8px;
+      display: flex;
+      gap: 8px;
+      color: #6ac4ff;
+      opacity: 0.6;
+      pointer-events: none;
+    }
+    .hud-corner-status.att { color: #ff7a9a; }
+    .hud-corner-status .status-glyph {
+      width: 20px; height: 20px;
+      filter: drop-shadow(0 0 4px currentColor);
+    }
+
+    /* Hide AI side's HUD entirely. */
+    .ai-side { display: none !important; }
+
+    /* Bottom bar — READY button */
     #bottom-bar {
       position: absolute;
       bottom: 0; left: 0; right: 0;
@@ -73,98 +319,36 @@
       align-items: center;
       justify-content: center;
       gap: 10px;
-      padding: 10px 16px;
-      background: rgba(0, 0, 0, 0.45);
+      padding: 8px 16px;
+      pointer-events: none;
     }
+    #bottom-bar > * { pointer-events: auto; }
 
-    /* Robot shop — top-left corner panel below the ROBOTS credits header. */
-    #top-robot-shop {
-      position: absolute;
-      top: 52px;
-      left: 12px;
-      max-width: 52vw;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      padding: 8px;
-      border: 1px solid #1a4466;
-      background: rgba(0, 8, 20, 0.75);
-    }
-
-    /* Cyborg shop — top-right corner panel below the CYBORGS credits header. */
-    #top-cyborg-shop {
-      position: absolute;
-      top: 52px;
-      right: 12px;
-      max-width: 36vw;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      padding: 8px;
-      border: 1px solid #441122;
-      background: rgba(20, 0, 8, 0.75);
-    }
-
-    .shop-panel {
-      /* layout handled by #top-robot-shop / #top-cyborg-shop above */
-    }
-
-    .att-panel {
-      /* tinting handled inline on #top-cyborg-shop */
-    }
-
-    .panel-label {
-      font-size: 11px;
-      font-family: 'Courier New', monospace;
-      letter-spacing: 1px;
-      white-space: nowrap;
-      color: #6699bb;
-    }
-
-    .att-panel .panel-label { color: #aa6677; }
-
-    .shop-btn, .att-btn {
-      padding: 8px 14px;
+    #battle-btn, #plan-battle-btn {
+      background: linear-gradient(180deg, #4a0814 0%, #2a040a 60%, #0e0204 100%);
+      border: 2px solid #c4441c;
+      color: #ffe0b8;
+      padding: 10px 30px;
+      font-size: 17px;
+      font-weight: bold;
       cursor: pointer;
       font-family: 'Courier New', monospace;
-      font-size: 13px;
+      letter-spacing: 4px;
       white-space: nowrap;
-      transition: background 0.1s, border-color 0.1s;
+      flex-shrink: 0;
+      align-self: center;
+      box-shadow:
+        0 0 18px rgba(255, 120, 40, 0.55),
+        0 1px 0 rgba(255, 200, 130, 0.30) inset;
+      transition: background 0.1s, border-color 0.1s, box-shadow 0.1s;
     }
-
-    .shop-btn {
-      background: #0a1e33;
-      border: 1px solid #1a4466;
-      color: #88bbdd;
+    #battle-btn:hover, #plan-battle-btn:hover {
+      border-color: #ff7a3a;
+      color: #fff1d8;
+      box-shadow:
+        0 0 26px rgba(255, 150, 50, 0.85),
+        0 1px 0 rgba(255, 220, 160, 0.40) inset;
     }
-    .shop-btn:hover { background: #102840; border-color: #2266aa; }
-    .shop-btn.selected {
-      background: #0e3055;
-      border-color: #00aaff;
-      color: #00eeff;
-      text-shadow: 0 0 6px #00aaff;
-    }
-    /* Preview pieces — single-angle Meshy renders pending full rotations.
-       Dimmer/dashed border so they're visually distinct from production. */
-    .shop-btn.preview {
-      border-style: dashed;
-      opacity: 0.85;
-      color: #7799bb;
-    }
-
-    /* Insufficient credits — greyed out so failed placements aren't silent. */
-    .shop-btn.insufficient, .att-btn.insufficient {
-      opacity: 0.35;
-      cursor: not-allowed;
-      filter: grayscale(0.5);
-    }
-
-    .att-btn {
-      background: #1a0008;
-      border: 1px solid #661122;
-      color: #ddaaaa;
-    }
-    .att-btn:hover { background: #2a0010; border-color: #aa2244; color: #ffbbbb; }
 
     #battle-btn, #plan-battle-btn {
       background: #2a0000;

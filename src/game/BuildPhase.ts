@@ -83,8 +83,11 @@ private buildHitPlane(): THREE.Mesh {
   }
 
   private getCell(event: MouseEvent): { col: number; row: number; wx: number; wy: number } | null {
-    this.mouse.x =  (event.clientX / window.innerWidth)  * 2 - 1
-    this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1
+    // Canvas sits below the HUD top strip. Keep in sync with Game.HUD_TOP_HEIGHT.
+    const HUD_TOP = 210
+    const canvasH = Math.max(1, window.innerHeight - HUD_TOP)
+    this.mouse.x =  (event.clientX / window.innerWidth) * 2 - 1
+    this.mouse.y = -((event.clientY - HUD_TOP) / canvasH) * 2 + 1
     this.raycaster.setFromCamera(this.mouse, this.camera)
 
     const hits = this.raycaster.intersectObject(this.hitPlane)
