@@ -203,58 +203,6 @@
       background: radial-gradient(ellipse at 50% 45%, rgba(40, 70, 100, 0.30) 0%, rgba(0, 0, 0, 0.85) 75%);
       border: 1px solid rgba(106, 196, 255, 0.30);
     }
-    /* EXPERIMENT: right-panel tiles drop the OUTER portrait-style frame
-       (background gradient + border). The inner dark-blue icon square is
-       kept so each piece is still framed; labels + cost float below in
-       Orbitron with a strong text-shadow so they read against the
-       transparent panel background. Compare against the LEFT panel
-       (which keeps the outer frame) to pick a treatment. */
-    #hud-top > .hud-right .hud-tile,
-    #hud-top-att > .hud-right .hud-tile {
-      background: none;
-      border: none;
-      padding: 4px 0;
-      gap: 4px;
-    }
-    /* Hover signal moves from the outer border to the inner icon frame
-       since the outer frame no longer exists. */
-    #hud-top > .hud-right .hud-tile:hover .tile-icon,
-    #hud-top-att > .hud-right .hud-tile:hover .tile-icon {
-      border-color: #6ac4ff;
-      box-shadow: 0 0 10px rgba(106, 196, 255, 0.65), 0 0 0 1px rgba(106, 196, 255, 0.30) inset;
-    }
-    #hud-top-att > .hud-right .hud-tile:hover .tile-icon {
-      border-color: #ff7a9a;
-      box-shadow: 0 0 10px rgba(255, 122, 154, 0.65), 0 0 0 1px rgba(255, 122, 154, 0.30) inset;
-    }
-    /* Floating labels — Orbitron + strong text-shadow for readability. */
-    #hud-top > .hud-right .hud-tile .tile-label,
-    #hud-top-att > .hud-right .hud-tile .tile-label {
-      font-family: 'Orbitron', 'Courier New', monospace;
-      font-weight: 700;
-      letter-spacing: 1.5px;
-      text-shadow:
-        0 0 6px rgba(0, 0, 0, 0.95),
-        0 0 2px rgba(0, 0, 0, 1);
-    }
-    #hud-top > .hud-right .hud-tile .tile-cost,
-    #hud-top-att > .hud-right .hud-tile .tile-cost {
-      font-family: 'Orbitron', 'Courier New', monospace;
-      font-weight: 700;
-      text-shadow:
-        0 0 6px rgba(0, 0, 0, 0.95),
-        0 0 2px rgba(0, 0, 0, 1);
-    }
-    /* Selected state — moves the cyan ring from the (removed) outer border
-       to the inner icon frame so the user still sees which piece is armed. */
-    #hud-top > .hud-right .hud-tile.selected .tile-icon {
-      border-color: #00e0ff;
-      box-shadow: 0 0 12px rgba(0, 224, 255, 0.85), 0 0 0 2px #00e0ff inset;
-    }
-    #hud-top-att > .hud-right .hud-tile.selected .tile-icon {
-      border-color: #ff5a78;
-      box-shadow: 0 0 12px rgba(255, 90, 120, 0.85), 0 0 0 2px #ff5a78 inset;
-    }
     .hud-tile.att .tile-icon {
       background: radial-gradient(ellipse at 50% 45%, rgba(100, 40, 60, 0.30) 0%, rgba(0, 0, 0, 0.85) 75%);
       border-color: rgba(255, 122, 154, 0.30);

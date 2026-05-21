@@ -1,11 +1,11 @@
 # AstroHold — Project Rules for Claude
 
-## Status: Single-player D&D-style strategy LIVE (session 13)
-Chess-like turn-based grid strategy with cinematic plan-then-watch reveal.
-Both sides queue all actions during PLAN; clicking BATTLE animates them one
-piece-action at a time sorted by Initiative DESC. After the first BATTLE
-click, reveals **auto-chain** until win / lose / stalemate — the player just
-watches. **NOT an RTS.** Mechanics are tuned for D&D-style strategy:
+## Status: Single-player D&D-style strategy LIVE (session 14)
+Chess-like turn-based grid strategy. **BUILD → REVEAL** is the live flow
+(PLAN phase code exists but is currently skipped — see Phase flow section).
+After the first BATTLE click, reveals **auto-chain** until win / lose /
+stalemate — the player just watches. **NOT an RTS.** Mechanics tuned for
+D&D-style strategy:
 - **Single-player mode (session 13).** Asset preload → side-picker modal
   (ROBOTS or CYBORGS) → BUILD. The unpicked side runs on autopilot via
   `OpponentAI` (`src/ai/OpponentAI.ts`). AI handles BUILD purchases as a
@@ -31,28 +31,68 @@ watches. **NOT an RTS.** Mechanics are tuned for D&D-style strategy:
 - **Hulk slam special action** (2 AP, 3-cell wedge in facing dir).
 - **Cyborg Sniper** — single-shot, 400-range, 150 dmg precision strike.
 
-## HUD (session 13)
+## HUD (session 14)
 Floating top strip with three SVG-silhouetted panels — DO NOT reserve
 canvas space for it (canvas is full window; HUD floats on top with
-`rgba(8,18,32,0.85)` panel fill so the map shows through faintly).
-- LEFT panel — 5×2 robot tile grid (Sphere/Tower/Bomber/Wall/Dog over
-  Defense/Gun/Gun/Laser/Signal; Gun is duplicated because we only have
-  9 distinct robot pieces and the layout calls for 10).
-- CENTER panel — raised-banner SVG silhouette housing the **BUILD PHASE**
-  title (flanked by corner-bracket glyphs), CR chip, and VS · OPPONENT ·
-  AI chip. No event log inside (user removed; was reading as an ugly
-  black box).
-- RIGHT panel — duplicate of LEFT, both clickable (`querySelectorAll`
-  binds events to both panel copies).
-- Cyborg variant `#hud-top-att` is pre-built with red palette and the
-  cyborg roster duplicated to fill 10 slots; `setPlayerSide` toggles
-  which side renders.
+`rgba(8,18,32,0.58)` panel fill so the map shows through). To stop the
+world top row from rendering BEHIND the HUD, `Game.computeCameraYOffset()`
+reads `--hud-top-h` and shifts `camera.position.y` so world top aligns
+with HUD bottom. Resize re-applies via the delta to preserve user pan.
+- LEFT panel — 4×2 robot tile grid (8 unique pieces): Sphere/Tower/Bomber/Wall
+  over Dog/Defense/Laser/Signal. Defense/Laser/Signal are "preview"
+  pieces with placeholder behavior (no unique mechanics yet).
+- CENTER panel — clean chamfered rectangle SVG with two internal dividers
+  splitting it into three console "screens":
+  * **Title bar** (`.cc-title`): BUILD PHASE / PLAN PHASE / BATTLE label
+    in Orbitron, flanked by corner-bracket glyphs.
+  * **Body** (`.cc-body`): CR chip (Orbitron number, green glow), matchup
+    line ("ROBOTS VS CYBORGS"), single-line system status from
+    `HUD.logSystemMessage`.
+  * **Action bar** (`.cc-action`): primary action button (READY/BATTLE).
+    Color follows role (.role-defender = blue, .role-attacker = red);
+    `:active` translates 2px to feel mechanical.
+- RIGHT panel — duplicate of LEFT, both clickable.
+- Cyborg variant `#hud-top-att` has 4×2 attacker grid (5 unique
+  cyborgs + 3 duplicates until new art exists). `setPlayerSide` toggles
+  which strip variant renders; `.ai-side` hides the inactive one.
 - Panel silhouettes are inline SVG with `vector-effect="non-scaling-
   stroke"` so chamfered corners stay crisp at any width. CSS clip-path
   was tried and abandoned — produces aliased corners against borders.
 - Side-picker modal (`#side-picker`) is its own thing — full-screen
-  before BUILD, two team cards with hero sprite + role tagline + CTA.
-  **Do not redesign this without explicit user direction.**
+  before BUILD. **2 cards**: DEFENDER (Robots) and ATTACKER (Cyborgs).
+  Card color follows ROLE — defender=blue, attacker=red. AI gets the
+  opposite role + opposite faction. Layout uses `clamp()` everywhere
+  (no fixed px) and the safe-centering pattern (outer `overflow: auto`
+  + inner `min-height: 100% + flex center`). "How to play" expander
+  below the cards. Phase × Faction expansion (4 cards / same-faction
+  matchups) is RETIRED for now; `Faction` and `Role` types still in
+  GameConfig in case it comes back. **Do not redesign without
+  explicit user direction.**
+
+## Phase flow (session 14)
+- `loading → pick-side → build → reveal → win/lose`
+- **PLAN phase is currently skipped.** BUILD's READY button calls
+  `startBattleFromBuild()` which tears down BuildPhase and jumps
+  straight to `enterRevealPhase()`. RevealPhase's default-action
+  heuristics (cyborgs march, towers fire, etc.) drive every piece.
+- `enterPlanningPhase()` is preserved in `Game.ts` but unreachable
+  from BUILD. Re-enable when piece-action queuing becomes useful
+  (e.g., Hulk slam targeting that requires user input).
+
+## Color conventions (session 14)
+- **Defender = blue, Attacker = red** — applied consistently across
+  HUD theming, side picker cards, action button, matchup line.
+- **Player vs AI team tinting is OFF.** `TEAM_TINT` in `GameConfig.ts`
+  is `{ player: 0xffffff, ai: 0xffffff }` (no-op). Was confusing when
+  multiplied with per-type tints. Position (left zone = your side)
+  signals ownership. Re-enable for same-faction matchups if those
+  return.
+- **Per-type sprite tints removed.** `SPRITE_TINT` in `SpriteUnit.ts`
+  is `{}`. Pieces render with their natural sprite-art colors. Used
+  to wash Grenadier green / Doublegun orange / Sniper olive — removed
+  at user request.
+- **NO em dashes (`—`) in user-visible text.** Use regular dashes,
+  periods, or rewording. Internal docs/comments fine.
 
 **One piece per cell, strict.** Large pieces (Power Core today) use a 2x2
 footprint per the size rule. Long-term plan and current balance numbers live

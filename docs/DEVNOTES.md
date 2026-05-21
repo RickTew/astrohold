@@ -1275,3 +1275,132 @@ asking the user to confirm direction mid-build).
    Bomb planned-cell indicator, tower rotation, Hulk balance,
    more cyborg variety (Assassin / Berserker) — listed in the
    session 12 close-out and still relevant.
+
+
+## Session 14 (2026-05-21) — Faction × role, HUD redesign, recurring UI failures
+
+### What landed
+- **Cleanup pass.** Deleted 91 MB of unused GLBs (`public/models/powercore/`),
+  removed dead `PowerCore.ts` / `BattlePhase.ts` / `AIPlayer.ts` (~680 lines),
+  removed the dead Three.js lighting rig from `Game.ts`. Parallelized
+  `preloadSpriteUnit` animation-frame loads (was serial inside each unit).
+- **Faction × role pivot, then walk-back.** First built a 4-card side
+  picker (Robot Defender / Robot Attacker / Cyborg Defender / Cyborg Attacker)
+  with team tinting (player blue, AI red) for same-faction matchups.
+  After multiple UX issues the user pulled it back to **2 cards**
+  (DEFENDER Robots / ATTACKER Cyborgs) coupled to fixed factions. AI
+  always gets the opposite role + opposite faction. `Faction` and `Role`
+  types in `GameConfig.ts` remain in case same-faction returns.
+- **Team tint disabled.** `TEAM_TINT.player` and `TEAM_TINT.ai` are both
+  `0xffffff` (identity) since same-faction matchups aren't a thing right
+  now. Per-type tints (Grenadier green / Doublegun orange / Sniper olive)
+  also removed at user request — `SPRITE_TINT` is now `{}`. Pieces render
+  with their natural sprite-art colors.
+- **HUD center panel rebuild.** READY (BUILD) and BATTLE (PLAN) buttons
+  moved from `#bottom-bar` / `#plan-bar` into the center HUD panel as
+  `.center-action-btn`. **Planning phase skipped from BUILD.** New
+  `startBattleFromBuild` tears down BuildPhase and calls `enterRevealPhase`
+  directly — one click instead of READY → BATTLE. `enterPlanningPhase`
+  kept in source but unreachable from BUILD; available to re-enable later.
+- **Center panel SVG redesigned.** Dropped the protruding banner-notch
+  shape (was 30% wide, title needed 60%+ — text overflowed). New panel
+  is a clean chamfered rectangle with two internal divider lines that
+  split it into three "console sections": title bar (y=4..58), content
+  (y=58..158), action bar (y=158..206). HTML structure mirrors with
+  `.cc-title` / `.cc-body` / `.cc-action` grid rows.
+- **Center content reflow.** Credits chip centered on its own line.
+  New `.center-matchup` line shows "ROBOTS VS CYBORGS" (or
+  "CYBORGS VS ROBOTS" for attacker), faction names colored by role
+  (defender blue, attacker red). Static `.center-message` replaced with
+  `.center-events` — single-line in-place status replacement (was a
+  scroll feed that clipped at the panel's tight height).
+- **Camera Y offset.** With the canvas full-window and the HUD floating
+  on top, the world's top edge was rendering behind the HUD tiles.
+  Added `computeCameraYOffset(halfH)` in `Game.ts` that reads the CSS
+  `--hud-top-h` variable and shifts the camera Y so world top aligns
+  with HUD bottom. Pan still works relative to this new center
+  (delta-applied on resize so user pan offsets don't reset).
+- **Wheel-event scroll fix.** `onWheel` in `Game.ts` called
+  `e.preventDefault()` for camera zoom on `window`. That fired even
+  when the cursor was over HUD overlays, blocking native scroll inside
+  the side picker. Added `if ((e.target as HTMLElement).closest('#hud'))
+  return` guard so HUD overlays scroll naturally.
+- **HUD shop trim.** 5×2 grid (10 tiles per side, padded with duplicates)
+  → 4×2 grid (8 per side). Defender now has 8 unique pieces (dropped
+  duplicate GUN + single GUN). Cyborg has 5 unique + 3 duplicates until
+  new art is generated.
+- **Typography.** Loaded Orbitron from Google Fonts (500/700/900). Used
+  for BUILD PHASE title, matchup line, credits chip, READY/BATTLE button.
+  Bigger sizes throughout per user feedback ("you default TINY").
+- **Memory pivot.** Strengthened `feedback_ui_viewport_checklist` with
+  hard rules: clamp() everything, no media-query cliffs, no em dashes in
+  user-visible text, test 1366×768 + 1024×768 + 768×1024 + 600×800
+  before commit, regression-audit ALL gameplay screens after HUD changes.
+
+### Hard-won lessons (also saved as memory feedback)
+- **The user tests on real viewports. Always.** This session shipped
+  ~four versions of the side picker that overflowed common laptop
+  viewports because I'd designed in a wide reference and not mentally
+  walked through narrow ones. Eventually fixed by switching every size
+  to `clamp()` and using the safe-centering pattern
+  (`overflow: auto` outer + `min-height: 100%` flex inner).
+- **HUD changes ripple into the gameplay canvas.** Transparency on
+  panels exposed the fact that the world's top row was always rendering
+  behind the HUD. Fix was a camera Y offset, not a transparency revert.
+  Lesson: when touching the HUD, test the BUILD/PLAN/REVEAL gameplay
+  screens too, not just the HUD itself.
+- **One global wheel-preventDefault breaks every scrollable overlay.**
+  The side-picker scroll bug had nothing to do with the picker — it
+  was the camera-zoom wheel handler eating the events. Guard
+  `preventDefault` to non-HUD targets.
+- **READY → BATTLE was redundant.** Two confirmation buttons for the
+  same intent ("start the fight") felt clunky. Skipping PLAN entirely
+  for now is fine; RevealPhase's default-action heuristics handle every
+  piece without queued moves. PLAN comes back as an opt-in feature
+  when there's a real reason to plan (e.g., Hulk slam targeting).
+- **Em dashes are a hard NO** in user-visible text. The user called this
+  out and I kept slipping em dashes into status messages. Now in memory.
+- **"You default TINY."** When in doubt, bigger fonts. Especially for
+  the side picker explainer, status messages, and tile labels.
+- **Color conventions in this project:** ROLE colors are settled —
+  defender=blue, attacker=red. Player vs AI tinting is OFF (was confusing
+  layered on top of role colors and per-type tints). Side picker cards
+  are colored by ROLE (DEFENDER card blue, ATTACKER card red), not faction.
+
+### Memory entries added/updated this session
+- `feedback_ui_viewport_checklist` — STRENGTHENED. clamp() rules,
+  4 named viewports to test, safe-centering pattern, regression audit
+  checklist for HUD changes, recurring failure log.
+- `feedback_always_deploy_after_fix` — STRENGTHENED to explicitly ban
+  the words "local", "localhost", "dev server", and "preview" in
+  verification step language (was being violated repeatedly).
+
+### Suggested next-session opening moves
+1. **Cyborg art expansion.** The cyborg side has 3 duplicates in the
+   shop because we only have 5 distinct cyborg pieces. Generate
+   PixelLab art for Assassin (60cr, fast, diagonal-capable) and
+   Berserker (80cr, frenzy when low HP) per the carry-over from S12.
+   That brings cyborgs to 7 unique + 1 dupe, much closer to symmetric.
+2. **Define the 3 "preview" defender pieces.** DEFENSE, LASER, SIGNAL
+   exist as shop tiles but their unique mechanics aren't implemented.
+   Pick distinct behaviors: e.g., DEFENSE = stationary shield that
+   absorbs N hits, LASER = pierce-through-line damage, SIGNAL = passive
+   buff to adjacent towers.
+3. **HUD polish carry-overs.** Tile-click feedback during PLAN
+   (greyed-out shop or hidden), in-game stat indicators when hovering
+   a piece on the board, win/lose overlay redesign in the new console
+   aesthetic.
+4. **Carry-overs from S12/S13** still relevant: bomb planned-cell
+   indicator, tower rotation, Hulk balance pass.
+
+### Open friction points
+- The cyborg-side shop has visible duplicates (CANNON / GRENADIER /
+  HULK each appear twice). Functionally fine — same pieces, same costs
+  — but visually obvious. Either generate new art or hide the duplicates
+  (would leave 3 empty grid slots).
+- "Preview" defender pieces (DEFENSE / LASER / SIGNAL) only have
+  generic Structure behavior in the code; no unique mechanics yet.
+- Center panel still feels improvable per user ("one day we will get
+  this to look nice ;)" was the polite signal). Areas for future
+  polish: typography on body text, divider line treatment, the corner
+  rivet decoration, microinteractions on credit/phase changes.
