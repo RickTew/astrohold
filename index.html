@@ -231,7 +231,7 @@
       .hud-tile { padding: 2px 1px; }
       .hud-tile .tile-icon { width: 28px; height: 28px; }
       .hud-center .center-phase { font-size: 16px; letter-spacing: 3px; }
-      .hud-center .center-vs { font-size: 10px; letter-spacing: 2px; }
+      .hud-center .center-matchup { font-size: 11px; letter-spacing: 2px; gap: 6px; }
     }
     @media (max-width: 640px) {
       :root { --hud-top-h: 130px; }
@@ -242,7 +242,7 @@
       .hud-center .center-phase { font-size: 14px; letter-spacing: 2px; }
       .hud-center .center-credits { font-size: 9px; padding: 2px 8px; }
       .hud-center .center-credits .cr-num { font-size: 11px; }
-      .hud-center .center-vs { display: none; }
+      .hud-center .center-matchup { display: none; }
     }
 
     /* ── Center panel content — command-deck centerpiece ──────────────────
@@ -323,34 +323,41 @@
       margin-left: 4px;
       text-shadow: 0 0 6px rgba(160, 220, 60, 0.7);
     }
-    .hud-center .center-vs {
+    /* Matchup line — PLAYER VS OPPONENT, faction names colored by role
+       (defender blue, attacker red). Sits below the centered credits chip. */
+    .hud-center .center-matchup {
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
-      padding: 4px 10px;
+      gap: 10px;
+      padding: 2px 10px;
       font-family: 'Courier New', monospace;
-      font-size: 11px;
+      font-size: clamp(12px, 1.5vh, 14px);
       letter-spacing: 3px;
       color: #8aabc4;
     }
-    .hud-center .center-vs .vs-label { opacity: 0.55; }
-    .hud-center .center-vs .vs-team {
+    .hud-center .center-matchup .vs-label { opacity: 0.55; font-size: 0.85em; }
+    /* Defender-variant HUD: player is on the LEFT (blue), AI on the RIGHT (red). */
+    .hud-panel[data-side="def"] .center-matchup .vs-player {
+      font-weight: bold;
+      color: #6ac4ff;
+      text-shadow: 0 0 6px rgba(60, 170, 230, 0.65);
+    }
+    .hud-panel[data-side="def"] .center-matchup .vs-team {
       font-weight: bold;
       color: #ff7a9a;
       text-shadow: 0 0 6px rgba(230, 80, 120, 0.65);
     }
-    .hud-panel[data-side="att"] .center-vs .vs-team {
+    /* Attacker-variant HUD: player is on the LEFT (red), AI on the RIGHT (blue). */
+    .hud-panel[data-side="att"] .center-matchup .vs-player {
+      font-weight: bold;
+      color: #ff7a9a;
+      text-shadow: 0 0 6px rgba(230, 80, 120, 0.65);
+    }
+    .hud-panel[data-side="att"] .center-matchup .vs-team {
+      font-weight: bold;
       color: #6ac4ff;
       text-shadow: 0 0 6px rgba(60, 170, 230, 0.65);
-    }
-    .hud-center .center-vs .vs-ai {
-      font-size: 9px;
-      letter-spacing: 2px;
-      padding: 1px 6px;
-      background: rgba(0, 0, 0, 0.55);
-      border: 1px solid rgba(255, 255, 255, 0.22);
-      color: #b8cad8;
     }
 
     /* (Event log removed — center panel only carries title + VS chip.) */
@@ -368,13 +375,6 @@
       align-items: center;
       gap: 6px;
       width: 100%;
-    }
-    .center-stats-row {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 14px;
-      flex-wrap: wrap;
     }
     /* System events feed — small scrolling area in the center panel that
        streams non-combat messages ("BUILD PHASE started", "AI deployment

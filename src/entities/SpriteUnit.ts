@@ -26,16 +26,12 @@ function spriteSizeFor(type: UnitType): number {
   return SPRITE_SIZE_OVERRIDE[type] ?? SPRITE_SIZE
 }
 
-// Per-cyborg-type colour tint. Grenadier gets a green wash so it doesn't
-// read as the same dark-armoured cyborg as Cannon. Doublegun gets warm
-// orange. Untinted types use 0xffffff (multiplicative identity).
-const SPRITE_TINT: Partial<Record<UnitType, number>> = {
-  grenadier: 0xb0ffb0,
-  doublegun: 0xffd0a0,
-  // Cool olive cast on the sniper so the recon role reads at a glance
-  // against the warmer fire-support tints above.
-  sniper:    0xc8e0a0,
-}
+// Per-type colour tints — kept empty so cyborgs render with their natural
+// sprite-art colours instead of the previous Grenadier-green / Doublegun-
+// orange / Sniper-olive multiplicative washes. Removed at user request:
+// the washes made unit identity ambiguous on the battlefield. Differentiation
+// now comes from the source art alone.
+const SPRITE_TINT: Partial<Record<UnitType, number>> = {}
 // How far ahead of the unit a projectile should leave from. Tuned so shots
 // emerge from the weapon hand, not the chest/stomach.
 const MUZZLE_FORWARD = 26

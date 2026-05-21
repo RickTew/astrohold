@@ -160,13 +160,11 @@ export class HUD {
               <div class="center-banner-row">
                 <div class="center-phase">BUILD PHASE</div>
               </div>
-              <div class="center-stats-row">
-                <div class="center-credits">CR<span class="cr-num" id="credits-val">1000</span></div>
-                <div class="center-vs">
-                  <span class="vs-label">VS</span>
-                  <span class="vs-team">CYBORGS</span>
-                  <span class="vs-ai">AI</span>
-                </div>
+              <div class="center-credits">CR<span class="cr-num" id="credits-val">1000</span></div>
+              <div class="center-matchup">
+                <span class="vs-player">ROBOTS</span>
+                <span class="vs-label">VS</span>
+                <span class="vs-team">CYBORGS</span>
               </div>
               <div class="center-events"></div>
               <button class="center-action-btn" data-action="primary">READY</button>
@@ -205,13 +203,11 @@ export class HUD {
               <div class="center-banner-row">
                 <div class="center-phase">BUILD PHASE</div>
               </div>
-              <div class="center-stats-row">
-                <div class="center-credits">CR<span class="cr-num" id="att-credits-val">1000</span></div>
-                <div class="center-vs">
-                  <span class="vs-label">VS</span>
-                  <span class="vs-team">ROBOTS</span>
-                  <span class="vs-ai">AI</span>
-                </div>
+              <div class="center-credits">CR<span class="cr-num" id="att-credits-val">1000</span></div>
+              <div class="center-matchup">
+                <span class="vs-player">CYBORGS</span>
+                <span class="vs-label">VS</span>
+                <span class="vs-team">ROBOTS</span>
               </div>
               <div class="center-events"></div>
               <button class="center-action-btn" data-action="primary">READY</button>
