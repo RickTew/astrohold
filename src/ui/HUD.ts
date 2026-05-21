@@ -95,7 +95,10 @@ export class HUD {
       const iconEl = t.icon === 'wall'
         ? '<div class="tile-icon icon-wall"></div>'
         : `<div class="tile-icon"><img src="${t.icon}" alt=""/></div>`
-      return `<button class="${classes.join(' ')}" ${data}>` +
+      // title attribute kicks in at narrow widths (≤640px) where the tile
+      // label is CSS-hidden — browser shows it on hover, players can still
+      // identify pieces.
+      return `<button class="${classes.join(' ')}" ${data} title="${t.label} — ${t.cost}cr">` +
         iconEl +
         `<div class="tile-label">${t.label}</div>` +
         `<div class="tile-cost">${t.cost}cr</div>` +
@@ -109,7 +112,7 @@ export class HUD {
     const sidePanelSvg = (side: 'def' | 'att', flip: boolean) => `
       <svg class="panel-frame" viewBox="0 0 200 210" preserveAspectRatio="none" aria-hidden="true"${flip ? ' style="transform:scaleX(-1)"' : ''}>
         <path d="${sidePanelPath}"
-              fill="rgba(8, 18, 32, 0.85)"
+              fill="rgba(8, 18, 32, 0.55)"
               stroke="${side === 'def' ? '#5aa7d4' : '#d45a7a'}"
               stroke-width="1.6" stroke-linejoin="miter"
               vector-effect="non-scaling-stroke"/>
@@ -119,7 +122,7 @@ export class HUD {
     const centerPanelSvg = (side: 'def' | 'att') => `
       <svg class="panel-frame" viewBox="0 0 320 210" preserveAspectRatio="none" aria-hidden="true">
         <path d="M 12,30 L 28,14 L 100,14 L 112,4 L 208,4 L 220,14 L 292,14 L 308,30 L 308,198 L 296,210 L 24,210 L 12,198 Z"
-              fill="rgba(8, 18, 32, 0.85)"
+              fill="rgba(8, 18, 32, 0.55)"
               stroke="${side === 'def' ? '#5aa7d4' : '#d45a7a'}"
               stroke-width="1.6" stroke-linejoin="miter"
               vector-effect="non-scaling-stroke"/>
