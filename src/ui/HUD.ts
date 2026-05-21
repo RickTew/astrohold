@@ -235,14 +235,14 @@ export class HUD {
             <div class="sp-team-name">ROBOTS</div>
             <div class="sp-role">DEFEND THE POWER CORE</div>
             <div class="sp-hero"><img src="/sprites/sphere/south.png" alt=""/></div>
-            <div class="sp-tagline">Spheres, towers, walls, and dogs.<br/>Hold the line — let nothing through.</div>
+            <div class="sp-tagline">Spheres, towers, walls.<br/>Hold the line.</div>
             <div class="sp-cta">PLAY ROBOTS</div>
           </div>
           <div class="sp-card att" data-side="attacker">
             <div class="sp-team-name">CYBORGS</div>
             <div class="sp-role">DESTROY THE POWER CORE</div>
             <div class="sp-hero"><img src="/sprites/hulk/south.png" alt=""/></div>
-            <div class="sp-tagline">Cannons, snipers, grenadiers, hulks.<br/>Push west — break the defenders.</div>
+            <div class="sp-tagline">Cannons, snipers, hulks.<br/>Break the line.</div>
             <div class="sp-cta">PLAY CYBORGS</div>
           </div>
         </div>
