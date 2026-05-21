@@ -168,7 +168,7 @@ export class HUD {
                   <span class="vs-ai">AI</span>
                 </div>
               </div>
-              <div class="center-message">Place defenses, then READY.</div>
+              <div class="center-events"></div>
               <button class="center-action-btn" data-action="primary">READY</button>
             </div>
             <!-- REVEAL content: combat log fills the panel. -->
@@ -213,7 +213,7 @@ export class HUD {
                   <span class="vs-ai">AI</span>
                 </div>
               </div>
-              <div class="center-message">Spawn forces, then READY.</div>
+              <div class="center-events"></div>
               <button class="center-action-btn" data-action="primary">READY</button>
             </div>
             <div class="center-log hidden"><div class="log-empty">(combat events appear here)</div></div>
@@ -353,12 +353,29 @@ export class HUD {
     } else {
       this.container.querySelector('#hud-top')?.classList.add('ai-side')
     }
+    // Color the primary action button to match the role: blue for DEFENDER,
+    // red for ATTACKER. Matches the side-picker card the player just picked.
+    this.container.querySelectorAll<HTMLButtonElement>('.center-action-btn').forEach(btn => {
+      btn.classList.toggle('role-defender', role === 'defender')
+      btn.classList.toggle('role-attacker', role === 'attacker')
+    })
   }
 
-  // Stub so Game can log without checking — no UI for system log on the
-  // baseline HUD; reserved for future redesigns.
-  logSystemMessage(_text: string, _kind: 'system' | 'player' | 'ai' = 'system') {
-    // intentionally no-op
+  // Append a one-line system event to the .center-events ticker inside the
+  // center HUD panel. Last ~8 events kept; oldest scrolls out. Writes to
+  // BOTH center variants (def + att) so the feed survives a faction switch.
+  logSystemMessage(text: string, kind: 'system' | 'player' | 'ai' = 'system') {
+    this.container.querySelectorAll<HTMLElement>('.center-events').forEach(feed => {
+      const row = document.createElement('div')
+      row.className = `center-event center-event-${kind}`
+      row.textContent = text
+      feed.appendChild(row)
+      const MAX = 8
+      while (feed.childElementCount > MAX) {
+        feed.removeChild(feed.firstChild!)
+      }
+      feed.scrollTop = feed.scrollHeight
+    })
   }
 
   showGame() {
@@ -416,14 +433,9 @@ export class HUD {
   }
 
   setPhase(phase: 'build' | 'planning' | 'reveal' | 'win' | 'lose') {
-    const setCenter = (title: string, message: string, buttonLabel: string | null) => {
-      // Apply to ALL center panels (def + att variants). Only the visible
-      // one is on-screen, but updating both keeps them in sync so switching
-      // sides mid-session doesn't show stale state.
+    const setCenter = (title: string, buttonLabel: string | null) => {
       this.container.querySelectorAll<HTMLElement>('.hud-panel.hud-center .center-phase')
         .forEach(el => { el.textContent = title })
-      this.container.querySelectorAll<HTMLElement>('.hud-panel.hud-center .center-message')
-        .forEach(el => { el.textContent = message })
       this.container.querySelectorAll<HTMLButtonElement>('.center-action-btn').forEach(btn => {
         if (buttonLabel === null) {
           btn.classList.add('hidden')
@@ -443,40 +455,48 @@ export class HUD {
         el.classList.toggle('hidden', !visible)
       })
     }
+    // Hide only the SIDE shop panels (.hud-left, .hud-right). The HUD strip
+    // and the CENTER panel stay visible so the action button + status feed
+    // + combat log remain on-screen across all phases.
+    const showShopPanels = (visible: boolean) => {
+      this.container.querySelectorAll<HTMLElement>('.hud-panel.hud-left, .hud-panel.hud-right')
+        .forEach(el => { el.classList.toggle('hidden', !visible) })
+    }
 
     switch (phase) {
       case 'build':
-        setCenter('BUILD PHASE', 'Place your forces, then READY.', 'READY')
+        setCenter('BUILD PHASE', 'READY')
         showBuildInfo(true)
         showCenterLog(false)
+        showShopPanels(true)
         this.robotShopEl.classList.remove('hidden')
         this.cyborgShopEl.classList.remove('hidden')
         this.planSelectionEl.classList.add('hidden')
         this.messageEl.classList.add('hidden')
+        this.logSystemMessage('BUILD PHASE. Place your forces.', 'system')
         break
       case 'planning':
-        setCenter('PLAN PHASE', 'Click a piece, then a cell to queue actions.', 'BATTLE')
+        setCenter('PLAN PHASE', 'BATTLE')
         showBuildInfo(true)
         showCenterLog(false)
-        this.robotShopEl.classList.add('hidden')
-        this.cyborgShopEl.classList.add('hidden')
+        showShopPanels(false)
         this.messageEl.classList.add('hidden')
+        this.logSystemMessage('PLAN PHASE. Queue moves and shots.', 'system')
         break
       case 'reveal':
-        setCenter('BATTLE', '', null)
+        setCenter('BATTLE', null)
         showBuildInfo(false)
         showCenterLog(true)
-        this.robotShopEl.classList.add('hidden')
-        this.cyborgShopEl.classList.add('hidden')
+        showShopPanels(false)
         this.planSelectionEl.classList.add('hidden')
         this.messageEl.classList.add('hidden')
         break
       case 'win':
-        setCenter('BATTLE', '', null)
+        setCenter('BATTLE', null)
         this.showEndMessage('DEFENDER WINS', 'Power Core survived', '#00ffaa')
         break
       case 'lose':
-        setCenter('BATTLE', '', null)
+        setCenter('BATTLE', null)
         this.showEndMessage('ATTACKER WINS', 'Power Core destroyed', '#ff4444')
         break
     }
