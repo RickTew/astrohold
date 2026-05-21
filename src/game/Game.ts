@@ -183,10 +183,11 @@ export class Game {
     if (this.playerSide) return  // re-entry guard
     this.playerSide = role
     this.playerFaction = faction
-    // AI gets the opposite role + a random faction so same-faction matchups
-    // (Robots vs Robots) happen organically. The roster + tint hooks key off
-    // role/team — faction is currently visual identity only.
-    this.aiFaction = Math.random() < 0.5 ? 'robot' : 'cyborg'
+    // AI gets the OPPOSITE role + OPPOSITE faction. With the 2-card
+    // picker this means: player picks Robot Defender, AI is Cyborg
+    // Attacker (and vice versa). Same-faction matchups will return when
+    // we expand the picker after faction-specific rosters are generated.
+    this.aiFaction = faction === 'robot' ? 'cyborg' : 'robot'
     const aiSide: OpponentSide = role === 'defender' ? 'attacker' : 'defender'
     this.opponentAI = new OpponentAI(aiSide, this.aiApi(aiSide))
     this.hud.setPlayerSide(role)

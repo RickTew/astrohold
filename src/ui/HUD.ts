@@ -241,40 +241,30 @@ export class HUD {
           <div class="sp-title">ASTROHOLD</div>
           <div class="sp-headline">CHOOSE YOUR SIDE</div>
           <div class="sp-cards">
-            <div class="sp-card robot" data-faction="robot" data-role="defender">
-              <div class="sp-team-name">ROBOTS</div>
-              <div class="sp-role">DEFEND THE POWER CORE</div>
+            <button class="sp-card" data-faction="robot" data-role="defender">
+              <div class="sp-role-label">DEFENDER</div>
+              <div class="sp-team-name">Robots</div>
               <div class="sp-hero"><img src="/sprites/sphere/south.png" alt=""/></div>
-              <div class="sp-tagline">Spheres, towers, walls.<br/>Hold the line.</div>
+              <div class="sp-tagline">Hold the line. Stop the assault.</div>
               <div class="sp-cta">PLAY</div>
-            </div>
-            <div class="sp-card cyborg" data-faction="cyborg" data-role="defender">
-              <div class="sp-team-name">CYBORGS</div>
-              <div class="sp-role">DEFEND THE POWER CORE</div>
-              <div class="sp-hero"><img src="/sprites/sniper/south.png" alt=""/></div>
-              <div class="sp-tagline">Snipers and towers.<br/>Hold the line.</div>
-              <div class="sp-cta">PLAY</div>
-            </div>
-            <div class="sp-card robot" data-faction="robot" data-role="attacker">
-              <div class="sp-team-name">ROBOTS</div>
-              <div class="sp-role">DESTROY THE POWER CORE</div>
-              <div class="sp-hero"><img src="/sprites/dog/south.png" alt=""/></div>
-              <div class="sp-tagline">Dogs and assault drones.<br/>Break the line.</div>
-              <div class="sp-cta">PLAY</div>
-            </div>
-            <div class="sp-card cyborg" data-faction="cyborg" data-role="attacker">
-              <div class="sp-team-name">CYBORGS</div>
-              <div class="sp-role">DESTROY THE POWER CORE</div>
+            </button>
+            <button class="sp-card" data-faction="cyborg" data-role="attacker">
+              <div class="sp-role-label">ATTACKER</div>
+              <div class="sp-team-name">Cyborgs</div>
               <div class="sp-hero"><img src="/sprites/hulk/south.png" alt=""/></div>
-              <div class="sp-tagline">Hulks and grenadiers.<br/>Break the line.</div>
+              <div class="sp-tagline">Push west. Break the defense.</div>
               <div class="sp-cta">PLAY</div>
+            </button>
+          </div>
+          <details class="sp-howto">
+            <summary>How to play</summary>
+            <div class="sp-howto-body">
+              <p><strong>BUILD:</strong> Spend credits to place pieces inside your zone. Click a tile to pick a piece, then click a cell.</p>
+              <p><strong>PLAN:</strong> Click any of your pieces, then click a cell to queue a move, or right-click an enemy to queue a shot. Right-click empty space to clear.</p>
+              <p><strong>BATTLE:</strong> Both sides reveal their planned actions in initiative order. Watch the round play out. Repeat until the Power Core falls or every attacker is gone.</p>
+              <p>The AI plays the opposite role. Pick DEFENDER and the AI attacks. Pick ATTACKER and the AI defends.</p>
             </div>
-          </div>
-          <div class="sp-legend">
-            <span class="sp-legend-row"><span class="sp-swatch sp-swatch-you"></span>YOU</span>
-            <span class="sp-legend-sep">·</span>
-            <span class="sp-legend-row"><span class="sp-swatch sp-swatch-ai"></span>AI</span>
-          </div>
+          </details>
         </div>
       </div>
     `

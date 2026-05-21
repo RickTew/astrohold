@@ -612,12 +612,12 @@
     .ai-side { display: none !important; }
 
     /* ── Side picker (full-screen modal shown after asset preload) ───────
-       Four faction × role cards. Container scrolls when content is taller
-       than viewport; inner wrapper centers content when it DOES fit. The
-       centering-when-fits + scroll-when-overflows trick uses an outer
-       container with overflow:auto and an inner block with min-height:100%
-       and flex centering — avoids the classic justify-content:center +
-       overflow:auto clipping bug. */
+       Two cards (DEFENDER / ATTACKER) on a single row at desktop widths;
+       stacks vertically below ~720px. ALL sizes use clamp() so the picker
+       adapts smoothly to any viewport — no fixed breakpoints to drop off
+       a cliff at. The outer container has overflow:auto and the inner
+       wrapper has min-height:100% + flex centering, so content scrolls
+       when it overflows but stays centered when it fits. */
     #side-picker {
       position: absolute;
       inset: 0;
@@ -636,60 +636,46 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 22px;
-      padding: 24px;
+      gap: clamp(12px, 2.4vh, 22px);
+      padding: clamp(16px, 4vh, 32px) clamp(12px, 4vw, 28px);
       box-sizing: border-box;
     }
     #side-picker .sp-title {
       display: inline-flex;
       align-items: center;
       gap: 14px;
-      font-size: 14px;
-      letter-spacing: 12px;
+      font-size: clamp(10px, 1.6vh, 14px);
+      letter-spacing: clamp(6px, 1.2vh, 12px);
       color: #6ac4ff;
       text-shadow: 0 0 14px rgba(0, 160, 240, 0.45);
     }
     #side-picker .sp-title::before,
     #side-picker .sp-title::after {
       content: '';
-      width: 70px;
+      width: clamp(40px, 6vw, 70px);
       height: 1px;
       background: linear-gradient(90deg, transparent, #6ac4ff);
       opacity: 0.55;
     }
     #side-picker .sp-title::after { background: linear-gradient(90deg, #6ac4ff, transparent); }
     #side-picker .sp-headline {
-      font-size: 24px;
-      letter-spacing: 10px;
+      font-size: clamp(16px, 3vh, 24px);
+      letter-spacing: clamp(4px, 1.2vh, 10px);
       color: #e6f3ff;
       text-shadow: 0 0 22px rgba(60, 140, 220, 0.7), 0 1px 0 rgba(0, 0, 0, 0.8);
-      margin-top: -16px;
+      margin-top: -8px;
     }
-    /* Layout adapts to viewport — 1 row × 4 cards at desktop widths so
-       every option is visible without scrolling. Falls back to 2×2 at
-       narrower viewports (≤1180px), and to a single column on phones. */
     #side-picker .sp-cards {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 260px));
-      gap: 22px;
+      grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+      gap: clamp(12px, 2.4vw, 28px);
+      width: min(720px, 100%);
       align-items: stretch;
-      justify-content: center;
-      max-width: min(1180px, 100vw);
-    }
-    @media (max-width: 1180px) {
-      #side-picker .sp-cards {
-        grid-template-columns: repeat(2, minmax(0, 280px));
-      }
-    }
-    @media (max-width: 620px) {
-      #side-picker .sp-cards {
-        grid-template-columns: minmax(0, 280px);
-      }
     }
     .sp-card {
       position: relative;
       width: 100%;
-      padding: 18px 18px 20px;
+      padding: clamp(12px, 2vh, 20px);
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -697,95 +683,56 @@
         repeating-linear-gradient(60deg, transparent 0 18px, rgba(255, 255, 255, 0.018) 18px 19px),
         repeating-linear-gradient(-60deg, transparent 0 18px, rgba(255, 255, 255, 0.018) 18px 19px),
         linear-gradient(180deg, #2a323d 0%, #161a22 45%, #0a0d13 100%);
-      border: 2px solid #2b4d72;
+      border: 1.5px solid #3a5570;
       color: #d8ecff;
       cursor: pointer;
       text-align: center;
+      font-family: inherit;
       transition: transform 0.15s ease-out, border-color 0.15s, box-shadow 0.15s;
       box-shadow:
-        0 0 24px rgba(0, 160, 240, 0.45),
-        0 1px 0 rgba(255, 255, 255, 0.10) inset,
-        0 -1px 0 rgba(0, 0, 0, 0.55) inset,
-        0 0 32px rgba(0, 160, 240, 0.45) inset;
-    }
-    .sp-card.cyborg {
-      background:
-        repeating-linear-gradient(60deg, transparent 0 18px, rgba(255, 255, 255, 0.018) 18px 19px),
-        repeating-linear-gradient(-60deg, transparent 0 18px, rgba(255, 255, 255, 0.018) 18px 19px),
-        linear-gradient(180deg, #2a323d 0%, #161a22 45%, #0a0d13 100%);
-      border-color: #7a2630;
-      color: #ffdadc;
-      box-shadow:
-        0 0 24px rgba(230, 70, 70, 0.45),
-        0 1px 0 rgba(255, 255, 255, 0.10) inset,
-        0 -1px 0 rgba(0, 0, 0, 0.55) inset,
-        0 0 32px rgba(230, 70, 70, 0.45) inset;
+        0 0 18px rgba(60, 110, 160, 0.28),
+        0 1px 0 rgba(255, 255, 255, 0.08) inset,
+        0 -1px 0 rgba(0, 0, 0, 0.55) inset;
     }
     .sp-card:hover {
-      transform: translateY(-3px);
+      transform: translateY(-2px);
       border-color: #6ac4ff;
       box-shadow:
-        0 0 36px rgba(0, 160, 240, 0.45),
-        0 1px 0 rgba(255, 255, 255, 0.10) inset,
-        0 -1px 0 rgba(0, 0, 0, 0.55) inset,
-        0 0 44px rgba(0, 160, 240, 0.45) inset;
+        0 0 24px rgba(0, 160, 240, 0.45),
+        0 1px 0 rgba(255, 255, 255, 0.12) inset,
+        0 -1px 0 rgba(0, 0, 0, 0.55) inset;
     }
-    .sp-card.cyborg:hover {
-      border-color: #ff8c8c;
-      box-shadow:
-        0 0 36px rgba(230, 70, 70, 0.45),
-        0 1px 0 rgba(255, 255, 255, 0.10) inset,
-        0 -1px 0 rgba(0, 0, 0, 0.55) inset,
-        0 0 44px rgba(230, 70, 70, 0.45) inset;
-    }
-    .sp-card .sp-team-name {
-      font-size: 22px;
+    .sp-card .sp-role-label {
+      font-size: clamp(18px, 2.8vh, 26px);
       font-weight: bold;
-      letter-spacing: 6px;
-      color: #6ac4ff;
-      text-shadow: 0 0 14px rgba(0, 160, 240, 0.45);
+      letter-spacing: clamp(4px, 0.9vh, 8px);
+      color: #e6f3ff;
+      text-shadow: 0 0 12px rgba(140, 200, 255, 0.40);
       margin-bottom: 2px;
     }
-    .sp-card.cyborg .sp-team-name {
-      color: #ff8c8c;
-      text-shadow: 0 0 14px rgba(230, 70, 70, 0.45);
-    }
-    .sp-card .sp-role {
-      font-size: 9px;
-      letter-spacing: 2px;
+    .sp-card .sp-team-name {
+      font-size: clamp(11px, 1.4vh, 14px);
+      letter-spacing: clamp(2px, 0.4vh, 4px);
       color: #8aaecc;
-      margin-bottom: 14px;
-      padding-bottom: 8px;
+      margin-bottom: clamp(8px, 1.4vh, 14px);
+      padding-bottom: clamp(6px, 1vh, 10px);
       border-bottom: 1px solid rgba(106, 196, 255, 0.20);
-    }
-    .sp-card.cyborg .sp-role {
-      color: #cc9494;
-      border-bottom-color: rgba(255, 140, 140, 0.20);
+      width: 80%;
     }
     .sp-card .sp-hero {
       position: relative;
-      width: 96px;
-      height: 96px;
-      margin: 0 auto 12px;
+      width: clamp(70px, 11vh, 96px);
+      height: clamp(70px, 11vh, 96px);
+      margin: 0 auto clamp(8px, 1.2vh, 14px);
       background:
         radial-gradient(ellipse at 50% 45%, rgba(50, 70, 100, 0.30) 0%, rgba(0, 0, 0, 0.85) 75%),
         linear-gradient(180deg, #050810 0%, #020407 100%);
       border: 1px solid #2a3140;
       box-shadow:
         0 0 0 1px rgba(255, 255, 255, 0.04) inset,
-        0 3px 6px rgba(0, 0, 0, 0.55) inset,
-        0 0 18px rgba(0, 160, 240, 0.45);
+        0 3px 6px rgba(0, 0, 0, 0.55) inset;
       display: flex; align-items: center; justify-content: center;
       overflow: hidden;
-    }
-    .sp-card.cyborg .sp-hero {
-      background:
-        radial-gradient(ellipse at 50% 45%, rgba(100, 50, 50, 0.30) 0%, rgba(0, 0, 0, 0.85) 75%),
-        linear-gradient(180deg, #100408 0%, #060203 100%);
-      box-shadow:
-        0 0 0 1px rgba(255, 255, 255, 0.04) inset,
-        0 3px 6px rgba(0, 0, 0, 0.55) inset,
-        0 0 18px rgba(230, 70, 70, 0.45);
     }
     .sp-card .sp-hero img {
       width: 100%;
@@ -796,78 +743,69 @@
       transform: scale(1.4);
     }
     .sp-card .sp-tagline {
-      font-size: 11px;
+      font-size: clamp(10px, 1.3vh, 12px);
       letter-spacing: 1px;
-      line-height: 1.55;
+      line-height: 1.45;
       color: #8aaecc;
-      margin-bottom: 14px;
-      min-height: 50px;
+      margin-bottom: clamp(10px, 1.6vh, 16px);
     }
-    .sp-card.cyborg .sp-tagline { color: #cc9494; }
     .sp-card .sp-cta {
       margin-top: auto;
       display: inline-flex;
       align-items: center;
       gap: 10px;
-      padding: 10px 24px;
+      padding: clamp(8px, 1.2vh, 11px) clamp(20px, 3vw, 28px);
       font-family: inherit;
-      font-size: 13px;
+      font-size: clamp(12px, 1.5vh, 14px);
       font-weight: bold;
-      letter-spacing: 5px;
+      letter-spacing: clamp(3px, 0.6vh, 5px);
       color: #d8ecff;
       background: linear-gradient(180deg, #143a60 0%, #082040 60%, #03101e 100%);
       border: 2px solid #6ac4ff;
       box-shadow:
         0 0 0 1px rgba(108, 196, 255, 0.25) inset,
         0 1px 0 rgba(255, 255, 255, 0.12) inset,
-        0 -2px 4px rgba(0, 0, 0, 0.40) inset,
-        0 0 14px rgba(0, 160, 240, 0.45);
+        0 -2px 4px rgba(0, 0, 0, 0.40) inset;
     }
-    .sp-card.cyborg .sp-cta {
-      color: #ffdadc;
-      background: linear-gradient(180deg, #5a121c 0%, #2a0408 60%, #100204 100%);
-      border-color: #ff8c8c;
+    .sp-card:hover .sp-cta {
       box-shadow:
-        0 0 0 1px rgba(255, 138, 138, 0.25) inset,
-        0 1px 0 rgba(255, 255, 255, 0.12) inset,
+        0 0 0 1px rgba(108, 196, 255, 0.50) inset,
+        0 1px 0 rgba(255, 255, 255, 0.16) inset,
         0 -2px 4px rgba(0, 0, 0, 0.40) inset,
-        0 0 14px rgba(230, 70, 70, 0.45);
+        0 0 18px rgba(0, 160, 240, 0.45);
     }
-    .sp-card:hover .sp-cta { box-shadow:
-      0 0 0 1px rgba(108, 196, 255, 0.50) inset,
-      0 1px 0 rgba(255, 255, 255, 0.16) inset,
-      0 -2px 4px rgba(0, 0, 0, 0.40) inset,
-      0 0 22px rgba(0, 160, 240, 0.45);
+    /* How-to-play collapsible — closed by default; opens to a short
+       three-section reference. Width-locked to the cards grid above. */
+    #side-picker .sp-howto {
+      width: min(720px, 100%);
+      font-size: clamp(11px, 1.4vh, 13px);
+      color: #99b8d0;
+      background: rgba(0, 0, 0, 0.50);
+      border: 1px solid rgba(106, 196, 255, 0.18);
+      padding: 0 clamp(12px, 2.4vw, 18px);
     }
-    .sp-card.cyborg:hover .sp-cta { box-shadow:
-      0 0 0 1px rgba(255, 138, 138, 0.50) inset,
-      0 1px 0 rgba(255, 255, 255, 0.16) inset,
-      0 -2px 4px rgba(0, 0, 0, 0.40) inset,
-      0 0 22px rgba(230, 70, 70, 0.45);
-    }
-    /* Legend — explicit "YOU = blue, AI = red" so players don't have to
-       infer the color convention. Sits below the cards. */
-    #side-picker .sp-legend {
+    #side-picker .sp-howto[open] { padding-bottom: clamp(12px, 1.8vh, 16px); }
+    #side-picker .sp-howto summary {
+      cursor: pointer;
+      padding: clamp(10px, 1.6vh, 14px) 0;
+      font-weight: bold;
+      letter-spacing: 2px;
+      color: #c8ddf2;
+      list-style: none;
       display: flex;
       align-items: center;
-      gap: 16px;
-      font-size: 10px;
-      letter-spacing: 3px;
-      color: #8aaecc;
-      padding: 6px 14px;
-      background: rgba(0, 0, 0, 0.45);
-      border: 1px solid rgba(106, 196, 255, 0.18);
+      gap: 8px;
     }
-    #side-picker .sp-legend-row { display: inline-flex; align-items: center; gap: 8px; }
-    #side-picker .sp-legend-sep { opacity: 0.45; }
-    #side-picker .sp-swatch {
-      width: 14px;
-      height: 14px;
-      border: 1px solid rgba(255, 255, 255, 0.25);
-      box-shadow: 0 0 6px rgba(0, 0, 0, 0.6) inset;
+    #side-picker .sp-howto summary::before {
+      content: '▶';
+      font-size: 9px;
+      transition: transform 0.2s;
     }
-    #side-picker .sp-swatch-you { background: #b8d4ff; box-shadow: 0 0 8px rgba(110, 180, 255, 0.55); }
-    #side-picker .sp-swatch-ai  { background: #ffb8b8; box-shadow: 0 0 8px rgba(255, 120, 120, 0.55); }
+    #side-picker .sp-howto[open] summary::before { transform: rotate(90deg); }
+    #side-picker .sp-howto summary::-webkit-details-marker { display: none; }
+    #side-picker .sp-howto-body { line-height: 1.55; }
+    #side-picker .sp-howto-body p { margin: clamp(4px, 0.8vh, 8px) 0; }
+    #side-picker .sp-howto-body strong { color: #ffd089; letter-spacing: 1px; }
   </style>
 </head>
 <body>
