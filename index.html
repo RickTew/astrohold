@@ -126,12 +126,14 @@
       padding: 4px 8px;
     }
 
-    /* ── Tile grid ───────────────────────────────────────────────────── */
+    /* ── Tile grid — 4 cols × 2 rows = 8 tiles per side. Slimmer roster
+       per side, but each tile is ~25% larger so pieces are easier to read
+       at a glance. ─────────────────────────────────────────────────── */
     .tile-grid {
       display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       grid-template-rows: repeat(2, 1fr);
-      gap: 5px;
+      gap: 6px;
       width: 100%;
       height: 100%;
     }
@@ -192,8 +194,8 @@
     }
 
     .hud-tile .tile-icon {
-      width: 38px;
-      height: 38px;
+      width: clamp(40px, 6vh, 56px);
+      height: clamp(40px, 6vh, 56px);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -218,22 +220,24 @@
       transform-origin: center;
     }
     .hud-tile .icon-wall {
-      width: 32px; height: 32px;
+      width: clamp(34px, 5vh, 48px);
+      height: clamp(34px, 5vh, 48px);
       background:
         linear-gradient(135deg, rgba(255,255,255,0.10) 0%, rgba(0,0,0,0.10) 100%),
         repeating-linear-gradient(45deg, #6688aa 0 4px, #334455 4px 8px);
       border: 1px solid #88aacc;
     }
     .hud-tile .tile-label {
-      font-size: 9px;
+      font-size: clamp(10px, 1.2vh, 12px);
       letter-spacing: 1px;
-      margin-top: 1px;
+      margin-top: 2px;
       color: inherit;
     }
     .hud-tile .tile-cost {
-      font-size: 9px;
+      font-size: clamp(10px, 1.2vh, 12px);
       letter-spacing: 0.5px;
       color: #c8ff7a;
+      font-weight: bold;
     }
 
     /* ── Responsive breakpoints ─────────────────────────────────────────
@@ -247,35 +251,24 @@
        crashes when squeezed. */
     @media (max-width: 1100px) {
       :root { --hud-top-h: 200px; }
-      .hud-tile { padding: 3px 1px; font-size: 8px; }
-      .hud-tile .tile-icon { width: 32px; height: 32px; }
-      .hud-tile .tile-label { font-size: 8px; letter-spacing: 0.5px; }
-      .hud-tile .tile-cost { font-size: 8px; }
-      .hud-center .center-phase { font-size: 18px; letter-spacing: 5px; }
+      .hud-tile { padding: 3px 1px; }
     }
     @media (max-width: 860px) {
       :root { --hud-top-h: 180px; }
       /* Hide the right duplicate panel so the left + center get the full
          viewport width. Grid collapses from 3 columns to 2. */
       #hud-top, #hud-top-att {
-        grid-template-columns: 1fr minmax(280px, 36%);
+        grid-template-columns: 1fr minmax(300px, 42%);
       }
       #hud-top > .hud-panel:nth-child(3),
       #hud-top-att > .hud-panel:nth-child(3) { display: none; }
       .hud-tile { padding: 2px 1px; }
-      .hud-tile .tile-icon { width: 28px; height: 28px; }
-      .hud-center .center-phase { font-size: 16px; letter-spacing: 3px; }
-      .hud-center .center-matchup { font-size: 11px; letter-spacing: 2px; gap: 6px; }
     }
     @media (max-width: 640px) {
-      :root { --hud-top-h: 155px; }
+      :root { --hud-top-h: 160px; }
       /* Drop tile labels so the icon + cost fit in a tiny tile. Players
          can hover for the name (browser tooltip from the data-label). */
       .hud-tile .tile-label { display: none; }
-      .hud-tile .tile-icon { width: 24px; height: 24px; }
-      .hud-center .center-phase { font-size: 14px; letter-spacing: 2px; }
-      .hud-center .center-credits { font-size: 9px; padding: 2px 8px; }
-      .hud-center .center-credits .cr-num { font-size: 11px; }
       .hud-center .center-matchup { display: none; }
     }
 

@@ -64,23 +64,21 @@ export class HUD {
       { label: 'WALL',    cost:  20, icon: 'wall',                       dataType: 'wall' },
       { label: 'DOG',     cost:  40, icon: '/sprites/dog/south.png',    action: 'dog' },
       { label: 'DEFENSE', cost:  20, icon: '/sprites/defense/south.png', dataType: 'defense', preview: true },
-      { label: 'GUN',     cost:  30, icon: '/sprites/gun/south.png',     dataType: 'gun',     preview: true },
-      { label: 'GUN',     cost:  30, icon: '/sprites/gun/south.png',     dataType: 'gun',     preview: true },
       { label: 'LASER',   cost:  40, icon: '/sprites/laser/south.png',   dataType: 'laser',   preview: true },
       { label: 'SIGNAL',  cost:  20, icon: '/sprites/signal/south.png',  dataType: 'signal',  preview: true },
     ]
+    // Cyborg roster has only 5 distinct pieces today. We pad with 3 duplicates
+    // to fill the 4×2 grid until new cyborg art is generated. (Was 5 duplicates
+    // in the 5×2 grid; trimmed when we reduced to 8 tiles per side.)
     const cyborgTiles: Tile[] = [
       { label: 'CANNON',   cost:  70, icon: '/sprites/cannon/south.png',    dataType: 'cannon' },
       { label: 'GRENADIER',cost:  50, icon: '/sprites/grenadier/south.png', dataType: 'grenadier' },
       { label: 'DOUBLEGUN',cost:  90, icon: '/sprites/doublegun/south.png', dataType: 'doublegun' },
       { label: 'HULK',     cost: 100, icon: '/sprites/hulk/south.png',      dataType: 'hulk' },
       { label: 'SNIPER',   cost:  90, icon: '/sprites/sniper/south.png',    dataType: 'sniper' },
-      // duplicates to fill the 10-slot grid until we have more cyborg pieces.
       { label: 'CANNON',   cost:  70, icon: '/sprites/cannon/south.png',    dataType: 'cannon' },
       { label: 'GRENADIER',cost:  50, icon: '/sprites/grenadier/south.png', dataType: 'grenadier' },
-      { label: 'DOUBLEGUN',cost:  90, icon: '/sprites/doublegun/south.png', dataType: 'doublegun' },
       { label: 'HULK',     cost: 100, icon: '/sprites/hulk/south.png',      dataType: 'hulk' },
-      { label: 'SNIPER',   cost:  90, icon: '/sprites/sniper/south.png',    dataType: 'sniper' },
     ]
     const tileHtml = (t: Tile, sideTag: 'def' | 'att') => {
       const classes = ['hud-tile', sideTag]
