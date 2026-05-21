@@ -9,8 +9,10 @@
     :root {
       /* Visual height of the HUD strip — used for panel sizing only. The
          canvas fills the FULL window underneath; the HUD floats over it
-         transparently so the map is visible behind + between the panels. */
-      --hud-top-h: 195px;
+         transparently so the map is visible behind + between the panels.
+         Tall enough to give the center panel (BUILD PHASE title + chips +
+         status + READY button) generous vertical breathing room. */
+      --hud-top-h: 235px;
     }
     body { background: #000; overflow: hidden; }
     canvas { display: block; width: 100vw; height: 100vh; }
@@ -40,8 +42,8 @@
       top: 0; left: 0; right: 0;
       height: var(--hud-top-h);
       display: grid;
-      grid-template-columns: 1fr minmax(360px, 28%) 1fr;
-      gap: 6px;
+      grid-template-columns: 1fr minmax(460px, 38%) 1fr;
+      gap: 10px;
       padding: 6px 16px 8px;
       pointer-events: none;
     }
@@ -84,12 +86,13 @@
       gap: 4px;
     }
     .hud-center .panel-content {
-      /* Top inset clears the raised banner (banner is ~26px tall on top
-         of the body; body top starts at viewBox y=30 → ~28px at our scale).
+      /* Top inset is deeper than the side panels' 10px to give the
+         BUILD PHASE banner clear airspace under the protruding header
+         notch (which protrudes upward to ~y=4 in the SVG viewBox).
          Bottom inset clears the chamfered bottom corners. */
-      inset: 14px 32px 14px 32px;
+      inset: 30px 40px 22px 40px;
       justify-content: center;
-      gap: 10px;
+      gap: 14px;
     }
 
     /* ── Tile grid ───────────────────────────────────────────────────── */
@@ -212,7 +215,7 @@
        The strip stays at top of viewport at every size, but no longer
        crashes when squeezed. */
     @media (max-width: 1100px) {
-      :root { --hud-top-h: 170px; }
+      :root { --hud-top-h: 200px; }
       .hud-tile { padding: 3px 1px; font-size: 8px; }
       .hud-tile .tile-icon { width: 32px; height: 32px; }
       .hud-tile .tile-label { font-size: 8px; letter-spacing: 0.5px; }
@@ -220,7 +223,7 @@
       .hud-center .center-phase { font-size: 18px; letter-spacing: 5px; }
     }
     @media (max-width: 860px) {
-      :root { --hud-top-h: 160px; }
+      :root { --hud-top-h: 180px; }
       /* Hide the right duplicate panel so the left + center get the full
          viewport width. Grid collapses from 3 columns to 2. */
       #hud-top, #hud-top-att {
@@ -234,7 +237,7 @@
       .hud-center .center-matchup { font-size: 11px; letter-spacing: 2px; gap: 6px; }
     }
     @media (max-width: 640px) {
-      :root { --hud-top-h: 130px; }
+      :root { --hud-top-h: 155px; }
       /* Drop tile labels so the icon + cost fit in a tiny tile. Players
          can hover for the name (browser tooltip from the data-label). */
       .hud-tile .tile-label { display: none; }
@@ -260,33 +263,36 @@
       position: relative;
       display: inline-flex;
       align-items: center;
-      gap: 14px;
+      gap: 18px;
       font-family: 'Courier New', monospace;
-      font-size: clamp(15px, 2.2vh, 20px);
+      font-size: clamp(20px, 3vh, 28px);
       font-weight: bold;
-      letter-spacing: clamp(3px, 0.8vh, 6px);
-      color: #ecf6ff;
+      letter-spacing: clamp(6px, 1.4vh, 10px);
+      color: #f4faff;
       white-space: nowrap;
+      padding: 2px 6px;
       text-shadow:
-        0 0 14px rgba(90, 200, 255, 0.85),
-        0 0 4px rgba(0, 0, 0, 0.7);
+        0 0 24px rgba(110, 215, 255, 0.95),
+        0 0 8px rgba(80, 200, 255, 0.7),
+        0 0 2px rgba(0, 0, 0, 0.9);
     }
     /* Bracket accents on either side of BUILD PHASE — read as command-
        deck punctuation. */
     .hud-center .center-phase::before,
     .hud-center .center-phase::after {
       content: '';
-      width: 14px;
-      height: 14px;
-      border: 1.5px solid #5aa7d4;
-      filter: drop-shadow(0 0 4px rgba(90, 200, 255, 0.6));
+      width: 20px;
+      height: 20px;
+      border: 2.5px solid #6ac4ff;
+      filter: drop-shadow(0 0 5px rgba(90, 200, 255, 0.75));
     }
     .hud-center .center-phase::before { border-right: none; border-bottom: none; }
     .hud-center .center-phase::after  { border-left:  none; border-top:    none; }
     .hud-panel[data-side="att"] .center-phase {
       text-shadow:
-        0 0 14px rgba(230, 90, 130, 0.85),
-        0 0 4px rgba(0, 0, 0, 0.7);
+        0 0 24px rgba(255, 110, 145, 0.95),
+        0 0 8px rgba(230, 90, 130, 0.7),
+        0 0 2px rgba(0, 0, 0, 0.9);
     }
     .hud-panel[data-side="att"] .center-phase::before,
     .hud-panel[data-side="att"] .center-phase::after {
@@ -373,7 +379,7 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 6px;
+      gap: clamp(10px, 1.6vh, 16px);
       width: 100%;
     }
     /* System status line — shows the latest non-combat message in the
@@ -396,53 +402,94 @@
     .center-events .center-event-player { color: #88c5e0; }
     .center-events .center-event-ai     { color: #e08888; }
 
-    /* Primary action button (READY/BATTLE). Color follows the player's
-       role — blue for DEFENDER, red for ATTACKER — matching the side-picker
-       card they picked. Default state is neutral; .role-defender or
-       .role-attacker is applied by HUD.setPlayerSide. */
+    /* Primary action button (READY/BATTLE). Styled as a hardware key
+       physically recessed into the console — beveled top highlight,
+       bottom edge shadow (depth), inner bezel ring, and a glowing
+       backlight. Pressed state drops the button 1-2px to feel mechanical.
+       Color follows the player's role (.role-defender = blue,
+       .role-attacker = red); applied by HUD.setPlayerSide. */
     .center-action-btn {
-      margin-top: 4px;
-      padding: clamp(7px, 1.1vh, 10px) clamp(22px, 3vw, 32px);
-      font-size: clamp(13px, 1.7vh, 16px);
+      margin-top: 2px;
+      padding: clamp(10px, 1.6vh, 14px) clamp(30px, 4.5vw, 46px);
+      font-size: clamp(15px, 2vh, 19px);
       font-weight: bold;
-      letter-spacing: clamp(3px, 0.7vh, 5px);
+      letter-spacing: clamp(4px, 0.9vh, 7px);
       font-family: 'Courier New', monospace;
       cursor: pointer;
       white-space: nowrap;
+      position: relative;
       background: linear-gradient(180deg, #2a323d 0%, #161a22 60%, #0a0d13 100%);
-      border: 2px solid #5a7090;
+      border: 3px solid #5a7090;
       color: #d8ecff;
-      transition: border-color 0.1s, box-shadow 0.1s;
+      transition: transform 0.07s, box-shadow 0.1s, border-color 0.1s;
     }
+    .center-action-btn:active { transform: translateY(2px); }
+
     .center-action-btn.role-defender {
-      background: linear-gradient(180deg, #143a60 0%, #082040 60%, #03101e 100%);
+      background: linear-gradient(180deg, #1c4a78 0%, #0a2848 50%, #03101e 100%);
       border-color: #6ac4ff;
-      color: #d8ecff;
+      color: #eaf6ff;
+      text-shadow: 0 0 8px rgba(140, 220, 255, 0.55), 0 1px 0 rgba(0, 0, 0, 0.7);
       box-shadow:
-        0 0 12px rgba(0, 160, 240, 0.45),
-        0 1px 0 rgba(180, 220, 255, 0.25) inset;
+        /* Inner bezel ring — thin highlight inset that mimics a milled edge */
+        0 0 0 1px rgba(180, 220, 255, 0.35) inset,
+        /* Top key highlight (light coming from above) */
+        0 2px 0 rgba(220, 240, 255, 0.30) inset,
+        /* Bottom inner shadow (key has depth into the console) */
+        0 -6px 10px rgba(0, 0, 0, 0.55) inset,
+        /* Hard edge shadow below the key — physical depth */
+        0 3px 0 rgba(0, 0, 0, 0.55),
+        /* Outer glow — backlight bleeding out from under the key */
+        0 0 18px rgba(0, 170, 255, 0.55);
     }
     .center-action-btn.role-defender:hover {
       border-color: #b8e0ff;
-      color: #f0faff;
+      color: #f6fcff;
       box-shadow:
-        0 0 22px rgba(0, 180, 255, 0.75),
-        0 1px 0 rgba(220, 240, 255, 0.40) inset;
+        0 0 0 1px rgba(220, 240, 255, 0.55) inset,
+        0 2px 0 rgba(220, 240, 255, 0.40) inset,
+        0 -6px 10px rgba(0, 0, 0, 0.55) inset,
+        0 3px 0 rgba(0, 0, 0, 0.55),
+        0 0 28px rgba(0, 200, 255, 0.85);
     }
-    .center-action-btn.role-attacker {
-      background: linear-gradient(180deg, #5a121c 0%, #2a0408 60%, #100204 100%);
-      border-color: #ff8c8c;
-      color: #ffdadc;
+    .center-action-btn.role-defender:active {
       box-shadow:
-        0 0 12px rgba(230, 70, 70, 0.45),
-        0 1px 0 rgba(255, 200, 200, 0.25) inset;
+        0 0 0 1px rgba(180, 220, 255, 0.35) inset,
+        0 2px 0 rgba(220, 240, 255, 0.30) inset,
+        0 -3px 8px rgba(0, 0, 0, 0.45) inset,
+        0 1px 0 rgba(0, 0, 0, 0.55),
+        0 0 22px rgba(0, 200, 255, 0.75);
+    }
+
+    .center-action-btn.role-attacker {
+      background: linear-gradient(180deg, #5a121c 0%, #2a0610 50%, #100204 100%);
+      border-color: #ff8c8c;
+      color: #fff0f1;
+      text-shadow: 0 0 8px rgba(255, 180, 180, 0.55), 0 1px 0 rgba(0, 0, 0, 0.7);
+      box-shadow:
+        0 0 0 1px rgba(255, 200, 200, 0.35) inset,
+        0 2px 0 rgba(255, 220, 220, 0.30) inset,
+        0 -6px 10px rgba(0, 0, 0, 0.55) inset,
+        0 3px 0 rgba(0, 0, 0, 0.55),
+        0 0 18px rgba(255, 80, 80, 0.55);
     }
     .center-action-btn.role-attacker:hover {
       border-color: #ffc8c8;
-      color: #ffeaea;
+      color: #fff8f8;
       box-shadow:
-        0 0 22px rgba(255, 90, 90, 0.75),
-        0 1px 0 rgba(255, 220, 220, 0.40) inset;
+        0 0 0 1px rgba(255, 220, 220, 0.55) inset,
+        0 2px 0 rgba(255, 220, 220, 0.40) inset,
+        0 -6px 10px rgba(0, 0, 0, 0.55) inset,
+        0 3px 0 rgba(0, 0, 0, 0.55),
+        0 0 28px rgba(255, 100, 100, 0.85);
+    }
+    .center-action-btn.role-attacker:active {
+      box-shadow:
+        0 0 0 1px rgba(255, 200, 200, 0.35) inset,
+        0 2px 0 rgba(255, 220, 220, 0.30) inset,
+        0 -3px 8px rgba(0, 0, 0, 0.45) inset,
+        0 1px 0 rgba(0, 0, 0, 0.55),
+        0 0 22px rgba(255, 100, 100, 0.75);
     }
 
     /* Combat log inside the center panel — replaces banner/stats/message

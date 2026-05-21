@@ -110,7 +110,7 @@ export class HUD {
         <path d="${sidePanelPath}"
               fill="rgba(8, 18, 32, 0.55)"
               stroke="${side === 'def' ? '#5aa7d4' : '#d45a7a'}"
-              stroke-width="1.6" stroke-linejoin="miter"
+              stroke-width="2.8" stroke-linejoin="miter"
               vector-effect="non-scaling-stroke"/>
       </svg>`
     // Center panel — raised banner on top that protrudes upward, chamfered
@@ -120,7 +120,7 @@ export class HUD {
         <path d="M 12,30 L 28,14 L 100,14 L 112,4 L 208,4 L 220,14 L 292,14 L 308,30 L 308,198 L 296,210 L 24,210 L 12,198 Z"
               fill="rgba(8, 18, 32, 0.55)"
               stroke="${side === 'def' ? '#5aa7d4' : '#d45a7a'}"
-              stroke-width="1.6" stroke-linejoin="miter"
+              stroke-width="2.8" stroke-linejoin="miter"
               vector-effect="non-scaling-stroke"/>
         <!-- Internal banner divider — separates BUILD PHASE area from below. -->
         <line x1="40" y1="62" x2="280" y2="62"
