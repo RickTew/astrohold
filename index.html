@@ -15,7 +15,7 @@
          transparently so the map is visible behind + between the panels.
          Tall enough to give the center panel (BUILD PHASE title + chips +
          status + READY button) generous vertical breathing room. */
-      --hud-top-h: 235px;
+      --hud-top-h: 250px;
     }
     body { background: #000; overflow: hidden; }
     canvas { display: block; width: 100vw; height: 100vh; }
@@ -194,14 +194,28 @@
     }
 
     .hud-tile .tile-icon {
-      width: clamp(40px, 6vh, 56px);
-      height: clamp(40px, 6vh, 56px);
+      width: clamp(46px, 7vh, 64px);
+      height: clamp(46px, 7vh, 64px);
       display: flex;
       align-items: center;
       justify-content: center;
       overflow: hidden;
       background: radial-gradient(ellipse at 50% 45%, rgba(40, 70, 100, 0.30) 0%, rgba(0, 0, 0, 0.85) 75%);
       border: 1px solid rgba(106, 196, 255, 0.30);
+    }
+    /* EXPERIMENT: right-panel tiles drop the inner dark-blue icon box.
+       Sprite floats directly on the tile background, label floats below.
+       Compare against the LEFT panel (which keeps the inner box) to decide
+       which treatment to keep. Both panels are otherwise functionally
+       identical (same click handlers, same data attributes). */
+    #hud-top > .hud-right .hud-tile .tile-icon,
+    #hud-top-att > .hud-right .hud-tile .tile-icon {
+      background: none;
+      border: none;
+    }
+    #hud-top > .hud-right .hud-tile .icon-wall,
+    #hud-top-att > .hud-right .hud-tile .icon-wall {
+      border: none;
     }
     .hud-tile.att .tile-icon {
       background: radial-gradient(ellipse at 50% 45%, rgba(100, 40, 60, 0.30) 0%, rgba(0, 0, 0, 0.85) 75%);
