@@ -190,21 +190,24 @@ export async function preloadSpriteUnit(type: UnitType, folder: string): Promise
   const anims: Record<AnimState, AnimDef | undefined> = {
     idle: undefined, walking: undefined, shoot: undefined, throw: undefined, die: undefined,
   }
-  for (const state of Object.keys(manifest) as AnimState[]) {
+  // All states + all directions + all frames load concurrently. HTTP/2 lets
+  // the browser multiplex these, so total wall-clock load time drops from
+  // serial-frame-count × per-request-latency to roughly one request worth.
+  await Promise.all((Object.keys(manifest) as AnimState[]).map(async state => {
     const def = manifest[state]!
     const frames = new Map<Direction, THREE.Texture[]>()
     // Only request directories that exist on disk; mirroring resolves the rest.
     await Promise.all(def.presentDirs.map(async dir => {
-      const dirFrames: THREE.Texture[] = []
       const count = def.frameCountByDir?.[dir] ?? def.frameCount
-      for (let i = 0; i < count; i++) {
-        const num = String(i).padStart(3, '0')
-        dirFrames.push(await loadTexture(`/sprites/${folder}/${state}/${dir}/frame_${num}.png`))
-      }
+      const dirFrames = await Promise.all(
+        Array.from({ length: count }, (_, i) =>
+          loadTexture(`/sprites/${folder}/${state}/${dir}/frame_${String(i).padStart(3, '0')}.png`)
+        )
+      )
       frames.set(dir, dirFrames)
     }))
     anims[state] = { state, fps: def.fps, loop: def.loop, presentDirs: def.presentDirs, frameCount: def.frameCount, frames }
-  }
+  }))
 
   animSets.set(type, { folder, staticTextures, anims })
 }

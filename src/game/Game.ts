@@ -118,27 +118,6 @@ export class Game {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     this.renderer.setSize(window.innerWidth, window.innerHeight)
 
-    // Lighting rig — tuned so the dark Meshy power core reads against the
-    // dark terrain from all angles.
-    //   - Ambient: base scene-wide brightness (sprites aren't lit, only PBR).
-    //   - Hemisphere: sky/ground gradient so upward-facing surfaces (antennas,
-    //     dome top) catch a subtle cyan, and downward-facing ones catch warm
-    //     terrain bounce.
-    //   - Key directional: camera-side, lights the front of the model.
-    //   - Fill directional: opposite side at lower intensity so the back of
-    //     the model isn't pure shadow — used to be invisible against the
-    //     brown background.
-    this.scene.add(new THREE.AmbientLight(0xffffff, 1.8))
-    this.scene.add(new THREE.HemisphereLight(0xaaccff, 0x4a3422, 0.7))
-
-    const dirKey = new THREE.DirectionalLight(0xffffff, 1.2)
-    dirKey.position.set(0, 0, 100)
-    this.scene.add(dirKey)
-
-    const dirFill = new THREE.DirectionalLight(0xbbccff, 0.7)
-    dirFill.position.set(0, -100, -80)   // from below-back; hits the rear faces and antenna spikes
-    this.scene.add(dirFill)
-
     window.addEventListener('resize', this.onResize)
     window.addEventListener('wheel', this.onWheel, { passive: false })
     window.addEventListener('mousedown', this.onMouseDown)
@@ -151,10 +130,8 @@ export class Game {
     this.background = new Background(this.scene)
     this.hud = new HUD()
 
-    // Block UI until all visuals are ready, so placements never show the swap.
-    // PowerCore is constructed AFTER preload so the GLB template is in place
-    // when its setVariant() runs — otherwise the first frame would render the
-    // fallback geometry.
+    // Block UI until all sprite atlases are ready so placements never show the
+    // swap from fallback geometry to final sprite.
     await Promise.all([
       preloadSphereSprites(),
       preloadSpriteUnit('cannon', 'cannon'),
@@ -165,8 +142,6 @@ export class Game {
       preloadSpriteUnit('sniper', 'sniper'),
       preloadPixelPowerCore(),
       preloadStructureSprites(),
-      // GLB Power Core preload skipped — switched to pixel sprite. super.glb
-      // + textured.glb + plain.glb stay on disk for future repurposing.
     ])
 
     // Pixel power core — 2x2 footprint stays at 100 world units of cell
