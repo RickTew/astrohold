@@ -655,7 +655,9 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 48px;
+      gap: 28px;
+      padding: 24px;
+      overflow: auto;
       background:
         radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.06) 0%, transparent 1px),
         radial-gradient(circle at 75% 70%, rgba(255, 255, 255, 0.04) 0%, transparent 1px),
@@ -683,23 +685,37 @@
     }
     #side-picker .sp-title::after { background: linear-gradient(90deg, #6ac4ff, transparent); }
     #side-picker .sp-headline {
-      font-size: 30px;
-      letter-spacing: 14px;
+      font-size: 24px;
+      letter-spacing: 10px;
       color: #e6f3ff;
       text-shadow: 0 0 22px rgba(60, 140, 220, 0.7), 0 1px 0 rgba(0, 0, 0, 0.8);
-      margin-top: -36px;
+      margin-top: -16px;
     }
+    /* Layout adapts to viewport — 1 row × 4 cards at desktop widths so
+       every option is visible without scrolling. Falls back to 2×2 at
+       narrower viewports (≤1180px), and to a single column on phones. */
     #side-picker .sp-cards {
       display: grid;
-      grid-template-columns: repeat(2, 300px);
-      gap: 28px 32px;
+      grid-template-columns: repeat(4, minmax(0, 260px));
+      gap: 22px;
       align-items: stretch;
       justify-content: center;
+      max-width: min(1180px, 100vw);
+    }
+    @media (max-width: 1180px) {
+      #side-picker .sp-cards {
+        grid-template-columns: repeat(2, minmax(0, 280px));
+      }
+    }
+    @media (max-width: 620px) {
+      #side-picker .sp-cards {
+        grid-template-columns: minmax(0, 280px);
+      }
     }
     .sp-card {
       position: relative;
-      width: 300px;
-      padding: 22px 24px 26px;
+      width: 100%;
+      padding: 18px 18px 20px;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -749,23 +765,23 @@
         0 0 44px rgba(230, 70, 70, 0.45) inset;
     }
     .sp-card .sp-team-name {
-      font-size: 28px;
+      font-size: 22px;
       font-weight: bold;
-      letter-spacing: 8px;
+      letter-spacing: 6px;
       color: #6ac4ff;
       text-shadow: 0 0 14px rgba(0, 160, 240, 0.45);
-      margin-bottom: 4px;
+      margin-bottom: 2px;
     }
     .sp-card.att .sp-team-name {
       color: #ff8c8c;
       text-shadow: 0 0 14px rgba(230, 70, 70, 0.45);
     }
     .sp-card .sp-role {
-      font-size: 10px;
-      letter-spacing: 3px;
+      font-size: 9px;
+      letter-spacing: 2px;
       color: #8aaecc;
-      margin-bottom: 22px;
-      padding-bottom: 10px;
+      margin-bottom: 14px;
+      padding-bottom: 8px;
       border-bottom: 1px solid rgba(106, 196, 255, 0.20);
     }
     .sp-card.att .sp-role {
@@ -774,9 +790,9 @@
     }
     .sp-card .sp-hero {
       position: relative;
-      width: 130px;
-      height: 130px;
-      margin: 0 auto 18px;
+      width: 96px;
+      height: 96px;
+      margin: 0 auto 12px;
       background:
         radial-gradient(ellipse at 50% 45%, rgba(50, 70, 100, 0.30) 0%, rgba(0, 0, 0, 0.85) 75%),
         linear-gradient(180deg, #050810 0%, #020407 100%);
@@ -806,12 +822,12 @@
       transform: scale(1.4);
     }
     .sp-card .sp-tagline {
-      font-size: 12px;
-      letter-spacing: 1.5px;
-      line-height: 1.6;
+      font-size: 11px;
+      letter-spacing: 1px;
+      line-height: 1.55;
       color: #8aaecc;
-      margin-bottom: 22px;
-      min-height: 64px;
+      margin-bottom: 14px;
+      min-height: 50px;
     }
     .sp-card.att .sp-tagline { color: #cc9494; }
     .sp-card .sp-cta {
