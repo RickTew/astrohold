@@ -366,32 +366,38 @@
     }
 
     /* fx-starfield — slow parallax stars behind the center panel.
-       CSS equivalent of "PlaneGeometry with scrolling UV starfield". */
+       CSS equivalent of "PlaneGeometry with scrolling UV starfield".
+       The panel-frame SVG fill is 0.58 alpha, so we render stars INSIDE
+       panel-content (which stacks on top of panel-frame in DOM order)
+       and let them sit behind the centered text via normal source order
+       (::before naturally renders behind sibling elements). */
     .exp-hud.fx-starfield .hud-center .panel-content::before {
       content: '';
       position: absolute;
-      inset: 4px 4px 4px 4px;
+      inset: 6px;
       pointer-events: none;
-      z-index: -1;
+      background-color: transparent;
       background-image:
-        radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,0.85), transparent 70%),
-        radial-gradient(1px 1px at 80% 20%, rgba(180,220,255,0.7), transparent 70%),
-        radial-gradient(1px 1px at 45% 70%, rgba(255,255,255,0.6), transparent 70%),
-        radial-gradient(1px 1px at 65% 85%, rgba(200,230,255,0.7), transparent 70%),
-        radial-gradient(1px 1px at 10% 80%, rgba(255,255,255,0.5), transparent 70%),
-        radial-gradient(1px 1px at 90% 55%, rgba(190,225,255,0.6), transparent 70%),
-        radial-gradient(1px 1px at 30% 95%, rgba(255,255,255,0.4), transparent 70%);
-      background-size: 220px 180px;
+        radial-gradient(1.2px 1.2px at 20% 30%, rgba(255,255,255,1), transparent 60%),
+        radial-gradient(1px 1px at 80% 20%, rgba(180,220,255,0.9), transparent 65%),
+        radial-gradient(1px 1px at 45% 70%, rgba(255,255,255,0.85), transparent 65%),
+        radial-gradient(1.2px 1.2px at 65% 85%, rgba(200,230,255,0.95), transparent 60%),
+        radial-gradient(1px 1px at 10% 80%, rgba(255,255,255,0.7), transparent 65%),
+        radial-gradient(1px 1px at 90% 55%, rgba(190,225,255,0.85), transparent 65%),
+        radial-gradient(0.8px 0.8px at 30% 95%, rgba(255,255,255,0.6), transparent 65%),
+        radial-gradient(0.8px 0.8px at 55% 12%, rgba(220,240,255,0.7), transparent 65%);
+      background-size: 180px 140px;
       animation: stars-drift 22s linear infinite;
-      opacity: 0.85;
     }
     @keyframes stars-drift {
       0%   { background-position: 0 0; }
-      100% { background-position: -220px 180px; }
+      100% { background-position: -180px 140px; }
     }
 
-    /* fx-scanlines — subtle CRT lines over the whole HUD.
-       Cheap "tactical console" texture without GLSL. */
+    /* fx-scanlines — visible CRT lines over the whole HUD.
+       Earlier version used mix-blend-mode: overlay over a transparent
+       parent which washed out — now uses plain dark lines with enough
+       opacity to read on both the panels and the gaps between them. */
     .exp-hud.fx-scanlines::after {
       content: '';
       position: absolute;
@@ -399,10 +405,9 @@
       pointer-events: none;
       background: repeating-linear-gradient(
         to bottom,
-        transparent 0 2px,
-        rgba(255, 255, 255, 0.035) 2px 3px
+        rgba(0, 0, 0, 0.22) 0 1px,
+        transparent 1px 3px
       );
-      mix-blend-mode: overlay;
       z-index: 5;
     }
 
@@ -453,15 +458,14 @@
     @keyframes cr-bloom {
       0%, 100% {
         text-shadow:
-          0 0 6px rgba(180, 240, 70, 0.7),
-          0 0 14px rgba(140, 220, 50, 0.5);
+          0 0 5px rgba(180, 240, 70, 0.55),
+          0 0 10px rgba(140, 220, 50, 0.30);
       }
       50% {
         text-shadow:
-          0 0 4px #f0ff90,
-          0 0 14px #d4ff7a,
-          0 0 28px rgba(180, 240, 70, 0.95),
-          0 0 44px rgba(120, 200, 40, 0.7);
+          0 0 6px rgba(200, 250, 100, 0.75),
+          0 0 14px rgba(180, 240, 70, 0.50),
+          0 0 22px rgba(140, 220, 50, 0.30);
       }
     }
 
@@ -502,6 +506,23 @@
     @keyframes dash-march {
       0%   { stroke-dashoffset: 0; }
       100% { stroke-dashoffset: -200; }
+    }
+
+    /* fx-icon-glow — each tile icon gets a soft cyan halo around its
+       frame + subtle brightness boost on the sprite. Extracted from the
+       old wireframe bundle (which the user liked) without the dashed
+       borders / ghost-icon part. Reads as "each unit is alive on the
+       console grid". */
+    .exp-hud.fx-icon-glow .tile-icon {
+      box-shadow:
+        0 0 8px rgba(106, 196, 255, 0.32),
+        0 0 16px rgba(60, 130, 200, 0.18);
+      border-color: rgba(140, 200, 240, 0.45);
+    }
+    .exp-hud.fx-icon-glow .tile-icon img {
+      filter:
+        brightness(1.10)
+        drop-shadow(0 0 3px rgba(180, 220, 255, 0.55));
     }
 
     /* fx-canvas-text — replace HTML title with a <canvas> drawing the
@@ -759,6 +780,9 @@
 
     <label><input type="checkbox" data-fx="tile-pop"> Tile hover-pop</label>
     <span class="fx-desc">Stronger scale + glow on hover</span>
+
+    <label><input type="checkbox" data-fx="icon-glow"> Unit icon glow</label>
+    <span class="fx-desc">Soft cyan halo around every tile (holo vibe)</span>
 
     <label><input type="checkbox" data-fx="cr-bloom"> CR bloom pulse</label>
     <span class="fx-desc">Credits number pulses neon green</span>
