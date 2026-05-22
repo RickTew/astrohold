@@ -104,6 +104,12 @@ export const Config = {
     // can hit up to 3 enemies at once. `slamAmmo` is a separate counter
     // from punch ammo — the Hulk picks his moments.
     hulk:      { cost: 100, hp: 280, speed: 35, damage: 55, range: 70,  sightRange: 220, aoeRadius: 0, apBudget: 2, ammo: 5, slamDamage: 40, slamAmmo: 3, label: 'Hulk',       color: 0x886622 },
+    // Cyborg Medic — support unit with three heal modes (med-pack throw,
+    // deployable medic-pad, tether). Fragile (HP 50) so positioning matters.
+    // `damage` repurposed as heal amount per tick; `range` is throw range
+    // (3 cells); `ammo` is the SHARED heal-charge pool: throw=1, pad-deploy=2,
+    // tether tick=1 per turn. `allowDiagonalMove: true` per the spec.
+    medic:     { cost: 70, hp: 50,  speed: 70,  damage: 30, range: 150, sightRange: 280, aoeRadius: 0,  apBudget: 3, ammo: 5, allowDiagonalMove: true, label: 'Medic',     color: 0xffffff },
   },
 } as const
 

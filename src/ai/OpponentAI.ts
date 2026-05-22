@@ -143,6 +143,8 @@ export class OpponentAI {
       { t: 'doublegun', weight: 2 },
       { t: 'hulk',      weight: 1 },
       { t: 'sniper',    weight: 1 },
+      // Medic — support unit, weight 1 so AI buys ~1 per squad when it fits.
+      { t: 'medic',     weight: 1 },
     ]
 
     // Spawn from the back columns (closest to the cyborg edge of the field).

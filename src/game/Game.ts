@@ -10,6 +10,8 @@ import { PlanningPhase } from './PlanningPhase'
 import { RevealPhase } from './RevealPhase'
 import { Structure, preloadStructureSprites } from '../entities/Structure'
 import { PendingGrenade } from '../entities/PendingGrenade'
+import { MedicPad } from '../entities/MedicPad'
+import { Tether } from '../entities/Tether'
 import { FireArcPreview } from '../entities/FireArcPreview'
 import { OpponentAI, OpponentSide } from '../ai/OpponentAI'
 
@@ -71,6 +73,12 @@ export class Game {
   // Owned by Game (survives RevealPhase instances) and passed by reference so
   // each new reveal sees + clears + grows the same array.
   private pendingGrenades: PendingGrenade[] = []
+  // Medic-pads dropped by the Cyborg Medic. Tick + animate alongside the
+  // other battlefield entities; cleaned up when charges expire or HP hits 0.
+  private medicPads: MedicPad[] = []
+  // Active Tether bonds between a Medic and an ally. Updated per frame so
+  // the beam tracks the units; ticked each reveal for the heal payload.
+  private tethers: Tether[] = []
   // Tracks reveals in a row that had zero combat events (no shots, no bombs,
   // no diffuses). After NO_PROGRESS_LIMIT consecutive idle reveals, the
   // auto-loop halts with a stalemate — prevents the "robot dog wanders
@@ -151,6 +159,7 @@ export class Game {
       preloadSpriteUnit('dog', 'dog'),
       preloadSpriteUnit('hulk', 'hulk'),
       preloadSpriteUnit('sniper', 'sniper'),
+      preloadSpriteUnit('medic', 'medic'),
       preloadPixelPowerCore(),
       preloadStructureSprites(),
     ])
@@ -552,7 +561,7 @@ private enterBuildPhase() {
 
     this.revealPhase = new RevealPhase(
       this.scene, this.powerCore, this.attackerUnits, this.structures, this.spheres, this.defenderUnits,
-      this.pendingGrenades,
+      this.pendingGrenades, this.medicPads, this.tethers,
     )
     this.revealPhase.onWin = () => {
       this.phase = 'win'; this.hud.setPhase('win')
@@ -750,6 +759,10 @@ private enterBuildPhase() {
       if (s.isDead) continue
       if (Math.abs(s.worldX - x) < E && Math.abs(s.worldY - y) < E) return true
     }
+    for (const p of this.medicPads) {
+      if (p.isDead) continue
+      if (Math.abs(p.worldX - x) < E && Math.abs(p.worldY - y) < E) return true
+    }
     return false
   }
 
@@ -824,6 +837,8 @@ private enterBuildPhase() {
     // so explosion animations advance regardless of phase.
     const liveStructures = this.buildPhase?.getStructures() ?? this.structures
     for (const s of liveStructures) s.update(delta)
+    for (const p of this.medicPads) p.animate(delta)
+    for (const t of this.tethers) t.update(delta)
     this.buildPhase?.faceCamera(this.camera)
     this.revealPhase?.update(delta)
     this.revealPhase?.faceCamera(this.camera)
@@ -1106,6 +1121,10 @@ private enterBuildPhase() {
     this.spheres = []
     for (const g of this.pendingGrenades) g.dispose()
     this.pendingGrenades = []
+    for (const p of this.medicPads) p.dispose()
+    this.medicPads = []
+    for (const t of this.tethers) t.dispose()
+    this.tethers = []
     this.renderer.dispose()
     this.scene.clear()
     this.hud?.dispose()

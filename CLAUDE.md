@@ -30,6 +30,12 @@ D&D-style strategy:
   can see what a tower will and won't cover before committing.
 - **Hulk slam special action** (2 AP, 3-cell wedge in facing dir).
 - **Cyborg Sniper** — single-shot, 400-range, 150 dmg precision strike.
+- **Cyborg Medic** — support unit, three heal modes sharing a 5-charge pool:
+  med-pack throw (1 charge, 3-cell range, +30 HP), deployable medic-pad
+  (2 charges, +15 HP/tick to adjacent cyborgs for 4 ticks), tether (1
+  charge/turn, pins both endpoints, +20 HP/turn). Only mobile unit with
+  `allowDiagonalMove: true`. Fragile (HP 50). See `MedicPad.ts`,
+  `Tether.ts`, and `RevealPhase.medicDefaultAction()`.
 
 ## HUD (session 14)
 Floating top strip with three SVG-silhouetted panels — DO NOT reserve

@@ -49,6 +49,37 @@ const structureExplosionTextures: Map<StructureType, THREE.Texture[]> = new Map(
 let grenadeTexture: THREE.Texture | null = null
 export function getGrenadeTexture(): THREE.Texture | null { return grenadeTexture }
 
+// Med-pack texture — drawn procedurally to a 32×32 canvas (white pad with
+// green cross) so we don't have to ship a separate PNG asset. The Medic's
+// heal-throw projectile uses this in place of the grenade sprite.
+let medPackTexture: THREE.Texture | null = null
+export function getMedPackTexture(): THREE.Texture | null { return medPackTexture }
+function makeMedPackTexture(): THREE.Texture {
+  const c = document.createElement('canvas')
+  c.width = 32; c.height = 32
+  const ctx = c.getContext('2d')!
+  // White pad with dark outline
+  ctx.fillStyle = '#f0f6ff'
+  ctx.fillRect(4, 4, 24, 24)
+  ctx.strokeStyle = '#1a3040'
+  ctx.lineWidth = 2
+  ctx.strokeRect(4, 4, 24, 24)
+  // Green cross
+  ctx.fillStyle = '#3dd955'
+  ctx.fillRect(13, 8, 6, 16)
+  ctx.fillRect(8, 13, 16, 6)
+  // Cross outline for crispness
+  ctx.strokeStyle = '#1a3040'
+  ctx.lineWidth = 1
+  ctx.strokeRect(13, 8, 6, 16)
+  ctx.strokeRect(8, 13, 16, 6)
+  const tex = new THREE.CanvasTexture(c)
+  tex.magFilter = THREE.NearestFilter
+  tex.minFilter = THREE.NearestFilter
+  tex.colorSpace = THREE.SRGBColorSpace
+  return tex
+}
+
 function loadTex(url: string): Promise<THREE.Texture> {
   return new Promise((resolve, reject) => {
     new THREE.TextureLoader().load(url, tex => {
@@ -80,6 +111,8 @@ export async function preloadStructureSprites(): Promise<void> {
     }),
     loadTex('/sprites/grenade.png').then(tex => { grenadeTexture = tex }),
   ])
+  // Med-pack is procedural; no network fetch needed.
+  medPackTexture = makeMedPackTexture()
 }
 
 export class Structure {

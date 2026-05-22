@@ -3,11 +3,13 @@ import { Config } from './GameConfig'
 import { CellRef, QueuedAction, TargetRef } from './TurnTypes'
 import { SpriteUnit } from '../entities/SpriteUnit'
 import { SphereDefender } from '../entities/SphereDefender'
-import { Structure, getGrenadeTexture } from '../entities/Structure'
+import { Structure, getGrenadeTexture, getMedPackTexture } from '../entities/Structure'
 import { PixelPowerCore } from '../entities/PixelPowerCore'
 import { Projectile } from '../entities/Projectile'
 import { Explosion } from '../entities/Explosion'
 import { PendingGrenade } from '../entities/PendingGrenade'
+import { MedicPad } from '../entities/MedicPad'
+import { Tether } from '../entities/Tether'
 import { playGunshot, playExplosion } from '../audio/sfx'
 
 // Phase 3 reveal engine: consumes the queued plans the player set up during
@@ -95,12 +97,19 @@ export class RevealPhase {
     private spheres: SphereDefender[],
     private defenderUnits: SpriteUnit[] = [],
     private pendingGrenades: PendingGrenade[] = [],
+    private medicPads: MedicPad[] = [],
+    private tethers: Tether[] = [],
   ) {
     this.steps = this.buildSteps()
     // Force-detonate bombs that have outlived their fuse. Done before any
     // step runs so the explosions read as "the bomb you left out finally
     // went off" — happens at the start of the new reveal.
     this.expireOldBombs()
+    // Tick medic-pads next so healed cyborgs are at top HP before they act.
+    this.tickMedicPads()
+    // Then tick active tethers so target/medic heal-bonds also resolve
+    // before any cyborg takes their action.
+    this.tickTethers()
   }
 
   private expireOldBombs() {
@@ -108,6 +117,63 @@ export class RevealPhase {
       if (g.armed && g.turnsArmed >= ARMED_LIFETIME) {
         this.detonatePendingGrenade(g, 'expired')
       }
+    }
+  }
+
+  // Tick every active medic-pad. Each pad heals adjacent cyborg allies
+  // (paid out of the pad's own charge budget), then we sweep dead /
+  // expired pads out of the array + scene. Runs at the start of each
+  // reveal so cyborgs are topped up before they take their actions.
+  private tickMedicPads() {
+    if (this.medicPads.length === 0) return
+    // Pad lives on the attacker side; it heals cyborg units only.
+    const allies = this.units.filter(u => !u.isDead)
+    for (const pad of [...this.medicPads]) {
+      if (pad.isDead) continue
+      const result = pad.tick(allies)
+      if (result.healed > 0) {
+        this.combatThisReveal = true
+        this.log('attacker', `Medic-pad pulses (+${result.healed * 15} across ${result.healed})`)
+      }
+      if (result.expired) {
+        pad.kill()
+        this.log('attacker', `Medic-pad spent — station offline`)
+      }
+    }
+    // Sweep dead pads
+    for (let i = this.medicPads.length - 1; i >= 0; i--) {
+      if (this.medicPads[i].isDead) this.medicPads.splice(i, 1)
+    }
+  }
+
+  // Tick every active tether. Heals the target by Tether.healPerTick and
+  // burns one medic ammo. Auto-ends when the medic runs out of ammo, the
+  // target hits full HP, or either dies — caller sweeps dead tethers
+  // after the loop. Clears the tether references on both endpoints so
+  // their default-action stops returning 'hold'.
+  private tickTethers() {
+    if (this.tethers.length === 0) return
+    for (const t of this.tethers) {
+      if (t.isDead) continue
+      const { medic, target } = t
+      const shouldEnd =
+        medic.isDead || target.isDead ||
+        medic.ammoRemaining <= 0 || target.hp >= target.maxHp
+      if (shouldEnd) {
+        medic.tether = null
+        target.tether = null
+        t.end()
+        this.log('attacker', `${this.actorLabel(medic)} releases the tether on ${this.actorLabel(target)}`)
+        continue
+      }
+      // Heal + burn ammo.
+      target.heal(t.healPerTick)
+      medic.ammoRemaining = Math.max(0, medic.ammoRemaining - 1)
+      this.combatThisReveal = true
+      this.log('attacker', `${this.actorLabel(medic)} channels heal to ${this.actorLabel(target)} (+${t.healPerTick})`)
+    }
+    for (let i = this.tethers.length - 1; i >= 0; i--) {
+      if (this.tethers[i].isDead) this.tethers.splice(i, 1)
     }
   }
 
@@ -189,6 +255,21 @@ export class RevealPhase {
   // cyborgs still advance toward the core (their objective) and defender
   // mobile units (dogs) wander to a random adjacent cell.
   private defaultMobileUnitAction(unit: SpriteUnit): QueuedAction | null {
+    // Tether-pinned: medic + target both hold while a tether is active.
+    // tickTethers does the heal at start-of-reveal; the units themselves
+    // don't take a normal action this turn.
+    if (unit.tether) return { kind: 'hold' }
+
+    // Cyborg Medic — three heal modes (tether / throw / pad) prioritized
+    // by ally value + ammo + cluster geometry. Falls through to
+    // advance-on-core when nothing needs healing right now (medic
+    // follows the front line so it's near wounded allies when they
+    // take damage).
+    if (unit.type === 'medic') {
+      const heal = this.medicDefaultAction(unit)
+      if (heal) return heal
+    }
+
     // Hulk-specific: if 2+ enemies cluster in any cardinal slam wedge AND
     // we have slam ammo, slam them. Lower per-target damage than punch but
     // hits up to 3 at once — a real "save it for the cluster" decision.
@@ -214,7 +295,7 @@ export class RevealPhase {
       // Fall through to move / advance if no throw is available right now.
     }
     const range: number = Config.UNITS[unit.type].range
-    if (range > 0 && !this.isLobbedThrower(unit) && unit.ammoRemaining > 0) {
+    if (range > 0 && !this.isLobbedThrower(unit) && unit.type !== 'medic' && unit.ammoRemaining > 0) {
       // Bomb counterplay: if there's an armed enemy bomb in range AND we're
       // safely outside its AoE, shoot it instead of an enemy unit. Detonates
       // the bomb harmlessly (from our perspective) — clears the field.
@@ -254,6 +335,104 @@ export class RevealPhase {
       if (cell) return { kind: 'move', cell }
     }
     return null
+  }
+
+  // Cyborg Medic three-mode priority. Tethers a high-value damaged ally
+  // first, then throws a med-pack at the most-wounded ally in range,
+  // then drops a pad on a cluster of 2+ damaged cyborgs, then walks
+  // toward the most-damaged ally. Returns null if there's nothing to
+  // heal AND no positioning move makes sense — caller falls through to
+  // the normal advance-on-core behavior so the medic follows the front
+  // line into position for future heals.
+  private medicDefaultAction(unit: SpriteUnit): QueuedAction | null {
+    const range = Config.UNITS.medic.range
+    // Damaged cyborg allies that aren't already being tethered.
+    const damaged: SpriteUnit[] = []
+    for (const a of this.units) {
+      if (a.isDead || a === unit) continue
+      if (a.hp >= a.maxHp) continue
+      if (a.tether) continue       // someone else is healing them
+      damaged.push(a)
+    }
+    if (damaged.length === 0) return null
+
+    // Priority 1 — tether a high-value damaged ally if one is in range and
+    // we have ammo to spare (need 1 for the start tick).
+    if (unit.ammoRemaining > 0) {
+      const HIGH_VALUE: Record<string, boolean> = { hulk: true, sniper: true, cannon: true, doublegun: true }
+      for (const ally of damaged) {
+        if (!HIGH_VALUE[ally.type]) continue
+        const d = Math.hypot(ally.worldX - unit.worldX, ally.worldY - unit.worldY)
+        if (d <= range) {
+          return { kind: 'heal-tether', target: { kind: 'unit', id: ally.id } }
+        }
+      }
+    }
+
+    // Priority 2 — throw med-pack at the most-damaged ally in range.
+    if (unit.ammoRemaining > 0) {
+      let best: SpriteUnit | null = null
+      let bestMissing = 0
+      for (const ally of damaged) {
+        const d = Math.hypot(ally.worldX - unit.worldX, ally.worldY - unit.worldY)
+        if (d > range) continue
+        const missing = ally.maxHp - ally.hp
+        if (missing > bestMissing) { best = ally; bestMissing = missing }
+      }
+      if (best) return { kind: 'heal-throw', target: { kind: 'unit', id: best.id } }
+    }
+
+    // Priority 3 — pad-drop if 2 ammo and there's a cluster of 2+ damaged
+    // cyborgs we can sit a pad next to.
+    if (unit.ammoRemaining >= 2) {
+      const padCell = this.pickPadDeployCell(unit, damaged)
+      if (padCell) return { kind: 'heal-pad', cell: padCell }
+    }
+
+    // Priority 4 — move toward the most-damaged ally so future turns can
+    // tether/throw. No range gating; the medic walks the field.
+    let mostDamaged: SpriteUnit | null = null
+    let mostMissing = 0
+    for (const ally of damaged) {
+      const missing = ally.maxHp - ally.hp
+      if (missing > mostMissing) { mostDamaged = ally; mostMissing = missing }
+    }
+    if (mostDamaged) {
+      const cell = this.pickStepTowardPoint(unit, mostDamaged.worldX, mostDamaged.worldY)
+      if (cell) return { kind: 'move', cell }
+    }
+    return null
+  }
+
+  // Find a cell within 2 tiles of the medic that, when a pad is dropped
+  // there, would sit adjacent to at least 2 damaged cyborg allies. Returns
+  // the candidate with the highest neighbor count, or null if no cluster
+  // exists. Skips occupied cells.
+  private pickPadDeployCell(medic: SpriteUnit, damagedAllies: SpriteUnit[]): CellRef | null {
+    const cs = Config.GRID_CELL
+    const medicCol = Math.floor((medic.worldX - Config.WORLD.LEFT) / cs)
+    const medicRow = Math.floor((medic.worldY - Config.WORLD.BOTTOM) / cs)
+    const candidates: { cell: CellRef; count: number }[] = []
+    for (let dc = -2; dc <= 2; dc++) {
+      for (let dr = -2; dr <= 2; dr++) {
+        if (dc === 0 && dr === 0) continue
+        const col = medicCol + dc
+        const row = medicRow + dr
+        const x = Config.WORLD.LEFT + col * cs + cs / 2
+        const y = Config.WORLD.BOTTOM + row * cs + cs / 2
+        if (x < Config.WORLD.LEFT || x > Config.WORLD.RIGHT) continue
+        if (y < Config.WORLD.BOTTOM || y > Config.WORLD.TOP) continue
+        if (this.isCellOccupiedAtBattle(x, y, medic)) continue
+        let count = 0
+        for (const ally of damagedAllies) {
+          if (Math.hypot(ally.worldX - x, ally.worldY - y) <= cs * 1.6) count++
+        }
+        if (count >= 2) candidates.push({ cell: { col, row }, count })
+      }
+    }
+    if (candidates.length === 0) return null
+    candidates.sort((a, b) => b.count - a.count)
+    return candidates[0].cell
   }
 
   // Pick the cardinal slam direction whose 3-cell wedge contains the most
@@ -752,7 +931,133 @@ export class RevealPhase {
 
     if (action.kind === 'slam') {
       this.executeSlam(actor, action.cell)
+      return
     }
+
+    if (action.kind === 'heal-throw') {
+      this.executeHealThrow(actor, action.target)
+      return
+    }
+
+    if (action.kind === 'heal-pad') {
+      this.executeHealPad(actor, action.cell)
+      return
+    }
+
+    if (action.kind === 'heal-tether') {
+      this.executeHealTether(actor, action.target)
+      return
+    }
+  }
+
+  // Medic tether — creates a sustained Tether between the medic and a
+  // damaged cyborg ally. First-tick heals + spends 1 ammo immediately;
+  // subsequent ticks happen at the start of each reveal via tickTethers.
+  // Strict-skip if: not a medic, already tethered, no ammo, target dead
+  // or already at full HP, target out of tether range (3 cells).
+  private executeHealTether(actor: Actor, ref: TargetRef) {
+    if (!(actor instanceof SpriteUnit) || actor.type !== 'medic') return
+    if (actor.tether) return
+    if (actor.ammoRemaining <= 0) return
+    const target = this.resolveTargetEntity(ref)
+    if (!target || target.isDead) return
+    if (!(target instanceof SpriteUnit) || target.side !== actor.side) return
+    if (target.hp >= target.maxHp) return
+    if (target.tether) return   // someone else already tethering this ally
+    const dist = Math.hypot(target.worldX - actor.worldX, target.worldY - actor.worldY)
+    if (dist > Config.UNITS.medic.range) return
+
+    const tether = new Tether(this.scene, actor, target)
+    actor.tether = tether
+    target.tether = tether
+    this.tethers.push(tether)
+
+    // First tick happens NOW so the player sees an immediate heal + spend.
+    target.heal(tether.healPerTick)
+    actor.ammoRemaining = Math.max(0, actor.ammoRemaining - 1)
+    actor.faceTarget(target.worldX, target.worldY)
+    this.combatThisReveal = true
+    this.log(actor.side, `${this.actorLabel(actor)} tethers ${this.targetLabel(target)} (+${tether.healPerTick})`)
+  }
+
+  // Medic-pad deployment. Burns 2 of the medic's heal charges and drops a
+  // MedicPad on the specified cell. Strict-skip if out of ammo, the cell
+  // is occupied (other unit / structure / pad already there), or the cell
+  // is outside the attacker zone.
+  private executeHealPad(actor: Actor, cell: CellRef) {
+    if (!(actor instanceof SpriteUnit)) return
+    if (actor.type !== 'medic') return
+    if (actor.ammoRemaining < 2) return
+    const cs = Config.GRID_CELL
+    const x = Config.WORLD.LEFT + cell.col * cs + cs / 2
+    const y = Config.WORLD.BOTTOM + cell.row * cs + cs / 2
+    if (x < Config.WORLD.LEFT || x > Config.WORLD.RIGHT) return
+    if (y < Config.WORLD.BOTTOM || y > Config.WORLD.TOP) return
+    // Don't drop on an occupied cell (per the one-piece-per-cell rule).
+    if (this.isCellOccupiedAtBattle(x, y, actor)) return
+    // Don't drop on top of an existing pad.
+    for (const p of this.medicPads) {
+      if (Math.hypot(p.worldX - x, p.worldY - y) < cs * 0.5) return
+    }
+
+    actor.ammoRemaining = Math.max(0, actor.ammoRemaining - 2)
+    actor.faceTarget(x, y)
+    this.combatThisReveal = true
+    this.medicPads.push(new MedicPad(this.scene, cell.col, cell.row))
+    this.log(actor.side, `${this.actorLabel(actor)} deploys a medic-pad at (${cell.col}, ${cell.row})`)
+  }
+
+  // Medic med-pack throw. Lobs a green med-pack at a damaged cyborg ally,
+  // on-land calls target.heal() and triggers the green pulse VFX. Uses the
+  // same Projectile pipeline as the Bomber's grenade — sprite-textured,
+  // arcing, silent landing — but with a different sprite + heal payload
+  // instead of damage. Strict-skip on out-of-ammo, out-of-range, or
+  // target-already-full-HP/dead.
+  private executeHealThrow(actor: Actor, ref: TargetRef) {
+    if (!(actor instanceof SpriteUnit)) return
+    if (actor.type !== 'medic') return
+    if (actor.ammoRemaining <= 0) return
+
+    const target = this.resolveTargetEntity(ref)
+    if (!target || target.isDead) return
+    // Only heal cyborg allies (same side).
+    if (!(target instanceof SpriteUnit) || target.side !== actor.side) return
+    if (target.hp >= target.maxHp) return
+
+    const ax = actor.worldX, ay = actor.worldY
+    const dist = Math.hypot(target.worldX - ax, target.worldY - ay)
+    const range = Config.UNITS.medic.range
+    if (dist > range) return
+
+    this.decrementActorAmmo(actor)
+    this.combatThisReveal = true
+
+    actor.faceTarget(target.worldX, target.worldY)
+    // Medic has no throw anim — snap to static rotation via playState fallback.
+    // playAttackAnim is a no-op for medics (manifest has no shoot/throw).
+
+    const muzzle = this.actorMuzzle(actor, target.worldX, target.worldY)
+    const healAmount = Config.UNITS.medic.damage   // repurposed as heal amount
+    const proj = new Projectile(
+      this.scene, muzzle.x, muzzle.y, target,
+      target.worldX, target.worldY,
+      0, false, 0, 0x66ff88, getMedPackTexture(),
+    )
+    proj.silentLanding = true   // no explosion on land — it's a heal, not a hit
+    const targetLabel = this.targetLabel(target)
+    const sourceLabel = this.actorLabel(actor)
+    const side = actor.side
+    proj.onHit = () => {
+      if (target.isDead) {
+        this.log(side, `${sourceLabel}'s med-pack arrives too late for ${targetLabel}`)
+        return
+      }
+      const healed = target.heal(healAmount)
+      this.log(side, healed
+        ? `${sourceLabel} heals ${targetLabel} (+${healAmount})`
+        : `${sourceLabel}'s med-pack lands but ${targetLabel} is already full`)
+    }
+    this.projectiles.push(proj)
   }
 
   // Hulk-only wedge attack. `cell` is the center of the wedge — one cardinal

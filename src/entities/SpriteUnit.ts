@@ -156,6 +156,16 @@ const MANIFEST: Record<string, AnimManifest> = {
     throw:   { fps: 12, loop: false, presentDirs: ['east', 'west', 'north', 'south'], frameCount: 9 },
     die:     { fps: 10, loop: false, presentDirs: ['east'], frameCount: 9 },
   },
+  // Cyborg Medic — support unit. PixelLab export ships two animation states:
+  //  - idle (Breathing_Idle): 4 frames × all 8 directions.
+  //  - walking: 6 frames × all 8 directions.
+  // No throw / shoot / die clips yet — the medic snaps to the static
+  // rotation pose for the brief throw moment and silently disappears when
+  // killed (no death anim).
+  medic: {
+    idle:    { fps: 6,  loop: true,  presentDirs: ALL_DIRS, frameCount: 4 },
+    walking: { fps: 10, loop: true,  presentDirs: ALL_DIRS, frameCount: 6 },
+  },
 }
 
 function loadTexture(url: string): Promise<THREE.Texture> {
@@ -232,6 +242,14 @@ export class SpriteUnit {
   // burned through slams can still punch. Non-Hulks default to 0 and
   // never trigger the slam branch.
   slamAmmoRemaining: number
+
+  // Medic tether reference. Non-null on BOTH the medic and the target
+  // while a Tether is active between them. RevealPhase reads this to
+  // pin both units (default-action returns 'hold') and ticks the
+  // tether at the start of each reveal. Cleared when the tether ends.
+  // Typed as `unknown` here to avoid a circular import with Tether.ts;
+  // RevealPhase casts at the read site.
+  tether: unknown = null
 
   private sprite: THREE.Sprite
   private hpBarGroup: THREE.Group
@@ -419,6 +437,40 @@ export class SpriteUnit {
     mat.color.setHex(ratio > 0.5 ? 0x00cc44 : ratio > 0.25 ? 0xffaa00 : 0xff2200)
     if (this.hpRing) this.updateHpRing(ratio)
     if (this.hp <= 0) this.kill()
+  }
+
+  // Medic heal target — restore HP up to maxHp, trigger green pulse VFX on
+  // the sprite material. Returns true if any HP was actually restored
+  // (used by the medic AI to decide whether the action was worth it).
+  heal(amount: number): boolean {
+    if (this.isDead || this.hp >= this.maxHp) return false
+    const before = this.hp
+    this.hp = Math.min(this.maxHp, this.hp + amount)
+    const restored = this.hp - before
+    if (restored > 0) {
+      const ratio = this.hp / this.maxHp
+      this.hpBarFill.scale.x = ratio
+      this.hpBarFill.position.x = -(1 - ratio) * 12
+      const mat = this.hpBarFill.material as THREE.MeshBasicMaterial
+      mat.color.setHex(ratio > 0.5 ? 0x00cc44 : ratio > 0.25 ? 0xffaa00 : 0xff2200)
+      if (this.hpRing) this.updateHpRing(ratio)
+      this.pulseHealVfx()
+    }
+    return restored > 0
+  }
+
+  // Briefly tint the sprite material green to signal the heal landed.
+  // SpriteMaterial.color multiplies the texture, so 0x88ff88 + alpha-mix
+  // reads as a soft green flash. Restores after 280ms.
+  private healPulseTimer: number | null = null
+  private pulseHealVfx() {
+    const mat = this.sprite.material
+    if (this.healPulseTimer !== null) clearTimeout(this.healPulseTimer)
+    mat.color.setHex(0x88ff88)
+    this.healPulseTimer = window.setTimeout(() => {
+      mat.color.setHex(0xffffff)
+      this.healPulseTimer = null
+    }, 280)
   }
 
   kill() {

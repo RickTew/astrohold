@@ -79,7 +79,7 @@ export class HUD {
       { label: 'DOUBLEGUN',cost:  90, icon: '/sprites/doublegun/south.png', dataType: 'doublegun' },
       { label: 'HULK',     cost: 100, icon: '/sprites/hulk/south.png',      dataType: 'hulk' },
       { label: 'SNIPER',   cost:  90, icon: '/sprites/sniper/south.png',    dataType: 'sniper' },
-      { label: 'CANNON',   cost:  70, icon: '/sprites/cannon/south.png',    dataType: 'cannon' },
+      { label: 'MEDIC',    cost:  70, icon: '/sprites/medic/south.png',     dataType: 'medic' },
       { label: 'GRENADIER',cost:  50, icon: '/sprites/grenadier/south.png', dataType: 'grenadier' },
       { label: 'HULK',     cost: 100, icon: '/sprites/hulk/south.png',      dataType: 'hulk' },
     ]
