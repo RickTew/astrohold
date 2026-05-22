@@ -794,68 +794,70 @@
   <div class="page-head">
     <h1>BUILD PHASE — Design Sandbox</h1>
     <p>
-      Three rows: <strong>BASELINE</strong> (current production), <strong>EXPERIMENTAL</strong>
-      (toggle effects on the right), <strong>SWEET SPOT</strong> (preset combo of the user's
-      recommended stack).
+      All rows now start from <strong>current production</strong>: tight tile sizing, the six
+      shipped effects (hover-pop, CR bloom, boot-reveal, icon glow, edge-trace, selection ring),
+      and the WALL slot duplicated as TOWER.
     </p>
     <p style="margin-top: 8px;">
-      Both rounds of suggestions assumed the HUD lives inside the Three.js scene
-      (TextGeometry, CanvasTexture, SpriteMaterial, Three.Group, fragment shaders, additive
-      blend sprites). Our HUD is HTML/CSS overlaid on the canvas — moving it into the WebGL
-      scene would be a rewrite, not an effect to A/B. Each effect below uses the closest
-      DOM/SVG/2D-canvas equivalent that achieves the same visual outcome.
+      <strong>BASELINE</strong> shows production unchanged.
+      <strong>EXPERIMENTAL</strong> starts identical to baseline — production effects are pre-
+      checked on the right so unticking removes them; new effects below the divider stack on top.
+      <strong>NO TILE BOXES</strong> is production minus the tile backgrounds / icon frames.
     </p>
   </div>
 
+  <!-- BASELINE: current production. Tight-tile sizing + the six shipped
+       effects baked into the markup. Re-rendered with the WALL→TOWER
+       robotTiles by default. -->
   <div class="preview-section">
-    <h2>BASELINE <span class="tag">PRODUCTION</span></h2>
+    <h2>BASELINE <span class="tag">CURRENT PRODUCTION</span></h2>
     <div class="preview-frame">
-      <div id="hud-baseline" class="hud-top"></div>
+      <div id="hud-baseline" class="hud-top tight-tiles exp-hud fx-tile-pop fx-cr-bloom fx-icon-glow fx-edge-trace fx-boot-reveal fx-add-ring"></div>
     </div>
   </div>
 
+  <!-- EXPERIMENTAL: identical to baseline at load. Production-default
+       checkboxes are auto-checked by JS so unticking strips an effect,
+       and the additional effects below (canvas-text, glow boost,
+       starfield, etc.) stack on top when ticked. -->
   <div class="preview-section">
-    <h2>EXPERIMENTAL <span class="tag">EFFECTS ON</span></h2>
+    <h2>EXPERIMENTAL <span class="tag">BASELINE + TOGGLES</span></h2>
     <div class="preview-frame">
-      <div id="hud-experimental" class="hud-top exp-hud"></div>
+      <div id="hud-experimental" class="hud-top tight-tiles exp-hud"></div>
     </div>
   </div>
 
-  <!-- Third row: preset combo of the user's recommended sweet spot
-       (canvas text + selection pulse + LED + edge trace + bloom).
-       Always-on so we can compare it against baseline + the toggle row. -->
-  <div class="preview-section">
-    <h2>SWEET SPOT <span class="tag">RECOMMENDED COMBO</span></h2>
-    <div class="preview-frame">
-      <div id="hud-sweetspot" class="hud-top exp-hud fx-canvas-text fx-edge-trace fx-add-ring fx-led fx-cr-bloom fx-tile-pop"></div>
-    </div>
-  </div>
-
-  <!-- Fifth row: NO TILE BOXES — strip the dark blue tile background
-       + border + inner icon frame so units float directly on the
-       panel. Compare against TIGHTER TILES (4th row, current prod). -->
+  <!-- NO TILE BOXES: production minus the dark-blue tile background,
+       border, and inner .tile-icon frame. Units float on the panel
+       directly. All other shipped effects retained. -->
   <div class="preview-section">
     <h2>NO TILE BOXES <span class="tag">CLEAN VARIANT</span></h2>
     <div class="preview-frame">
-      <div id="hud-noboxes" class="hud-top no-boxes exp-hud fx-tile-pop fx-cr-bloom fx-edge-trace"></div>
-    </div>
-  </div>
-
-  <!-- Fourth row: TIGHTER TILES — proposed production sizing.
-       Smaller icons, auto-height rows centered vertically, horizontal
-       padding around the grid for breathing room. WALL slot replaced
-       with a duplicate TOWER until wall art exists. Has the shipped
-       production effects (icon glow, hover-pop, CR bloom, edge-trace)
-       so the row previews the final look at the new size. -->
-  <div class="preview-section">
-    <h2>TIGHTER TILES <span class="tag">PROPOSED PRODUCTION SIZE</span></h2>
-    <div class="preview-frame">
-      <div id="hud-tight" class="hud-top tight-tiles exp-hud fx-icon-glow fx-tile-pop fx-cr-bloom fx-edge-trace"></div>
+      <div id="hud-noboxes" class="hud-top tight-tiles no-boxes exp-hud fx-tile-pop fx-cr-bloom fx-edge-trace fx-boot-reveal fx-add-ring"></div>
     </div>
   </div>
 
   <aside class="exp-controls">
-    <h3>EFFECTS</h3>
+    <h3>SHIPPED (UNCHECK TO REMOVE)</h3>
+    <label><input type="checkbox" data-fx="tile-pop"> Tile hover-pop</label>
+    <span class="fx-desc">Stronger scale + glow on hover</span>
+
+    <label><input type="checkbox" data-fx="cr-bloom"> CR bloom pulse</label>
+    <span class="fx-desc">Credits number pulses neon green</span>
+
+    <label><input type="checkbox" data-fx="icon-glow"> Unit icon glow</label>
+    <span class="fx-desc">Soft cyan halo around every tile</span>
+
+    <label><input type="checkbox" data-fx="edge-trace"> Edge-trace orbit</label>
+    <span class="fx-desc">Glowing dot orbits the center panel</span>
+
+    <label><input type="checkbox" data-fx="boot-reveal"> Letter-by-letter reveal</label>
+    <span class="fx-desc">Title boots up character by character</span>
+
+    <label><input type="checkbox" data-fx="add-ring"> Selection pulse ring</label>
+    <span class="fx-desc">Additive-blend ring on tile #2</span>
+
+    <h3 style="margin-top: 14px;">ADDITIONAL (TRY STACKING)</h3>
     <label><input type="checkbox" data-fx="glow"> Title neon boost</label>
     <span class="fx-desc">Stronger text-shadow + pulse</span>
 
@@ -871,15 +873,6 @@
     <label><input type="checkbox" data-fx="noise"> Procedural noise</label>
     <span class="fx-desc">SVG feTurbulence — flickering data grain</span>
 
-    <label><input type="checkbox" data-fx="tile-pop"> Tile hover-pop</label>
-    <span class="fx-desc">Stronger scale + glow on hover</span>
-
-    <label><input type="checkbox" data-fx="icon-glow"> Unit icon glow</label>
-    <span class="fx-desc">Soft cyan halo around every tile (holo vibe)</span>
-
-    <label><input type="checkbox" data-fx="cr-bloom"> CR bloom pulse</label>
-    <span class="fx-desc">Credits number pulses neon green</span>
-
     <label><input type="checkbox" data-fx="entry"> Tile slide-in</label>
     <span class="fx-desc">Staggered slide-from-top on load</span>
 
@@ -889,17 +882,8 @@
     <label><input type="checkbox" data-fx="canvas-text"> Canvas title text</label>
     <span class="fx-desc">JS-drawn canvas (procedural flicker + scanlines)</span>
 
-    <label><input type="checkbox" data-fx="boot-reveal"> Letter-by-letter reveal</label>
-    <span class="fx-desc">Title boots up character by character</span>
-
     <label><input type="checkbox" data-fx="led"> Status LED dot</label>
     <span class="fx-desc">Pulsing cyan dot beside title</span>
-
-    <label><input type="checkbox" data-fx="add-ring"> Selection pulse ring</label>
-    <span class="fx-desc">Additive-blend ring on tile #2</span>
-
-    <label><input type="checkbox" data-fx="edge-trace"> Edge-trace orbit</label>
-    <span class="fx-desc">Glowing dot orbits the center panel</span>
 
     <div class="btn-row">
       <button id="all-on">ALL ON</button>
@@ -935,12 +919,13 @@
   </section>
 
   <script>
-    // Tile data matches HUD.ts robotTiles. Render twice into baseline + experimental.
+    // Tile data matches HUD.ts robotTiles in current production:
+    // WALL slot duplicated as TOWER until wall art exists.
     const robotTiles = [
       { label: 'SPHERE',  cost: 100, icon: '/sprites/sphere/south.png',  preview: false },
       { label: 'TOWER',   cost:  30, icon: '/sprites/tower/south.png',   preview: false },
       { label: 'BOMBER',  cost:  70, icon: '/sprites/bomber/south.png',  preview: false },
-      { label: 'WALL',    cost:  20, icon: 'wall',                       preview: false },
+      { label: 'TOWER',   cost:  30, icon: '/sprites/tower/south.png',   preview: false },
       { label: 'DOG',     cost:  40, icon: '/sprites/dog/south.png',     preview: false },
       { label: 'DEFENSE', cost:  20, icon: '/sprites/defense/south.png', preview: true  },
       { label: 'LASER',   cost:  40, icon: '/sprites/laser/south.png',   preview: true  },
@@ -1025,21 +1010,14 @@
       `
     }
 
-    // Tight-tile preview uses a tile list where the WALL slot (index 3)
-    // is replaced with a duplicate TOWER, per the request to drop the
-    // placeholder until wall art exists.
-    const tightTiles = robotTiles.slice()
-    tightTiles[3] = { label: 'TOWER', cost: 30, icon: '/sprites/tower/south.png', preview: false }
-
-    renderHud(document.getElementById('hud-baseline'))
-    renderHud(document.getElementById('hud-experimental'))
-    renderHud(document.getElementById('hud-sweetspot'))
-    renderHud(document.getElementById('hud-tight'), tightTiles)
-    renderHud(document.getElementById('hud-noboxes'), tightTiles)
-
+    const baselineHud = document.getElementById('hud-baseline')
     const expHud      = document.getElementById('hud-experimental')
-    const sweetHud    = document.getElementById('hud-sweetspot')
+    const noboxesHud  = document.getElementById('hud-noboxes')
     const checkboxes  = document.querySelectorAll('.exp-controls input[type="checkbox"]')
+
+    renderHud(baselineHud)
+    renderHud(expHud)
+    renderHud(noboxesHud)
 
     // ─── Canvas-text effect ──────────────────────────────────────────
     // Replaces the .center-phase HTML text with a <canvas> that's
@@ -1161,21 +1139,29 @@
     document.getElementById('all-off').addEventListener('click', () => {
       checkboxes.forEach(cb => { cb.checked = false; applyFx(expHud, cb.dataset.fx, false) })
     })
-    // Re-render to replay slide-in / boot-reveal animations.
+    // Re-render to replay one-shot animations (boot-reveal, slide-in).
     document.getElementById('replay').addEventListener('click', () => {
-      renderHud(expHud)
-      // Re-apply JS-driven effects that depend on DOM injection.
-      if (expHud.classList.contains('fx-canvas-text')) initCanvasText(expHud)
-      if (expHud.classList.contains('fx-boot-reveal')) initBootReveal(expHud)
-      renderHud(sweetHud)
-      initCanvasText(sweetHud)
+      [baselineHud, expHud, noboxesHud].forEach(hud => {
+        renderHud(hud)
+        if (hud.classList.contains('fx-boot-reveal')) initBootReveal(hud)
+        if (hud.classList.contains('fx-canvas-text')) initCanvasText(hud)
+      })
     })
 
-    // Initialize the always-on sweet-spot row (preset effects from the
-    // user's recommended combo). The class names are baked into its
-    // markup; we still need to run the JS initializers for the effects
-    // that aren't pure CSS (canvas-text).
-    initCanvasText(sweetHud)
+    // ─── Production defaults ─────────────────────────────────────────
+    // The six shipped effects are already in production. Apply them to
+    // EXPERIMENTAL on load so it starts identical to BASELINE; auto-
+    // check the matching boxes so unticking removes them. BASELINE and
+    // NO TILE BOXES carry the classes in their markup, but boot-reveal
+    // still needs the JS initializer to inject the .boot-char spans.
+    const PROD_DEFAULT_FX = ['tile-pop', 'cr-bloom', 'icon-glow', 'edge-trace', 'boot-reveal', 'add-ring']
+    PROD_DEFAULT_FX.forEach(fx => {
+      applyFx(expHud, fx, true)
+      const cb = document.querySelector(`.exp-controls input[data-fx="${fx}"]`)
+      if (cb) cb.checked = true
+    })
+    initBootReveal(baselineHud)
+    initBootReveal(noboxesHud)
   </script>
 
 </body>
