@@ -35,6 +35,15 @@ export class HUD {
   // Compass-rose callbacks. Game decides whether the purchase succeeds (cost,
   // credits, duplicate facing); HUD just forwards the click intent.
   onAddFacing: ((angle: number) => void) | null = null
+  // Multi-mode active-click refunds that arc — gives the player a way to
+  // back out of a mis-clicked +30cr direction without scrapping the whole
+  // structure. Single-mode (sentry) ignores this — its active button is
+  // a no-op click since the facing is already that direction.
+  onRemoveFacing: ((angle: number) => void) | null = null
+  // Single-mode click handler — replaces the structure's lone fire facing
+  // with the picked direction. No cost. Used by structures with exactly
+  // one fire arc at a time (currently just the Sentry).
+  onSetFacing: ((angle: number) => void) | null = null
   // Player clicked Refund on an opened rose. Game removes the structure and
   // returns the base cost. HUD will auto-close the rose after the callback.
   onRefundStructure: (() => void) | null = null
@@ -592,6 +601,9 @@ export class HUD {
     activeFacings: ReadonlyArray<number>
     cost: number
     credits: number
+    /** 'multi' = pay-to-add-arc rose (towers); 'single' = pick-one-direction
+     * rose (sentry). Defaults to 'multi' for backwards-compatible callers. */
+    mode?: 'multi' | 'single'
   }) {
     this.hideCompassRose()
     const el = document.createElement('div')
@@ -599,7 +611,7 @@ export class HUD {
     el.style.left = `${screenX}px`
     el.style.top  = `${screenY}px`
     el.innerHTML = this.buildRoseInnerHtml(opts)
-    this.wireRoseButtons(el)
+    this.wireRoseButtons(el, opts.mode ?? 'multi')
     this.container.appendChild(el)
     this.compassRoseEl = el
 
@@ -633,12 +645,25 @@ export class HUD {
     if (wasOpen) this.onRoseClose?.()
   }
 
-  private wireRoseButtons(el: HTMLElement) {
+  private wireRoseButtons(el: HTMLElement, mode: 'multi' | 'single') {
     el.querySelectorAll<HTMLElement>('.rose-btn[data-angle]').forEach(btn => {
       btn.addEventListener('click', () => {
-        if (btn.classList.contains('active')) return
-        if (btn.classList.contains('unaffordable')) return
         const angle = parseFloat(btn.dataset.angle!)
+        const active = btn.classList.contains('active')
+        if (mode === 'single') {
+          // Single-facing structures: clicking any inactive direction switches
+          // to that direction. Active button = current facing → no-op click.
+          if (active) return
+          this.onSetFacing?.(angle)
+          return
+        }
+        // Multi-facing (towers/bombers): active click = refund this arc;
+        // inactive click = buy this arc (if affordable).
+        if (active) {
+          this.onRemoveFacing?.(angle)
+          return
+        }
+        if (btn.classList.contains('unaffordable')) return
         this.onAddFacing?.(angle)
       })
     })
@@ -661,10 +686,11 @@ export class HUD {
     activeFacings: ReadonlyArray<number>
     cost: number
     credits: number
+    mode?: 'multi' | 'single'
   }) {
     if (!this.compassRoseEl) return
     this.compassRoseEl.innerHTML = this.buildRoseInnerHtml(opts)
-    this.wireRoseButtons(this.compassRoseEl)
+    this.wireRoseButtons(this.compassRoseEl, opts.mode ?? 'multi')
   }
 
   private buildRoseInnerHtml(opts: {
@@ -672,7 +698,9 @@ export class HUD {
     activeFacings: ReadonlyArray<number>
     cost: number
     credits: number
+    mode?: 'multi' | 'single'
   }): string {
+    const mode = opts.mode ?? 'multi'
     // Order: top row blank/N/blank, middle W/center/E, bottom blank/S/blank.
     // Cardinal labels in compass terms (top-down view): N = +Y (up on screen),
     // E = +X (right), S = -Y (down), W = -X (left). Math angles: E=0, N=π/2,
@@ -694,22 +722,49 @@ export class HUD {
     const cells: string[] = []
     for (let i = 1; i <= 9; i++) {
       if (i === 5) {
-        cells.push('<div class="rose-center">' + opts.activeFacings.length + '/4</div>')
+        // Center cell — in multi-mode, shows N/4 fraction. In single-mode it
+        // would always read 1/4, which is noise, so render an empty filler.
+        if (mode === 'multi') {
+          cells.push('<div class="rose-center">' + opts.activeFacings.length + '/4</div>')
+        } else {
+          cells.push('<div class="rose-center"></div>')
+        }
         continue
       }
       const d = dirs.find(x => x.pos === i)
       if (!d) { cells.push('<div></div>'); continue }
-      if (isActive(d.angle)) {
-        cells.push(`<div class="rose-btn active" data-angle="${d.angle}"><span class="rose-arrow">${d.arrow}</span><span class="rose-on">ON</span></div>`)
+      const active = isActive(d.angle)
+      if (mode === 'single') {
+        // Single-facing rose (Sentry): only one direction is ON at a time.
+        // Active button is highlighted "ON"; inactive directions show no
+        // cost (clicking them is free, it just switches the facing).
+        if (active) {
+          cells.push(`<div class="rose-btn active" data-angle="${d.angle}"><span class="rose-arrow">${d.arrow}</span><span class="rose-on">ON</span></div>`)
+        } else {
+          cells.push(`<div class="rose-btn" data-angle="${d.angle}"><span class="rose-arrow">${d.arrow}</span><span class="rose-on" style="opacity:0.55">FACE</span></div>`)
+        }
+        continue
+      }
+      // Multi-mode (towers/bombers/cannon).
+      if (active) {
+        // Active arcs are now refundable — clicking them returns one
+        // EXTRA_FACING_COST. Hint with "−Ncr" so the player can tell it's
+        // a refund and not a no-op. The base arc (original facing on
+        // placement) can't be refunded; Structure.removeFacing blocks
+        // dropping below one facing, so a no-op refund is silently
+        // ignored — fine, and a future tooltip can clarify if needed.
+        cells.push(`<div class="rose-btn active" data-angle="${d.angle}"><span class="rose-arrow">${d.arrow}</span><span class="rose-refund">−${opts.cost}cr</span></div>`)
       } else if (opts.credits < opts.cost) {
         cells.push(`<div class="rose-btn unaffordable" data-angle="${d.angle}"><span class="rose-arrow">${d.arrow}</span><span class="rose-cost">+${opts.cost}cr</span></div>`)
       } else {
         cells.push(`<div class="rose-btn" data-angle="${d.angle}"><span class="rose-arrow">${d.arrow}</span><span class="rose-cost">+${opts.cost}cr</span></div>`)
       }
     }
+    // Title suffix tells the player what the rose does. Multi = "arcs", single = "facing".
+    const titleSuffix = mode === 'single' ? 'facing' : 'arcs'
     return `
       <div class="rose-title">
-        <span>${opts.name} arcs</span>
+        <span>${opts.name} ${titleSuffix}</span>
         <button class="rose-close-btn" type="button" aria-label="Close">✕</button>
       </div>
       ${cells.join('')}

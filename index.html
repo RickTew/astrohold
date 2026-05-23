@@ -693,17 +693,27 @@
       background: #0e3055;
       border-color: #00aaff;
       color: #00eeff;
-      cursor: default;
       text-shadow: 0 0 6px #00aaff;
+    }
+    /* Active arcs in multi-mode hover with a refund cue — warm red border
+       so the player understands clicking will REMOVE the arc + refund. */
+    #compass-rose .rose-btn.active:hover {
+      background: #2a0e10;
+      border-color: #cc4455;
+      color: #ff9999;
+      text-shadow: 0 0 6px #cc4455;
     }
     #compass-rose .rose-btn.unaffordable {
       opacity: 0.4;
       cursor: not-allowed;
       filter: grayscale(0.4);
     }
-    #compass-rose .rose-btn .rose-arrow { font-size: 16px; line-height: 1; }
-    #compass-rose .rose-btn .rose-cost  { font-size: 9px; color: #99cc66; }
-    #compass-rose .rose-btn .rose-on    { font-size: 8px; color: #66ccff; letter-spacing: 1px; }
+    #compass-rose .rose-btn .rose-arrow  { font-size: 16px; line-height: 1; }
+    #compass-rose .rose-btn .rose-cost   { font-size: 9px; color: #99cc66; }
+    #compass-rose .rose-btn .rose-on     { font-size: 8px; color: #66ccff; letter-spacing: 1px; }
+    /* Refund cost on active arcs — warm red to mirror the active-hover cue. */
+    #compass-rose .rose-btn .rose-refund { font-size: 9px; color: #ff9988; }
+    #compass-rose .rose-btn.active:hover .rose-on { color: #ff9988; }
     #compass-rose .rose-center {
       background: transparent;
       border: 1px dashed #335577;

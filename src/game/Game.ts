@@ -400,6 +400,13 @@ private enterBuildPhase() {
     // the currently-edited structure. Credits are charged here, the rose UI
     // re-renders to reflect the new facing, and the arc overlay updates.
     this.hud.onAddFacing = (angle) => this.tryBuyFacing(angle)
+    // Active-arc click → refund that one direction (returns EXTRA_FACING_COST).
+    // Lets the player back out of a mis-clicked +30cr without scrapping the
+    // structure. Last-remaining facing is preserved by Structure.removeFacing.
+    this.hud.onRemoveFacing = (angle) => this.tryRefundFacing(angle)
+    // Single-facing rose (Sentry) — clicking a direction REPLACES the lone
+    // fire facing with the picked one. No credit cost.
+    this.hud.onSetFacing = (angle) => this.trySetFacing(angle)
     // Rose Refund button: tear down the editing structure and reimburse its
     // base cost (extra-facing spend is sunk by design).
     this.hud.onRefundStructure = () => this.refundEditingStructure()
@@ -458,8 +465,56 @@ private enterBuildPhase() {
       activeFacings: s.fireFacings,
       cost,
       credits: this.buildPhase.getCredits(),
+      mode: this.roseModeFor(s),
     })
     return true
+  }
+
+  // Active-arc click on a multi-facing rose — remove the picked facing and
+  // refund EXTRA_FACING_COST. No-op if it's the last remaining facing (the
+  // structure needs at least one fire direction to function).
+  private tryRefundFacing(angle: number): boolean {
+    const s = this.editingStructure
+    if (!s || s.isDead) { this.closeCompassRose(); return false }
+    if (!this.buildPhase) { this.closeCompassRose(); return false }
+    const removed = s.removeFacing(angle)
+    if (!removed) return false
+    this.buildPhase.addCredits(Config.EXTRA_FACING_COST)
+    this.refreshEditingArcPreview()
+    this.hud.refreshCompassRose({
+      name: this.structureDisplayLabel(s),
+      activeFacings: s.fireFacings,
+      cost: Config.EXTRA_FACING_COST,
+      credits: this.buildPhase.getCredits(),
+      mode: this.roseModeFor(s),
+    })
+    return true
+  }
+
+  // Single-facing structure (Sentry) click — replace the lone fire facing
+  // with the picked direction. Free; just rotates the gun.
+  private trySetFacing(angle: number): boolean {
+    const s = this.editingStructure
+    if (!s || s.isDead) { this.closeCompassRose(); return false }
+    if (!this.buildPhase) { this.closeCompassRose(); return false }
+    const changed = s.setSingleFacing(angle)
+    if (!changed) return false
+    this.refreshEditingArcPreview()
+    this.hud.refreshCompassRose({
+      name: this.structureDisplayLabel(s),
+      activeFacings: s.fireFacings,
+      cost: Config.EXTRA_FACING_COST,
+      credits: this.buildPhase.getCredits(),
+      mode: this.roseModeFor(s),
+    })
+    return true
+  }
+
+  // Sentry has exactly one fire direction at a time; everything else uses
+  // the pay-to-add multi-arc rose. Add structure types here as they earn
+  // single-facing semantics (e.g. a future heavy-cannon emplacement).
+  private roseModeFor(s: Structure): 'multi' | 'single' {
+    return s.type === 'sentry' ? 'single' : 'multi'
   }
 
   // Open the compass rose for a placed structure during BUILD. Skipped for
@@ -483,6 +538,7 @@ private enterBuildPhase() {
       activeFacings: s.fireFacings,
       cost: Config.EXTRA_FACING_COST,
       credits: this.buildPhase?.getCredits() ?? 0,
+      mode: this.roseModeFor(s),
     })
     this.editingStructure = s
     this.refreshEditingArcPreview()

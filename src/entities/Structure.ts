@@ -50,6 +50,26 @@ const EXPLOSION_FRAME_INTERVAL = 0.09
 
 const structureTextures: Map<StructureType, THREE.Texture> = new Map()
 const structureExplosionTextures: Map<StructureType, THREE.Texture[]> = new Map()
+// Per-direction rotation textures for structures that swap sprite based on
+// fire facing (currently just the Sentry). Map key is the StructureType,
+// value is a Map keyed by direction name (matches SpriteUnit's DIRECTIONS).
+const structureRotationTextures: Map<StructureType, Map<string, THREE.Texture>> = new Map()
+// Structures whose sprite rotates to match their fire facing. Add a type
+// here AND make sure all 8 rotation PNGs ship in /public/sprites/<folder>/.
+const STRUCTURE_HAS_ROTATIONS: Partial<Record<StructureType, true>> = {
+  sentry: true,
+}
+const STRUCTURE_DIRS = [
+  'east', 'north-east', 'north', 'north-west',
+  'west', 'south-west', 'south', 'south-east',
+] as const
+type StructureDir = (typeof STRUCTURE_DIRS)[number]
+// Pick the 8-way direction bucket closest to `angle` (math angle, 0=east,
+// π/2=north). Mirrors SpriteUnit's refreshDirection math.
+function angleToStructureDir(angle: number): StructureDir {
+  const norm = ((angle / (Math.PI / 4)) + 16) % 8
+  return STRUCTURE_DIRS[Math.round(norm) % 8]
+}
 
 // Space_Grenade texture — bomber projectile visual. Loaded alongside the
 // structure sprites so it's ready by the time the first reveal fires.
@@ -114,6 +134,16 @@ export async function preloadStructureSprites(): Promise<void> {
           frames.push(await loadTex(`/sprites/${folder}/explosion/frame_${num}.png`))
         }
         structureExplosionTextures.set(type, frames)
+      }
+      // Sprite-rotation structures preload all 8 directional PNGs so the
+      // setSpriteDirection swap is instant when the player picks a facing
+      // in the compass rose.
+      if (STRUCTURE_HAS_ROTATIONS[type]) {
+        const rotMap = new Map<string, THREE.Texture>()
+        await Promise.all(STRUCTURE_DIRS.map(async d => {
+          rotMap.set(d, await loadTex(`/sprites/${folder}/${d}.png`))
+        }))
+        structureRotationTextures.set(type, rotMap)
       }
     }),
     loadTex('/sprites/grenade.png').then(tex => { grenadeTexture = tex }),
@@ -528,15 +558,61 @@ export class Structure {
   addFacing(angle: number): boolean {
     // Normalize to [0, 2π) so duplicate detection is consistent regardless of
     // which side of zero the caller passes.
-    const TAU = Math.PI * 2
-    const norm = ((angle % TAU) + TAU) % TAU
+    const norm = normAngle(angle)
     const EPS = 0.01
     for (const f of this.fireFacings) {
-      const fn = ((f % TAU) + TAU) % TAU
-      if (Math.abs(fn - norm) < EPS) return false
+      if (Math.abs(normAngle(f) - norm) < EPS) return false
     }
     this.fireFacings.push(norm)
     return true
+  }
+
+  // Remove an existing fire-arc facing (math angle, radians). Refuses if the
+  // facing isn't currently active OR if it's the last remaining facing
+  // (a structure with zero fire arcs can't shoot anything). Caller is
+  // responsible for refunding credits.
+  removeFacing(angle: number): boolean {
+    if (this.fireFacings.length <= 1) return false
+    const norm = normAngle(angle)
+    const EPS = 0.01
+    for (let i = 0; i < this.fireFacings.length; i++) {
+      if (Math.abs(normAngle(this.fireFacings[i]) - norm) < EPS) {
+        this.fireFacings.splice(i, 1)
+        return true
+      }
+    }
+    return false
+  }
+
+  // Single-facing override — replaces the entire fireFacings array with
+  // [angle]. Used by single-facing structures (e.g. the Sentry, which has
+  // exactly one fire direction at a time). Returns true if the angle is
+  // a CHANGE from the current single facing; false if it's already set.
+  // For sprite-rotation structures, ALSO swaps the sprite texture to the
+  // 8-way rotation matching the new facing so the gun visually turns.
+  setSingleFacing(angle: number): boolean {
+    const norm = normAngle(angle)
+    if (this.fireFacings.length === 1 && Math.abs(normAngle(this.fireFacings[0]) - norm) < 0.01) {
+      return false
+    }
+    this.fireFacings = [norm]
+    this.refreshSpriteDirection()
+    return true
+  }
+
+  // Swap the structure's sprite to the rotation PNG matching its current
+  // primary fire facing. No-op for structures without rotation textures
+  // (i.e. anything not in STRUCTURE_HAS_ROTATIONS). The sprite mesh keeps
+  // its tint + size; only the texture map changes.
+  private refreshSpriteDirection() {
+    if (!this.sprite) return
+    const rotMap = structureRotationTextures.get(this.type)
+    if (!rotMap) return
+    const dir = angleToStructureDir(this.fireFacings[0] ?? 0)
+    const tex = rotMap.get(dir)
+    if (!tex) return
+    this.sprite.material.map = tex
+    this.sprite.material.needsUpdate = true
   }
   queueAction(action: QueuedAction, apCost: number) {
     this.queuedActions.push(action)
@@ -552,4 +628,9 @@ export class Structure {
       }
     })
   }
+}
+
+function normAngle(a: number): number {
+  const TAU = Math.PI * 2
+  return ((a % TAU) + TAU) % TAU
 }
