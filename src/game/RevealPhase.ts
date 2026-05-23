@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { Config } from './GameConfig'
+import { Config, StructureType } from './GameConfig'
 import { CellRef, QueuedAction, TargetRef } from './TurnTypes'
 import { SpriteUnit } from '../entities/SpriteUnit'
 import { SphereDefender } from '../entities/SphereDefender'
@@ -51,6 +51,16 @@ const MINE_DETECT_RADIUS = 65
 // SE (the cyborg corridor). Future UI lets the player pay credits to add
 // extra facings to the structure's fireFacings array.
 const FIRE_ARC_HALF_RAD = (60 * Math.PI) / 180
+
+// Structures that fire in any direction (no arc gating). Their sprite
+// rotates each turn to face whichever target they're shooting — the
+// compass-rose direction picker is treated as a starting orientation,
+// not a fire restriction. Sentry's tracked-vehicle art has gun arms that
+// turn naturally; users expect adjacent enemies to be shot regardless
+// of where the sentry was last pointing.
+const STRUCTURE_OMNI_FIRE: Partial<Record<StructureType, true>> = {
+  sentry: true,
+}
 
 // Max reveals an armed bomb stays on the field before force-detonating. Plus
 // the 1-reveal arming delay = ~4 reveals total lifespan. Stops bombs from
@@ -1085,6 +1095,11 @@ export class RevealPhase {
   }
 
   private pickNearestEnemyOf(struct: Structure): SpriteUnit | null {
+    // Omnidirectional structures (Sentry) ignore the fire-arc check —
+    // their sprite rotates to face whichever target they pick. Multi-arc
+    // structures (Tower, Bomber, Cannon) still gate on the compass-rose
+    // facings the player bought.
+    const omni = STRUCTURE_OMNI_FIRE[struct.type] === true
     let nearest: SpriteUnit | null = null
     let nearestDist: number = struct.range
     for (const u of this.units) {
@@ -1093,7 +1108,7 @@ export class RevealPhase {
       const dy = u.worldY - struct.worldY
       const d = Math.sqrt(dx * dx + dy * dy)
       if (d > nearestDist) continue
-      if (!this.targetInFireArc(struct, dx, dy)) continue
+      if (!omni && !this.targetInFireArc(struct, dx, dy)) continue
       nearestDist = d; nearest = u
     }
     return nearest
@@ -1646,6 +1661,13 @@ export class RevealPhase {
     if (actor instanceof SpriteUnit) {
       actor.faceTarget(aim.x, aim.y)
       actor.playAttackAnim()
+    }
+    // Omnidirectional structures (Sentry) rotate to face the target each
+    // shot. setSingleFacing both updates fireFacings AND swaps the sprite
+    // to the matching 8-way rotation PNG — the gun visibly tracks enemies.
+    if (actor instanceof Structure && STRUCTURE_OMNI_FIRE[actor.type] === true) {
+      const aimAngle = Math.atan2(aim.y - actor.worldY, aim.x - actor.worldX)
+      actor.setSingleFacing(aimAngle)
     }
 
     const isAoe = action.kind === 'throw'
