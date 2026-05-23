@@ -94,18 +94,61 @@ function makeBubbleTexture(): THREE.Texture {
 //              sustained beam reads as steady support healing.
 //   'bubble' — green-orb swarm. Reserved for PAD pulses so the area
 //              aura reads as zone-of-effect healing.
-// Default behavior (no variant arg) is 'plus' since it's the most common.
+//
+// `scale` lets callers bump the effect size on big pieces (Power Core
+// is 2x2 cells, so the default 1-cell VFX looks tiny on it). Also spawns
+// a cell-glow underneath at the same scale so "healing happens on the
+// big squares too" is visually obvious.
+//
+// Default scale = 1 (single-cell pieces). Power Core passes 1.8.
 export function spawnHealVfx(
   scene: THREE.Scene,
   x: number, y: number,
   amount: number,
   variant: HealVfxVariant = 'plus',
+  scale: number = 1,
 ) {
+  // Cell glow under every heal — soft green tinted square that fades.
+  // Gives the "the square is being healed" cue independent of variant
+  // so big pieces read clearly even if the floating sprite is small.
+  spawnCellGlow(scene, x, y, scale)
   switch (variant) {
-    case 'number': spawnNumberVfx(scene, x, y, amount); break
-    case 'bubble': spawnBubbleVfx(scene, x, y); break
-    case 'plus':   spawnPlusVfx(scene, x, y); break
+    case 'number': spawnNumberVfx(scene, x, y, amount, scale); break
+    case 'bubble': spawnBubbleVfx(scene, x, y, scale); break
+    case 'plus':   spawnPlusVfx(scene, x, y, scale); break
   }
+}
+
+// Soft green square that fades — a "this cell is being healed" backdrop.
+// Drawn additive so it adds light over whatever's on the cell. ~0.6s lifetime.
+function spawnCellGlow(scene: THREE.Scene, x: number, y: number, scale: number) {
+  const geo = new THREE.PlaneGeometry(1, 1)
+  const mat = new THREE.MeshBasicMaterial({
+    color: 0x66ff88,
+    transparent: true,
+    opacity: 0.0,
+    depthTest: false,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  })
+  const mesh = new THREE.Mesh(geo, mat)
+  const size = 48 * scale   // ~1 cell at scale 1; ~86 at scale 1.8
+  mesh.scale.set(size, size, 1)
+  mesh.position.set(x, y, 1)
+  mesh.renderOrder = 6
+  scene.add(mesh)
+  animateAndDispose(
+    0.6,
+    t => {
+      // Fade in fast, fade out gradually
+      mat.opacity = t < 0.2 ? 0.6 * (t / 0.2) : 0.6 * (1 - (t - 0.2) / 0.8)
+    },
+    () => {
+      mesh.removeFromParent()
+      mat.dispose()
+      geo.dispose()
+    },
+  )
 }
 
 // Shared lifecycle: RAF-driven, self-disposing. The animator is invoked
@@ -129,14 +172,14 @@ function animateAndDispose(
   requestAnimationFrame(tick)
 }
 
-function spawnNumberVfx(scene: THREE.Scene, x: number, y: number, amount: number) {
+function spawnNumberVfx(scene: THREE.Scene, x: number, y: number, amount: number, scale = 1) {
   const tex = makeTextTexture(`+${amount}`)
   const mat = new THREE.SpriteMaterial({
     map: tex, transparent: true, depthTest: false, depthWrite: false,
   })
   const sprite = new THREE.Sprite(mat)
   // Width 56 keeps two-digit numbers readable without overflowing the cell.
-  sprite.scale.set(56, 28, 1)
+  sprite.scale.set(56 * scale, 28 * scale, 1)
   sprite.position.set(x, y + 18, 6)
   sprite.renderOrder = 20
   scene.add(sprite)
@@ -157,7 +200,7 @@ function spawnNumberVfx(scene: THREE.Scene, x: number, y: number, amount: number
   )
 }
 
-function spawnBubbleVfx(scene: THREE.Scene, x: number, y: number) {
+function spawnBubbleVfx(scene: THREE.Scene, x: number, y: number, scale = 1) {
   const tex = makeBubbleTexture()
   const COUNT = 5
   // Per-bubble starting offsets + drift vectors picked once so each
@@ -169,7 +212,7 @@ function spawnBubbleVfx(scene: THREE.Scene, x: number, y: number) {
       blending: THREE.AdditiveBlending,
     })
     const sprite = new THREE.Sprite(mat)
-    const size = 12 + Math.random() * 8
+    const size = (12 + Math.random() * 8) * scale
     sprite.scale.set(size, size, 1)
     const ox = (Math.random() - 0.5) * 16
     const oy = (Math.random() - 0.5) * 10
@@ -200,7 +243,7 @@ function spawnBubbleVfx(scene: THREE.Scene, x: number, y: number) {
   )
 }
 
-function spawnPlusVfx(scene: THREE.Scene, x: number, y: number) {
+function spawnPlusVfx(scene: THREE.Scene, x: number, y: number, scale = 1) {
   const tex = makePlusTexture()
   const COUNT = 3
   const sprites: Array<{ sprite: THREE.Sprite; angle: number; mat: THREE.SpriteMaterial }> = []
@@ -209,7 +252,7 @@ function spawnPlusVfx(scene: THREE.Scene, x: number, y: number) {
       map: tex, transparent: true, depthTest: false, depthWrite: false,
     })
     const sprite = new THREE.Sprite(mat)
-    sprite.scale.set(20, 20, 1)
+    sprite.scale.set(20 * scale, 20 * scale, 1)
     sprite.position.set(x, y + 8, 6)
     sprite.renderOrder = 20
     scene.add(sprite)
@@ -221,13 +264,13 @@ function spawnPlusVfx(scene: THREE.Scene, x: number, y: number) {
   animateAndDispose(
     0.7,
     t => {
-      const dist = 32 * t
+      const dist = 32 * scale * t
       for (const s of sprites) {
         s.sprite.position.x = x + Math.cos(s.angle) * dist
-        s.sprite.position.y = y + 8 + Math.sin(s.angle) * dist + 12 * t  // slight overall rise
+        s.sprite.position.y = y + 8 + Math.sin(s.angle) * dist + 12 * t
         s.mat.opacity = (1 - t) * 0.95
-        const scale = 20 * (1 + 0.6 * t)   // grow as they drift out
-        s.sprite.scale.set(scale, scale, 1)
+        const sz = 20 * scale * (1 + 0.6 * t)
+        s.sprite.scale.set(sz, sz, 1)
       }
     },
     () => {

@@ -62,6 +62,15 @@ const STRUCTURE_OMNI_FIRE: Partial<Record<StructureType, true>> = {
   sentry: true,
 }
 
+// Universal melee fallback — out-of-ammo non-support units swing for a
+// small fixed damage if an enemy is adjacent. Keeps battles from grinding
+// to a halt when both sides have burned through their ammo. Excluded:
+//   - Hulk: already has unlimited fists at his full damage (55)
+//   - Sniper: no melee — retreats to base when empty
+//   - Medic + Repair: support, retreat when charges are spent
+const MELEE_FALLBACK_DAMAGE = 10
+const MELEE_FALLBACK_RANGE  = 70   // ~1.4 cells — must be in a neighboring cell
+
 // Each bomb now carries its own timerTurns based on triggerMode (see
 // PendingGrenade). Proximity bombs default to 3 armed reveals (safety
 // fuse against ignored traps); timed grenades default to 1 (grenadier
@@ -480,6 +489,21 @@ export class RevealPhase {
         return { kind: 'fire', target: { kind: fireTarget.kind, id: fireTarget.id } }
       }
     }
+    // Universal melee fallback — out-of-ammo non-support units swing for
+    // MELEE_FALLBACK_DAMAGE (10) if an enemy is one cell away. Keeps the
+    // battle moving when both sides have spent their ammo. Snipers retreat
+    // (handled above), medic/repair retreat (handled in their default
+    // actions), hulk has his own unlimited-fists path. Everyone else falls
+    // back to short, weak punches here.
+    // By this point hulk + sniper have already returned from their own
+    // branches; medic + repair handle their own defaults via the helpers
+    // above. So we just need to exclude medic/repair here defensively.
+    if (unit.ammoRemaining <= 0 && unit.type !== 'medic' && unit.type !== 'repair') {
+      const melee = this.nearestEnemy(unit, MELEE_FALLBACK_RANGE)
+      if (melee) {
+        return { kind: 'fire', target: { kind: melee.kind, id: melee.id } }
+      }
+    }
     const sight: number = Config.UNITS[unit.type].sightRange ?? range
     const moveTarget = this.nearestEnemy(unit, sight)
     if (moveTarget) {
@@ -517,6 +541,16 @@ export class RevealPhase {
   // ahead of the front line just gets the medic killed before anyone
   // needs treatment.
   private medicDefaultAction(unit: SpriteUnit): QueuedAction | null {
+    // Out of charges — medic has no offense, retreat east toward the
+    // attacker spawn edge. Per user: "medics and snipers to pull back."
+    if (unit.ammoRemaining <= 0) {
+      const retreatX = Config.WORLD.RIGHT - Config.GRID_CELL * 0.5
+      if (unit.worldX < retreatX - Config.GRID_CELL) {
+        const cell = this.pickStepTowardPoint(unit, retreatX, unit.worldY)
+        if (cell) return { kind: 'move', cell }
+      }
+      return { kind: 'hold' }
+    }
     const range = Config.UNITS.medic.range
     // Damaged cyborg allies that aren't already being tethered.
     const damaged: SpriteUnit[] = []
@@ -648,6 +682,17 @@ export class RevealPhase {
   // and no useful repositioning target — caller falls through to a wander
   // step so the repair bot drifts without freezing the round.
   private repairDefaultAction(unit: SpriteUnit): QueuedAction | null {
+    // Out of charges — repair bot has no offense, retreat WEST toward the
+    // defender backline. Same support-pull-back rule as medic. Without
+    // this the empty bot would wander forward into combat.
+    if (unit.ammoRemaining <= 0) {
+      const retreatX = Config.WORLD.LEFT + Config.GRID_CELL * 0.5
+      if (unit.worldX > retreatX + Config.GRID_CELL) {
+        const cell = this.pickStepTowardPoint(unit, retreatX, unit.worldY)
+        if (cell) return { kind: 'move', cell }
+      }
+      return { kind: 'hold' }
+    }
     const range = Config.UNITS.repair.range
 
     // Build the "damaged defender pool" — anything defender-side at less
@@ -1797,29 +1842,42 @@ export class RevealPhase {
   }
 
   private executeAttack(actor: Actor, action: QueuedAction) {
-    // Hulk's punches are fists — no ammo cost. Every other actor still
-    // needs ammo to attack (strict skip if depleted).
+    // Three attack flavors:
+    //   1. Hulk fists      — unlimited ammo, full damage (55), full range (70).
+    //   2. Universal melee — when a SpriteUnit (not hulk/sniper/medic/repair)
+    //      is at ammo=0 AND target is adjacent, swing for MELEE_FALLBACK_DAMAGE
+    //      (10) at MELEE_FALLBACK_RANGE (70). No ammo to burn (already 0).
+    //   3. Standard fire   — needs ammo; uses Config damage + range.
+    // Towers / Spheres / Structures don't get melee fallback (immobile).
     const meleeUnlimited = actor instanceof SpriteUnit && actor.type === 'hulk'
-    if (!meleeUnlimited && this.actorAmmo(actor) <= 0) return
+    const ammoZero = this.actorAmmo(actor) <= 0
+    const isMeleeFallback = actor instanceof SpriteUnit
+                           && ammoZero
+                           && !meleeUnlimited
+                           && actor.type !== 'medic'
+                           && actor.type !== 'repair'
+                           && actor.type !== 'sniper'
+    if (ammoZero && !meleeUnlimited && !isMeleeFallback) return
 
     // Resolve target XY (specific entity for 'fire', cell center for 'throw').
     const aim = action.kind === 'fire'
       ? this.resolveTargetXY((action as { target: TargetRef }).target)
       : this.cellCenter((action as { cell: CellRef }).cell)
-    if (!aim) return   // strict skip — target gone, cell invalid
+    if (!aim) return
 
-    // Range check against the actor's attack range.
     const ax = this.actorX(actor)
     const ay = this.actorY(actor)
     const dx = aim.x - ax
     const dy = aim.y - ay
     const dist = Math.sqrt(dx * dx + dy * dy)
-    const range = this.actorRange(actor)
-    if (dist > range) return   // strict skip — out of range now
+    // Melee fallback uses a shorter effective range — out-of-ammo cyborgs
+    // can only punch what's adjacent.
+    const effRange = isMeleeFallback ? MELEE_FALLBACK_RANGE : this.actorRange(actor)
+    if (dist > effRange) return
 
-    // The shot is going to fire — burn one round of ammo + mark combat.
-    // Hulk fists are free; everyone else pays.
-    if (!meleeUnlimited) this.decrementActorAmmo(actor)
+    // Burn one round of ammo unless this is a free attack (hulk fists or
+    // already-zero ammo melee fallback).
+    if (!meleeUnlimited && !isMeleeFallback) this.decrementActorAmmo(actor)
     this.combatThisReveal = true
 
     // Cyborg attack animation; spheres/structures don't have shoot anims yet.
@@ -1846,7 +1904,7 @@ export class RevealPhase {
       : 0
 
     const muzzle = this.actorMuzzle(actor, aim.x, aim.y)
-    const damage = this.actorDamage(actor)
+    const damage = isMeleeFallback ? MELEE_FALLBACK_DAMAGE : this.actorDamage(actor)
     const color = actor.side === 'defender' ? 0xffee00 : 0xff3333
     // Lobbed AoE = Bomber (defender structure) + Bomber/Grenadier (cyborg
     // units). These throw a grenade with a 1-turn fuse: projectile lands as

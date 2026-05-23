@@ -48,7 +48,10 @@ function makeTexture(text: string, voice: SpeechVoice): THREE.Texture {
   const cached = textureCache.get(key)
   if (cached) return cached
 
-  const W = 256
+  // Canvas was 256 wide — too tight for 22px Courier monospace robot
+  // lines like "AMMUNITION DEPLETED". Bumped to 320 so both voices can
+  // render at the same point size without clipping.
+  const W = 320
   const H = 80
   const c = document.createElement('canvas')
   c.width = W; c.height = H
@@ -60,9 +63,12 @@ function makeTexture(text: string, voice: SpeechVoice): THREE.Texture {
   const bgFill = voice === 'cyborg' ? 'rgba(45, 18, 22, 0.94)' : 'rgba(14, 28, 44, 0.94)'
   const bgStroke = voice === 'cyborg' ? '#dd8888' : '#88c8ff'
   const textColor = voice === 'cyborg' ? '#ffe0d0' : '#d8f0ff'
+  // Both voices use the same size (22px) — robot was 18px and unreadable
+  // alongside the cyborg lines. Monospace at 22 just barely fits the
+  // widest robot lines ("AMMUNITION DEPLETED") in the 256-wide canvas.
   const font = voice === 'cyborg'
     ? 'italic 700 22px "Helvetica Neue", sans-serif'
-    : '700 18px "Courier New", monospace'
+    : '700 22px "Courier New", monospace'
 
   // Rounded-rect speech bubble with a downward tail centered on the body.
   const r = 10
@@ -127,9 +133,10 @@ export function spawnSpeechBubble(
     depthTest: false, depthWrite: false,
   })
   const sprite = new THREE.Sprite(mat)
-  // Bubble world size. Canvas is 256×80 (3.2:1); render at 110 wide so
-  // text reads at roughly 22-ish world pixels per char.
-  const BUBBLE_W = 110
+  // Bubble world size. Canvas is 320×80 (4:1); render at 140 wide so
+  // text reads at roughly the same in-world height as before the canvas
+  // was widened.
+  const BUBBLE_W = 140
   const BUBBLE_H = (H_TO_W * BUBBLE_W)
   sprite.scale.set(BUBBLE_W, BUBBLE_H, 1)
   // Tail tip is at the bottom-center of the sprite. Position the sprite
@@ -163,4 +170,4 @@ export function spawnSpeechBubble(
   requestAnimationFrame(tick)
 }
 
-const H_TO_W = 80 / 256
+const H_TO_W = 80 / 320

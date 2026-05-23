@@ -155,7 +155,10 @@ export class PixelPowerCore {
     this.pulseRepairVfx()
     const scene = this.mesh.parent
     if (scene instanceof THREE.Scene) {
-      spawnHealVfx(scene, this.mesh.position.x, this.mesh.position.y, restored, vfxVariant)
+      // Core occupies a 2x2 cell footprint — pass a larger scale so the
+      // heal VFX (number / bubbles / plus stamps) AND the cell glow are
+      // sized to match the big piece. Default 1.0 = single-cell scale.
+      spawnHealVfx(scene, this.mesh.position.x, this.mesh.position.y, restored, vfxVariant, 1.8)
     }
     return true
   }

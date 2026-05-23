@@ -30,9 +30,10 @@ const STRUCTURE_HAS_EXPLOSION: Partial<Record<StructureType, true>> = {
 const STRUCTURE_SPRITE_SIZE: Partial<Record<StructureType, number>> = {
   turret: 64,
   bomber: 60,
-  // Sentry — render at 64 (matching the tower's footprint) so it reads
-  // as a heavy front-line emplacement, not a flimsy preview piece.
-  sentry: 64,
+  // Sentry renders as tall as the Hulk (84) so the heavy-tower piece
+  // reads as a real bruiser on the field, not a slightly bigger tower.
+  // Hulk's override in SpriteUnit.ts is also 84 — kept in sync.
+  sentry: 84,
   gun:    40,
 }
 const SPRITE_SIZE = 50   // default — one cell
