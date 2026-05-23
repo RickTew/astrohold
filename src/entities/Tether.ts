@@ -77,6 +77,15 @@ export class Tether {
   // a cell or two we already track it).
   update(delta: number) {
     if (this.isDead) return
+    // Healing target died mid-reveal (or the medic itself) — collapse the
+    // beam visual immediately. The tickTethers cleanup at the next reveal
+    // start will fix the bookkeeping (medic.tether=null, target.tether=null);
+    // we just want the visual to stop dangling between a medic and a corpse.
+    if (this.medic.isDead || this.target.isDead) {
+      this.beamMesh.visible = false
+      this.haloMesh.visible = false
+      return
+    }
     this.pulseTime += delta
     this.refreshGeometry()
     // Subtle alpha pulse so the beam reads as "flowing energy" rather

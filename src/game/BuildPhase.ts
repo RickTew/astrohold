@@ -71,6 +71,14 @@ export class BuildPhase {
     if (!type) this.hideGhost()
   }
 
+  // Tell the click handler to ignore EXACTLY ONE upcoming click. Used by
+  // Game.tryRefund after refunding a structure so we don't auto-place a
+  // new one on the just-cleared cell (BuildPhase's window-level click
+  // listener fires AFTER Game's mousedown — without this skip the user
+  // would refund, then immediately place an identical structure back).
+  private skipNextClick = false
+  requestSkipNextClick() { this.skipNextClick = true }
+
 private buildHitPlane(): THREE.Mesh {
     const W = Config.DEFENDER_MAX_X - Config.WORLD.LEFT   // 400
     const H = Config.WORLD.TOP - Config.WORLD.BOTTOM       // 400
@@ -121,6 +129,7 @@ private buildHitPlane(): THREE.Mesh {
   }
 
   private onClick = (e: MouseEvent) => {
+    if (this.skipNextClick) { this.skipNextClick = false; return }
     if (!this.selectedType) return
     const cell = this.getCell(e)
     if (!cell || this.isCellBlocked(cell.col, cell.row)) return

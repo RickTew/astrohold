@@ -463,10 +463,10 @@ export class RevealPhase {
   // Cyborg Medic three-mode priority. Tethers a high-value damaged ally
   // first, then throws a med-pack at the most-wounded ally in range,
   // then drops a pad on a cluster of 2+ damaged cyborgs, then walks
-  // toward the most-damaged ally. Returns null if there's nothing to
-  // heal AND no positioning move makes sense — caller falls through to
-  // the normal advance-on-core behavior so the medic follows the front
-  // line into position for future heals.
+  // toward the most-damaged ally. When there is NOTHING to heal the medic
+  // hangs back with the squad instead of leading the charge — running
+  // ahead of the front line just gets the medic killed before anyone
+  // needs treatment.
   private medicDefaultAction(unit: SpriteUnit): QueuedAction | null {
     const range = Config.UNITS.medic.range
     // Damaged cyborg allies that aren't already being tethered.
@@ -477,7 +477,7 @@ export class RevealPhase {
       if (a.tether) continue       // someone else is healing them
       damaged.push(a)
     }
-    if (damaged.length === 0) return null
+    if (damaged.length === 0) return this.supportHangBackAction(unit)
 
     // Priority 1 — tether a high-value damaged ally if one is in range and
     // we have ammo to spare (need 1 for the start tick).
@@ -524,7 +524,27 @@ export class RevealPhase {
       const cell = this.pickStepTowardPoint(unit, mostDamaged.worldX, mostDamaged.worldY)
       if (cell) return { kind: 'move', cell }
     }
-    return null
+    return this.supportHangBackAction(unit)
+  }
+
+  // Hang-back behavior for support units (medic, future cyborg-repair).
+  // When no ally needs healing, the medic should NOT charge enemies — it
+  // should stay near the squad so it can react to incoming damage. Picks
+  // the nearest non-medic ally and follows them at ~1.5 cells distance.
+  // Holds if already close; holds if no squadmates left.
+  private supportHangBackAction(unit: SpriteUnit): QueuedAction {
+    let nearest: SpriteUnit | null = null
+    let nearestDist = Infinity
+    for (const a of this.units) {
+      if (a.isDead || a === unit || a.type === 'medic') continue
+      const d = Math.hypot(a.worldX - unit.worldX, a.worldY - unit.worldY)
+      if (d < nearestDist) { nearestDist = d; nearest = a }
+    }
+    if (!nearest) return { kind: 'hold' }     // alone — wait, don't suicide
+    if (nearestDist <= Config.GRID_CELL * 1.5) return { kind: 'hold' }
+    const cell = this.pickStepTowardPoint(unit, nearest.worldX, nearest.worldY)
+    if (cell) return { kind: 'move', cell }
+    return { kind: 'hold' }
   }
 
   // Find a cell within 2 tiles of the medic that, when a pad is dropped

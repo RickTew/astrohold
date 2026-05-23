@@ -83,6 +83,15 @@ export class RepairTether {
 
   update(delta: number) {
     if (this.isDead) return
+    // Target died mid-reveal (or the bot itself) — kill the beam visual
+    // immediately so we don't leave a weld dangling to a corpse. Bookkeeping
+    // (bot.tether=null, target.tether=null) catches up at next reveal via
+    // tickRepairTethers.
+    if (this.bot.isDead || this.target.isDead) {
+      this.beamMesh.visible = false
+      this.haloMesh.visible = false
+      return
+    }
     this.pulseTime += delta
     this.refreshGeometry()
     const k = 0.78 + 0.18 * Math.sin(this.pulseTime * 6)

@@ -1191,14 +1191,13 @@ private enterBuildPhase() {
         structs.splice(i, 1)
         s.dispose()
         this.buildPhase?.addCredits(Config.STRUCTURES[s.type].cost)
-        // Clear the active shop selection — otherwise BuildPhase's `click`
-        // handler fires AFTER our mousedown, sees the cell is now empty, and
-        // places a fresh structure of the selected type. To the player that
-        // looks like the click "didn't remove" the piece. Spheres/dogs use
-        // a different placement system so they don't have this issue.
-        this.buildPhase?.selectStructure(null)
-        this.hud.clearStructureSelection()
-        // Also tear down the rose if it was editing this structure.
+        // Selection STAYS so the player can immediately place a new piece
+        // of the same type elsewhere. The skip-next-click tells BuildPhase
+        // to ignore the click that's about to bubble up from this mousedown
+        // — without it BuildPhase would auto-replace the structure on the
+        // very cell we just emptied, defeating the refund.
+        this.buildPhase?.requestSkipNextClick()
+        // Tear down the rose if it was editing this structure.
         if (this.editingStructure === s) this.closeCompassRose()
         return true
       }
