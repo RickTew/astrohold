@@ -413,7 +413,12 @@ export class RevealPhase {
       // Fall through to move / advance if no throw is available right now.
     }
     const range: number = Config.UNITS[unit.type].range
-    if (range > 0 && !this.isLobbedThrower(unit) && unit.type !== 'medic' && unit.type !== 'repair' && unit.ammoRemaining > 0) {
+    // Hulk's punches are FISTS — they don't consume ammo. He always has
+    // hands. The slamAmmo counter still gates slam (special wedge attack);
+    // this exception is only for regular punches.
+    const meleeUnlimited = unit.type === 'hulk'
+    if (range > 0 && !this.isLobbedThrower(unit) && unit.type !== 'medic' && unit.type !== 'repair'
+        && (unit.ammoRemaining > 0 || meleeUnlimited)) {
       // Bomb counterplay: if there's an armed enemy bomb in range AND we're
       // safely outside its AoE, shoot it instead of an enemy unit. Detonates
       // the bomb harmlessly (from our perspective) — clears the field.
@@ -1640,9 +1645,10 @@ export class RevealPhase {
   }
 
   private executeAttack(actor: Actor, action: QueuedAction) {
-    // Out of ammo — strict skip. Catches both planned actions and the
-    // default-AI path that may have slipped through.
-    if (this.actorAmmo(actor) <= 0) return
+    // Hulk's punches are fists — no ammo cost. Every other actor still
+    // needs ammo to attack (strict skip if depleted).
+    const meleeUnlimited = actor instanceof SpriteUnit && actor.type === 'hulk'
+    if (!meleeUnlimited && this.actorAmmo(actor) <= 0) return
 
     // Resolve target XY (specific entity for 'fire', cell center for 'throw').
     const aim = action.kind === 'fire'
@@ -1660,7 +1666,8 @@ export class RevealPhase {
     if (dist > range) return   // strict skip — out of range now
 
     // The shot is going to fire — burn one round of ammo + mark combat.
-    this.decrementActorAmmo(actor)
+    // Hulk fists are free; everyone else pays.
+    if (!meleeUnlimited) this.decrementActorAmmo(actor)
     this.combatThisReveal = true
 
     // Cyborg attack animation; spheres/structures don't have shoot anims yet.

@@ -426,20 +426,22 @@ export class Structure {
 
   // Sprite-based damage feedback for non-wall structures. Builds a tinted
   // color that starts at the team tint (full HP) and shifts toward a
-  // darker red multiplier as HP drops. Skipped if there's no sprite to
-  // tint (legacy mine + wall paths handle their own visuals).
+  // red-warm multiplier as HP drops. Tuned lighter than the first cut —
+  // damage should be CLEARLY VISIBLE but not turn the sprite black.
+  // Skipped if there's no sprite to tint (legacy mine + wall paths handle
+  // their own visuals).
   private applySpriteDamageTint(ratio: number) {
     if (!this.sprite) return
-    // Don't fight an active repair-pulse flash — that timer will restore
-    // the correct tint when it fires.
     if (this.repairPulseTimer !== null) return
     const r = Math.max(0.05, ratio)
-    // RGB multiplier: green/blue dim faster than red, so the structure
-    // tints orange → red as it gets battered. At full HP this is (1,1,1)
-    // which is a no-op; at 5% HP it's (0.42, 0.10, 0.10) = deep blood red.
-    const rChan = 0.4 + 0.6 * r
-    const gChan = 0.1 + 0.9 * r * r
-    const bChan = 0.1 + 0.9 * r * r
+    // RGB multiplier: green + blue dim more than red so the sprite reads
+    // orange → red as HP drops, but minimum brightness is high enough
+    // that the sprite art stays readable. At 100% HP this is (1,1,1)
+    // no-op; at 50% HP roughly (0.85, 0.67, 0.67) = clear warm tint;
+    // at 5% HP (0.715, 0.36, 0.36) = strong red but still visible.
+    const rChan = 0.7 + 0.3 * r
+    const gChan = 0.35 + 0.65 * r
+    const bChan = 0.35 + 0.65 * r
     const damageColor = new THREE.Color(rChan, gChan, bChan)
       .multiply(new THREE.Color(TEAM_TINT[this.team]))
     this.sprite.material.color.copy(damageColor)
