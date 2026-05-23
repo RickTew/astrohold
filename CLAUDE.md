@@ -33,9 +33,17 @@ D&D-style strategy:
 - **Cyborg Medic** — support unit, three heal modes sharing a 5-charge pool:
   med-pack throw (1 charge, 3-cell range, +30 HP), deployable medic-pad
   (2 charges, +15 HP/tick to adjacent cyborgs for 4 ticks), tether (1
-  charge/turn, pins both endpoints, +20 HP/turn). Only mobile unit with
-  `allowDiagonalMove: true`. Fragile (HP 50). See `MedicPad.ts`,
-  `Tether.ts`, and `RevealPhase.medicDefaultAction()`.
+  charge/turn, pins both endpoints, +20 HP/turn). Fragile (HP 50). See
+  `MedicPad.ts`, `Tether.ts`, and `RevealPhase.medicDefaultAction()`.
+- **Robot Repair** — defender-side twin of the Medic. Same three-mode
+  structure (pack-throw / repair-pad / weld-tether), same 5-charge pool,
+  amber visuals instead of green. Repair targets are anything defender-side
+  with HP: structures, defender mobile units (dog), sphere, Power Core. AI
+  prioritizes Power Core > Cannon > Bomber > Sphere > Tower > … (see
+  `structureRepairPriority` in RevealPhase). Diagonal movement allowed.
+  HP 60, cost 70. See `RepairPad.ts`, `RepairTether.ts`, and
+  `RevealPhase.repairDefaultAction()`. **HUD note:** REPAIR replaced the
+  SIGNAL preview tile in the robot grid (bottom-right of the 4×2 layout).
 
 ## HUD (session 15)
 Floating top strip with three SVG-silhouetted panels — DO NOT reserve
@@ -64,8 +72,9 @@ via `.phase-reveal` class), unit icon glow. All theme-matched
 
 - LEFT panel — 4×2 robot tile grid (8 pieces): Sphere/Tower/Bomber/TOWER
   (the WALL slot is a duplicate TOWER until wall art exists) over
-  Dog/Defense/Laser/Signal. Defense/Laser/Signal are "preview"
-  pieces with placeholder behavior (no unique mechanics yet).
+  Dog/Defense/Laser/Repair. Defense/Laser are "preview" pieces with
+  placeholder behavior (no unique mechanics yet); Repair is fully wired
+  (session 16) — see the Robot Repair section above.
 - CENTER panel — clean chamfered rectangle SVG with two internal dividers
   splitting it into three console "screens":
   * **Title bar** (`.cc-title`): BUILD PHASE / PLAN PHASE / BATTLE label

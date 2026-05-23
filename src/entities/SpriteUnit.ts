@@ -167,6 +167,20 @@ const MANIFEST: Record<string, AnimManifest> = {
     walking: { fps: 10, loop: true,  presentDirs: ALL_DIRS, frameCount: 6 },
     die:     { fps: 10, loop: false, presentDirs: ALL_DIRS, frameCount: 9 },
   },
+  // Robot Repair — defender-side support unit. PixelLab export ships:
+  //  - Moving: 9 frames × all 8 directions (we copy the cd902ba1 NW variant —
+  //    the export bundled two; the 5d69b613 one is staged on disk but unused).
+  //  - Repair: 9-frame action clip × all 8 directions — currently unused at
+  //    runtime since SpriteUnit has no 'repair' AnimState; staged on disk for
+  //    a future visual pass. The repair-* actions snap to static rotation
+  //    just like the medic does for heal-*.
+  //  - die: explodes ships only N + S; we duplicated north-frames into every
+  //    direction folder during extract (matches the Combat Dog's death pattern).
+  // No idle clip ships — rest falls back to the static rotation PNGs.
+  repair: {
+    walking: { fps: 10, loop: true,  presentDirs: ALL_DIRS, frameCount: 9 },
+    die:     { fps: 10, loop: false, presentDirs: ALL_DIRS, frameCount: 4 },
+  },
 }
 
 function loadTexture(url: string): Promise<THREE.Texture> {

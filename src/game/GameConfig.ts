@@ -115,6 +115,13 @@ export const Config = {
     // (3 cells); `ammo` is the SHARED heal-charge pool: throw=1, pad-deploy=2,
     // tether tick=1 per turn. `allowDiagonalMove: true` per the spec.
     medic:     { cost: 70, hp: 50,  speed: 70,  damage: 30, range: 150, sightRange: 280, aoeRadius: 0,  apBudget: 3, ammo: 5, allowDiagonalMove: true, label: 'Medic',     color: 0xffffff },
+    // Robot Repair — defender-side support unit, the medic's structural twin.
+    // Three repair modes: pack-throw, deployable repair-pad, weld-tether.
+    // Targets are anything defender-side with HP — towers, walls, mines,
+    // bombers, cannons, sphere, the Combat Dog, and the Power Core. `damage`
+    // is repurposed as repair amount per tick. Diagonal-capable so it can
+    // weave through structure clusters to reach a damaged piece.
+    repair:    { cost: 70, hp: 60,  speed: 65,  damage: 30, range: 150, sightRange: 280, aoeRadius: 0,  apBudget: 3, ammo: 5, allowDiagonalMove: true, label: 'Repair',    color: 0xffffff },
   },
 } as const
 

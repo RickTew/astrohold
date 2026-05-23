@@ -10,6 +10,8 @@ import { Explosion } from '../entities/Explosion'
 import { PendingGrenade } from '../entities/PendingGrenade'
 import { MedicPad } from '../entities/MedicPad'
 import { Tether } from '../entities/Tether'
+import { RepairPad } from '../entities/RepairPad'
+import { RepairTether, RepairTetherTarget } from '../entities/RepairTether'
 import { playGunshot, playExplosion } from '../audio/sfx'
 
 // Phase 3 reveal engine: consumes the queued plans the player set up during
@@ -55,6 +57,26 @@ const FIRE_ARC_HALF_RAD = (60 * Math.PI) / 180
 // becoming ignored permanent traps when both sides flee them indefinitely.
 const ARMED_LIFETIME = 3
 
+// Repair-priority for a given defender structure type. Higher = the repair
+// bot will tether/throw at it before lower-priority pieces tie-breaking on
+// missing HP. Tuned so the bot defends the offensive arsenal first (cannon
+// > bomber > tower > gun > laser > defense), and walls only after a real
+// piece runs low.
+function structureRepairPriority(type: string): number {
+  switch (type) {
+    case 'cannon': return 9
+    case 'bomber': return 8
+    case 'turret': return 7
+    case 'laser':  return 6
+    case 'gun':    return 5
+    case 'defense':
+    case 'signal': return 3
+    case 'wall':   return 2
+    case 'mine':   return 1
+    default:       return 1
+  }
+}
+
 // 4 cardinal neighbors (N/S/E/W). All standard units move on this grid —
 // no diagonals — making positioning sharper and slower-paced. A future
 // special-character unit can opt into 8-direction movement via the
@@ -99,6 +121,8 @@ export class RevealPhase {
     private pendingGrenades: PendingGrenade[] = [],
     private medicPads: MedicPad[] = [],
     private tethers: Tether[] = [],
+    private repairPads: RepairPad[] = [],
+    private repairTethers: RepairTether[] = [],
   ) {
     this.steps = this.buildSteps()
     // Force-detonate bombs that have outlived their fuse. Done before any
@@ -107,9 +131,13 @@ export class RevealPhase {
     this.expireOldBombs()
     // Tick medic-pads next so healed cyborgs are at top HP before they act.
     this.tickMedicPads()
-    // Then tick active tethers so target/medic heal-bonds also resolve
-    // before any cyborg takes their action.
+    // Tick active tethers so target/medic heal-bonds resolve before any
+    // cyborg takes their action.
     this.tickTethers()
+    // Defender-side counterparts — repair-pads + repair-tethers fire at the
+    // start of the reveal so towers are at top HP before they auto-fire.
+    this.tickRepairPads()
+    this.tickRepairTethers()
   }
 
   private expireOldBombs() {
@@ -174,6 +202,59 @@ export class RevealPhase {
     }
     for (let i = this.tethers.length - 1; i >= 0; i--) {
       if (this.tethers[i].isDead) this.tethers.splice(i, 1)
+    }
+  }
+
+  // Tick every active repair-pad. Each pad ticks repairs on adjacent
+  // defender-side pieces (structures, defender mobile units, sphere, core)
+  // and burns one of its own charges. Sweep dead/expired pads afterward.
+  private tickRepairPads() {
+    if (this.repairPads.length === 0) return
+    for (const pad of [...this.repairPads]) {
+      if (pad.isDead) continue
+      const result = pad.tick(this.structures, this.defenderUnits, this.spheres, this.core)
+      if (result.healed > 0) {
+        this.combatThisReveal = true
+        this.log('defender', `Repair-pad pulses (+${result.healed * 15} across ${result.healed})`)
+      }
+      if (result.expired) {
+        pad.kill()
+        this.log('defender', `Repair-pad spent — station offline`)
+      }
+    }
+    for (let i = this.repairPads.length - 1; i >= 0; i--) {
+      if (this.repairPads[i].isDead) this.repairPads.splice(i, 1)
+    }
+  }
+
+  // Tick every active repair-tether. Mirror of tickTethers, with the wider
+  // target type. End conditions match: bot dead, bot out of ammo, target
+  // full HP or dead. Per-tick: target.heal() + 1 bot ammo.
+  private tickRepairTethers() {
+    if (this.repairTethers.length === 0) return
+    for (const t of this.repairTethers) {
+      if (t.isDead) continue
+      const { bot, target } = t
+      const shouldEnd =
+        bot.isDead || target.isDead ||
+        bot.ammoRemaining <= 0 || t.targetIsFull()
+      if (shouldEnd) {
+        bot.tether = null
+        // Defender mobile target also gets the pin released so default-action
+        // resumes; non-unit targets (structures/sphere/core) don't have a
+        // tether field — they were stationary the whole time.
+        if (target instanceof SpriteUnit) target.tether = null
+        t.end()
+        this.log('defender', `${this.actorLabel(bot)} releases the weld on ${this.targetLabel(target)}`)
+        continue
+      }
+      target.heal(t.healPerTick)
+      bot.ammoRemaining = Math.max(0, bot.ammoRemaining - 1)
+      this.combatThisReveal = true
+      this.log('defender', `${this.actorLabel(bot)} welds ${this.targetLabel(target)} (+${t.healPerTick})`)
+    }
+    for (let i = this.repairTethers.length - 1; i >= 0; i--) {
+      if (this.repairTethers[i].isDead) this.repairTethers.splice(i, 1)
     }
   }
 
@@ -269,6 +350,13 @@ export class RevealPhase {
       const heal = this.medicDefaultAction(unit)
       if (heal) return heal
     }
+    // Robot Repair — same triage shape as the medic, but the wounded
+    // pool is anything defender-side with HP (towers, walls, dog, sphere,
+    // power core). Falls through to wander when nothing needs repair.
+    if (unit.type === 'repair') {
+      const fix = this.repairDefaultAction(unit)
+      if (fix) return fix
+    }
 
     // Hulk-specific: if 2+ enemies cluster in any cardinal slam wedge AND
     // we have slam ammo, slam them. Lower per-target damage than punch but
@@ -295,7 +383,7 @@ export class RevealPhase {
       // Fall through to move / advance if no throw is available right now.
     }
     const range: number = Config.UNITS[unit.type].range
-    if (range > 0 && !this.isLobbedThrower(unit) && unit.type !== 'medic' && unit.ammoRemaining > 0) {
+    if (range > 0 && !this.isLobbedThrower(unit) && unit.type !== 'medic' && unit.type !== 'repair' && unit.ammoRemaining > 0) {
       // Bomb counterplay: if there's an armed enemy bomb in range AND we're
       // safely outside its AoE, shoot it instead of an enemy unit. Detonates
       // the bomb harmlessly (from our perspective) — clears the field.
@@ -426,6 +514,152 @@ export class RevealPhase {
         let count = 0
         for (const ally of damagedAllies) {
           if (Math.hypot(ally.worldX - x, ally.worldY - y) <= cs * 1.6) count++
+        }
+        if (count >= 2) candidates.push({ cell: { col, row }, count })
+      }
+    }
+    if (candidates.length === 0) return null
+    candidates.sort((a, b) => b.count - a.count)
+    return candidates[0].cell
+  }
+
+  // Robot Repair triage. Picks the most valuable damaged defender-side
+  // piece in range and applies tether → throw → pad → walk-toward, mirroring
+  // the medic's priority shape. Returns null if there's nothing to fix
+  // and no useful repositioning target — caller falls through to a wander
+  // step so the repair bot drifts without freezing the round.
+  private repairDefaultAction(unit: SpriteUnit): QueuedAction | null {
+    const range = Config.UNITS.repair.range
+
+    // Build the "damaged defender pool" — anything defender-side at less
+    // than max HP and not dead. Pad/tether/throw all draw from this list.
+    // SpriteUnits and Structures expose .tether for the pin marker; the
+    // sphere + core don't (they're stationary anyway, so we don't gate on
+    // a pin field for them).
+    type Target = {
+      ref: TargetRef
+      x: number
+      y: number
+      missing: number
+      kind: 'structure' | 'sphere' | 'core' | 'unit'
+      entity: RepairTetherTarget
+      pinned: boolean       // true if already being weld-tethered by another bot
+      priority: number      // higher = repair this first when health-tied
+    }
+    const damaged: Target[] = []
+    for (const s of this.structures) {
+      if (s.isDead || s.hp >= s.maxHp) continue
+      damaged.push({
+        ref: { kind: 'structure', id: s.id },
+        x: s.worldX, y: s.worldY,
+        missing: s.maxHp - s.hp,
+        kind: 'structure', entity: s, pinned: false,
+        priority: structureRepairPriority(s.type),
+      })
+    }
+    for (const sp of this.spheres) {
+      if (sp.isDead || sp.hp >= sp.maxHp) continue
+      damaged.push({
+        ref: { kind: 'sphere', id: sp.id },
+        x: sp.worldX, y: sp.worldY,
+        missing: sp.maxHp - sp.hp,
+        kind: 'sphere', entity: sp, pinned: false,
+        priority: 8,    // spheres are expensive — high but below the core
+      })
+    }
+    for (const du of this.defenderUnits) {
+      if (du === unit || du.isDead || du.hp >= du.maxHp) continue
+      if (du.tether) continue   // already being tethered by another bot
+      damaged.push({
+        ref: { kind: 'unit', id: du.id },
+        x: du.worldX, y: du.worldY,
+        missing: du.maxHp - du.hp,
+        kind: 'unit', entity: du, pinned: false,
+        priority: 4,
+      })
+    }
+    if (!this.core.isDead && this.core.hp < this.core.maxHp) {
+      const cc = this.core.cellCenters()
+      damaged.push({
+        ref: { kind: 'core', id: '' },
+        x: cc[0].x + Config.GRID_CELL / 2,  // centroid (between the 4 sub-cells)
+        y: cc[0].y + Config.GRID_CELL / 2,
+        missing: this.core.maxHp - this.core.hp,
+        kind: 'core', entity: this.core, pinned: false,
+        priority: 12,   // the core is the win condition — heal it first
+      })
+    }
+    if (damaged.length === 0) return null
+
+    // Priority 1 — weld-tether the highest-priority damaged piece in range.
+    // Tether is a sustained channel; the bot prefers to lock in for several
+    // turns of repair on the most valuable target.
+    if (unit.ammoRemaining > 0) {
+      const inRange = damaged
+        .filter(t => Math.hypot(t.x - unit.worldX, t.y - unit.worldY) <= range)
+        .sort((a, b) => b.priority - a.priority || b.missing - a.missing)
+      const top = inRange[0]
+      if (top && top.priority >= 8) {
+        return { kind: 'repair-tether', target: top.ref }
+      }
+    }
+
+    // Priority 2 — throw a repair-pack at whichever damaged piece is
+    // missing the most HP and is in range.
+    if (unit.ammoRemaining > 0) {
+      let best: Target | null = null
+      let bestMissing = 0
+      for (const t of damaged) {
+        const d = Math.hypot(t.x - unit.worldX, t.y - unit.worldY)
+        if (d > range) continue
+        if (t.missing > bestMissing) { best = t; bestMissing = t.missing }
+      }
+      if (best) return { kind: 'repair-throw', target: best.ref }
+    }
+
+    // Priority 3 — drop a pad if 2+ damaged pieces cluster near a deploy
+    // cell. Same shape as pickPadDeployCell, but the damaged-set covers
+    // structures, defender units, sphere, and core sub-cells.
+    if (unit.ammoRemaining >= 2) {
+      const padCell = this.pickRepairPadDeployCell(unit, damaged)
+      if (padCell) return { kind: 'repair-pad', cell: padCell }
+    }
+
+    // Priority 4 — walk toward the highest-priority damaged piece. No
+    // range gating; the bot grinds across the field to reach it.
+    const target = [...damaged].sort((a, b) => b.priority - a.priority || b.missing - a.missing)[0]
+    if (target) {
+      const cell = this.pickStepTowardPoint(unit, target.x, target.y)
+      if (cell) return { kind: 'move', cell }
+    }
+    return null
+  }
+
+  // Mirror of pickPadDeployCell — search a 2-cell box around the repair
+  // bot for an empty cell sitting next to 2+ damaged defender targets.
+  // Damaged-target XY comes from the precomputed list (which already
+  // includes the power core's centroid).
+  private pickRepairPadDeployCell(
+    bot: SpriteUnit,
+    damagedTargets: { x: number; y: number }[],
+  ): CellRef | null {
+    const cs = Config.GRID_CELL
+    const botCol = Math.floor((bot.worldX - Config.WORLD.LEFT) / cs)
+    const botRow = Math.floor((bot.worldY - Config.WORLD.BOTTOM) / cs)
+    const candidates: { cell: CellRef; count: number }[] = []
+    for (let dc = -2; dc <= 2; dc++) {
+      for (let dr = -2; dr <= 2; dr++) {
+        if (dc === 0 && dr === 0) continue
+        const col = botCol + dc
+        const row = botRow + dr
+        const x = Config.WORLD.LEFT + col * cs + cs / 2
+        const y = Config.WORLD.BOTTOM + row * cs + cs / 2
+        if (x < Config.WORLD.LEFT || x > Config.WORLD.RIGHT) continue
+        if (y < Config.WORLD.BOTTOM || y > Config.WORLD.TOP) continue
+        if (this.isCellOccupiedAtBattle(x, y, bot)) continue
+        let count = 0
+        for (const t of damagedTargets) {
+          if (Math.hypot(t.x - x, t.y - y) <= cs * 1.6) count++
         }
         if (count >= 2) candidates.push({ cell: { col, row }, count })
       }
@@ -948,6 +1182,155 @@ export class RevealPhase {
       this.executeHealTether(actor, action.target)
       return
     }
+
+    if (action.kind === 'repair-throw') {
+      this.executeRepairThrow(actor, action.target)
+      return
+    }
+
+    if (action.kind === 'repair-pad') {
+      this.executeRepairPad(actor, action.cell)
+      return
+    }
+
+    if (action.kind === 'repair-tether') {
+      this.executeRepairTether(actor, action.target)
+      return
+    }
+  }
+
+  // Resolve a TargetRef to a concrete repairable defender entity. Unlike
+  // resolveTargetEntity (which returns a takeDamage-shaped thing), this
+  // returns the concrete entity so the caller can call .heal() and react
+  // to type-specific properties (e.g. SpriteUnit.tether for pinning).
+  private resolveRepairTarget(ref: TargetRef): RepairTetherTarget | null {
+    if (ref.kind === 'core') return this.core.isDead ? null : this.core
+    if (ref.kind === 'sphere') {
+      const s = this.spheres.find(x => x.id === ref.id)
+      return s && !s.isDead ? s : null
+    }
+    if (ref.kind === 'structure') {
+      const s = this.structures.find(x => x.id === ref.id)
+      return s && !s.isDead ? s : null
+    }
+    if (ref.kind === 'unit') {
+      const u = this.defenderUnits.find(x => x.id === ref.id)
+      return u && !u.isDead ? u : null
+    }
+    return null
+  }
+
+  private repairTargetXY(t: RepairTetherTarget): { x: number; y: number } {
+    if (t instanceof PixelPowerCore) {
+      // Use centroid (the grid intersection where the 4 sub-cells meet).
+      const cc = t.cellCenters()
+      return { x: cc[0].x + Config.GRID_CELL / 2, y: cc[0].y + Config.GRID_CELL / 2 }
+    }
+    return { x: t.worldX, y: t.worldY }
+  }
+
+  // Robot Repair throw — lob a repair-pack at a damaged defender-side
+  // piece. Same projectile pipeline as the medic's heal-throw (silent
+  // landing, sprite-textured), with .heal() on impact and a warm amber
+  // tint instead of green.
+  private executeRepairThrow(actor: Actor, ref: TargetRef) {
+    if (!(actor instanceof SpriteUnit)) return
+    if (actor.type !== 'repair') return
+    if (actor.ammoRemaining <= 0) return
+
+    const target = this.resolveRepairTarget(ref)
+    if (!target || target.isDead) return
+    if (target.hp >= target.maxHp) return
+
+    const tp = this.repairTargetXY(target)
+    const ax = actor.worldX, ay = actor.worldY
+    const dist = Math.hypot(tp.x - ax, tp.y - ay)
+    const range = Config.UNITS.repair.range
+    if (dist > range) return
+
+    this.decrementActorAmmo(actor)
+    this.combatThisReveal = true
+
+    actor.faceTarget(tp.x, tp.y)
+
+    const muzzle = this.actorMuzzle(actor, tp.x, tp.y)
+    const healAmount = Config.UNITS.repair.damage   // repurposed as repair amount
+    const proj = new Projectile(
+      this.scene, muzzle.x, muzzle.y, null,
+      tp.x, tp.y,
+      0, false, 0, 0xffc874, getMedPackTexture(),
+    )
+    proj.silentLanding = true
+    const targetLabel = this.targetLabel(target)
+    const sourceLabel = this.actorLabel(actor)
+    proj.onHit = () => {
+      if (target.isDead) {
+        this.log('defender', `${sourceLabel}'s repair-pack arrives too late for ${targetLabel}`)
+        return
+      }
+      const healed = target.heal(healAmount)
+      this.log('defender', healed
+        ? `${sourceLabel} repairs ${targetLabel} (+${healAmount})`
+        : `${sourceLabel}'s repair-pack lands but ${targetLabel} is already full`)
+    }
+    this.projectiles.push(proj)
+  }
+
+  // Robot Repair pad deployment. Burns 2 charges and drops a RepairPad on
+  // the specified cell. Strict-skip on out-of-ammo / cell-occupied / out-
+  // of-zone, just like the medic's pad. Pad lives in this.repairPads —
+  // Game owns the array but RevealPhase mutates it in place.
+  private executeRepairPad(actor: Actor, cell: CellRef) {
+    if (!(actor instanceof SpriteUnit)) return
+    if (actor.type !== 'repair') return
+    if (actor.ammoRemaining < 2) return
+    const cs = Config.GRID_CELL
+    const x = Config.WORLD.LEFT + cell.col * cs + cs / 2
+    const y = Config.WORLD.BOTTOM + cell.row * cs + cs / 2
+    if (x < Config.WORLD.LEFT || x > Config.WORLD.RIGHT) return
+    if (y < Config.WORLD.BOTTOM || y > Config.WORLD.TOP) return
+    if (this.isCellOccupiedAtBattle(x, y, actor)) return
+    for (const p of this.repairPads) {
+      if (Math.hypot(p.worldX - x, p.worldY - y) < cs * 0.5) return
+    }
+
+    actor.ammoRemaining = Math.max(0, actor.ammoRemaining - 2)
+    actor.faceTarget(x, y)
+    this.combatThisReveal = true
+    this.repairPads.push(new RepairPad(this.scene, cell.col, cell.row))
+    this.log('defender', `${this.actorLabel(actor)} deploys a repair-pad at (${cell.col}, ${cell.row})`)
+  }
+
+  // Robot Repair tether — sustained weld-beam on a damaged defender piece.
+  // First tick fires now (immediate heal + 1 ammo); subsequent ticks happen
+  // at the start of each reveal via tickRepairTethers. Strict-skip on
+  // not-a-repair, already-tethered, no ammo, target dead/full/pinned, or
+  // out of range.
+  private executeRepairTether(actor: Actor, ref: TargetRef) {
+    if (!(actor instanceof SpriteUnit) || actor.type !== 'repair') return
+    if (actor.tether) return
+    if (actor.ammoRemaining <= 0) return
+    const target = this.resolveRepairTarget(ref)
+    if (!target || target.isDead) return
+    if (target.hp >= target.maxHp) return
+    // Defender mobile target — refuse if someone else is already welding it.
+    if (target instanceof SpriteUnit && target.tether) return
+    const tp = this.repairTargetXY(target)
+    const dist = Math.hypot(tp.x - actor.worldX, tp.y - actor.worldY)
+    if (dist > Config.UNITS.repair.range) return
+
+    const tether = new RepairTether(this.scene, actor, target)
+    actor.tether = tether
+    // Only mobile targets need the pin marker — structures/sphere/core
+    // are already stationary.
+    if (target instanceof SpriteUnit) target.tether = tether
+    this.repairTethers.push(tether)
+
+    target.heal(tether.healPerTick)
+    actor.ammoRemaining = Math.max(0, actor.ammoRemaining - 1)
+    actor.faceTarget(tp.x, tp.y)
+    this.combatThisReveal = true
+    this.log('defender', `${this.actorLabel(actor)} welds ${this.targetLabel(target)} (+${tether.healPerTick})`)
   }
 
   // Medic tether — creates a sustained Tether between the medic and a

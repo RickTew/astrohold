@@ -179,6 +179,35 @@ export class SphereDefender {
     }
   }
 
+  // Repair-bot heal target. Returns true iff any HP was restored. Skips if
+  // dead or already-full.
+  heal(amount: number): boolean {
+    if (this.isDead || this.hp >= this.maxHp) return false
+    const before = this.hp
+    this.hp = Math.min(this.maxHp, this.hp + amount)
+    const restored = this.hp - before
+    if (restored <= 0) return false
+    const ratio = this.hp / this.maxHp
+    this.hpBarFill.scale.x = ratio
+    this.hpBarFill.position.x = -(1 - ratio) * 12
+    const mat = this.hpBarFill.material as THREE.MeshBasicMaterial
+    mat.color.setHex(ratio > 0.5 ? 0x00cc44 : ratio > 0.25 ? 0xffaa00 : 0xff2200)
+    this.pulseRepairVfx()
+    return true
+  }
+
+  private repairPulseTimer: number | null = null
+  private pulseRepairVfx() {
+    const m = this.sprite.material
+    const before = m.color.getHex()
+    if (this.repairPulseTimer !== null) clearTimeout(this.repairPulseTimer)
+    m.color.setHex(0xffcc66)
+    this.repairPulseTimer = window.setTimeout(() => {
+      m.color.setHex(before)
+      this.repairPulseTimer = null
+    }, 280)
+  }
+
   private buildHpBar(): { group: THREE.Group; fill: THREE.Mesh } {
     const group = new THREE.Group()
     // Sphere body fills rows 29..80 of the 108px sprite (~52px / 108 ≈ 48% of

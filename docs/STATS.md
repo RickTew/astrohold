@@ -192,6 +192,38 @@ same SpriteUnit class as cyborgs, just `side='defender'` and faces east on
 placement. Has its own walking animation; death plays the 4-frame
 explosion (omnidirectional; same frames copied into every dir folder).
 
+### Robot Repair (defender mobile support — NEW, session 16)
+| Stat | Value |
+|---|---|
+| Cost | 70 |
+| HP | 60 |
+| Speed | 65 |
+| Range (throw / tether reach) | 150 |
+| Repair amount | 30 (throw, on land) · 15/tick (pad) · 20/turn (tether) |
+| Ammo (shared charge pool) | 5 |
+| AP | 3 |
+| Diagonal movement | yes (`allowDiagonalMove: true`) |
+
+Defender-side twin of the Cyborg Medic. Three repair modes share the
+5-charge ammo pool: **throw repair-pack** (1 charge, in-range, target gets
++30 HP on land — uses the med-pack sprite tinted amber), **deploy
+repair-pad** (2 charges, drops a wrench-glyph station that ticks +15 HP to
+adjacent defender pieces for 4 ticks or until destroyed), and **weld-tether**
+(1 charge/turn, glowing amber beam pins both endpoints, +20 HP/turn).
+Repairs anything defender-side with HP: towers, walls, bombers, cannons,
+sphere, the Combat Dog, and the Power Core.
+
+AI priority: weld a high-priority piece (Power Core 12 → Cannon 9 → Bomber
+8 → Sphere 8 → Tower 7 → …) when in range, else throw at the most-damaged
+piece in range, else drop a pad on a cluster of 2+ wounded, else walk
+toward the most-damaged piece.
+
+Sprite assets: 8-direction rotations + 9-frame walking (Moving) anim +
+9-frame Repair anim (staged on disk; not yet wired since `SpriteUnit` has
+no `repair` AnimState — repair actions snap to static pose for now). Death
+duplicates the 4-frame explodes anim into every direction folder, same as
+the Combat Dog.
+
 ### Structures (production)
 
 | Structure | Cost | HP | Damage | Range | AoE | apBudget | Sprite |

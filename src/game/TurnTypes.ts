@@ -13,6 +13,11 @@ export type QueuedActionKind =
   // (2 charges to drop); heal-tether locks the medic + target together,
   // healing each turn (1 charge per turn while tethered).
   | 'heal-throw' | 'heal-pad' | 'heal-tether'
+  // Repair actions — defender-side counterpart to the heal triad. Same shape,
+  // same AP cost, same ammo semantics; differ only in WHAT they can target.
+  // repair-throw / -pad / -tether work on defender structures, defender
+  // mobile units, and the Power Core.
+  | 'repair-throw' | 'repair-pad' | 'repair-tether'
 
 export type QueuedAction =
   | { kind: 'move';    cell: CellRef }
@@ -32,6 +37,11 @@ export type QueuedAction =
   | { kind: 'heal-throw';  target: TargetRef }
   | { kind: 'heal-pad';    cell: CellRef }
   | { kind: 'heal-tether'; target: TargetRef }
+  // Robot Repair. Same shape as the heal-* triad; target may be a structure,
+  // defender unit, sphere, or the Power Core (resolved by TargetRef.kind).
+  | { kind: 'repair-throw';  target: TargetRef }
+  | { kind: 'repair-pad';    cell: CellRef }
+  | { kind: 'repair-tether'; target: TargetRef }
 
 export const AP_COST: Record<QueuedActionKind, number> = {
   move: 1,
@@ -43,6 +53,9 @@ export const AP_COST: Record<QueuedActionKind, number> = {
   'heal-throw': 1,
   'heal-pad': 2,
   'heal-tether': 1,
+  'repair-throw': 1,
+  'repair-pad': 2,
+  'repair-tether': 1,
 }
 
 // Stationary pieces (Sphere, structures, core) use this fallback. Set HIGHER

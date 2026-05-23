@@ -12,6 +12,8 @@ import { Structure, preloadStructureSprites } from '../entities/Structure'
 import { PendingGrenade } from '../entities/PendingGrenade'
 import { MedicPad } from '../entities/MedicPad'
 import { Tether } from '../entities/Tether'
+import { RepairPad } from '../entities/RepairPad'
+import { RepairTether } from '../entities/RepairTether'
 import { FireArcPreview } from '../entities/FireArcPreview'
 import { OpponentAI, OpponentSide } from '../ai/OpponentAI'
 
@@ -79,6 +81,11 @@ export class Game {
   // Active Tether bonds between a Medic and an ally. Updated per frame so
   // the beam tracks the units; ticked each reveal for the heal payload.
   private tethers: Tether[] = []
+  // Defender-side counterparts: Robot Repair pads + weld-tethers. Same
+  // lifecycle as the medic versions — animated each frame, ticked each
+  // reveal, cleaned up on expire/death.
+  private repairPads: RepairPad[] = []
+  private repairTethers: RepairTether[] = []
   // Tracks reveals in a row that had zero combat events (no shots, no bombs,
   // no diffuses). After NO_PROGRESS_LIMIT consecutive idle reveals, the
   // auto-loop halts with a stalemate — prevents the "robot dog wanders
@@ -160,6 +167,7 @@ export class Game {
       preloadSpriteUnit('hulk', 'hulk'),
       preloadSpriteUnit('sniper', 'sniper'),
       preloadSpriteUnit('medic', 'medic'),
+      preloadSpriteUnit('repair', 'repair'),
       preloadPixelPowerCore(),
       preloadStructureSprites(),
     ])
@@ -356,6 +364,15 @@ private enterBuildPhase() {
       this.buildPhase?.selectStructure(null)
       this.hud.clearStructureSelection()
       this.startDogPlacement()
+    }
+
+    this.hud.onBuyRepair = () => {
+      if (this.placement?.kind === 'repair') { this.endPlacement(); return }
+      const cost = Config.UNITS.repair.cost
+      if (!this.buildPhase || this.buildPhase.getCredits() < cost) return
+      this.buildPhase?.selectStructure(null)
+      this.hud.clearStructureSelection()
+      this.startRepairPlacement()
     }
 
     // Build's "READY" button skips the separate PLAN phase and goes
@@ -568,7 +585,7 @@ private enterBuildPhase() {
 
     this.revealPhase = new RevealPhase(
       this.scene, this.powerCore, this.attackerUnits, this.structures, this.spheres, this.defenderUnits,
-      this.pendingGrenades, this.medicPads, this.tethers,
+      this.pendingGrenades, this.medicPads, this.tethers, this.repairPads, this.repairTethers,
     )
     this.revealPhase.onWin = () => {
       this.phase = 'win'; this.hud.setPhase('win')
@@ -662,6 +679,28 @@ private enterBuildPhase() {
         const cost = Config.UNITS.dog.cost
         if (!this.buildPhase || !this.buildPhase.spendCredits(cost)) return false
         this.defenderUnits.push(new SpriteUnit(this.scene, 'dog', x, y, 'defender', 'player'))
+        return false
+      },
+    }
+  }
+
+  private startRepairPlacement() {
+    this.endPlacement()
+    const color = Config.UNITS.repair.color
+    const ghost = this.makeGhostRing(color, 12, 20)
+    ghost.position.set(-400, 0, 1)
+    this.scene.add(ghost)
+    this.placement = {
+      kind: 'repair',
+      ghost, tint: null,
+      zoneXMin: Config.WORLD.LEFT,
+      zoneXMax: Config.DEFENDER_MAX_X,
+      marginTop: 0, marginBottom: 0,
+      onPlace: (x, y) => {
+        if (this.isCellOccupied(x, y)) return false
+        const cost = Config.UNITS.repair.cost
+        if (!this.buildPhase || !this.buildPhase.spendCredits(cost)) return false
+        this.defenderUnits.push(new SpriteUnit(this.scene, 'repair', x, y, 'defender', 'player'))
         return false
       },
     }
@@ -770,6 +809,10 @@ private enterBuildPhase() {
       if (p.isDead) continue
       if (Math.abs(p.worldX - x) < E && Math.abs(p.worldY - y) < E) return true
     }
+    for (const p of this.repairPads) {
+      if (p.isDead) continue
+      if (Math.abs(p.worldX - x) < E && Math.abs(p.worldY - y) < E) return true
+    }
     return false
   }
 
@@ -846,6 +889,8 @@ private enterBuildPhase() {
     for (const s of liveStructures) s.update(delta)
     for (const p of this.medicPads) p.animate(delta)
     for (const t of this.tethers) t.update(delta)
+    for (const p of this.repairPads) p.animate(delta)
+    for (const t of this.repairTethers) t.update(delta)
     this.buildPhase?.faceCamera(this.camera)
     this.revealPhase?.update(delta)
     this.revealPhase?.faceCamera(this.camera)
@@ -1132,6 +1177,10 @@ private enterBuildPhase() {
     this.medicPads = []
     for (const t of this.tethers) t.dispose()
     this.tethers = []
+    for (const p of this.repairPads) p.dispose()
+    this.repairPads = []
+    for (const t of this.repairTethers) t.dispose()
+    this.repairTethers = []
     this.renderer.dispose()
     this.scene.clear()
     this.hud?.dispose()

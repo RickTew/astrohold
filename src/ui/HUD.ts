@@ -26,6 +26,7 @@ export class HUD {
   onSpawnUnit: ((type: UnitType) => void) | null = null
   onBuySphere: (() => void) | null = null
   onBuyDog: (() => void) | null = null
+  onBuyRepair: (() => void) | null = null
   onBattle: (() => void) | null = null
   // Side picker — Game listens here for the chosen team. Fires once with the
   // player's faction (visual identity) + role (defender or attacker). The AI
@@ -55,7 +56,7 @@ export class HUD {
     // the same handlers via class selectors.
     type Tile = {
       label: string; cost: number; icon: string;
-      action?: 'sphere' | 'dog'; dataType?: string; preview?: boolean
+      action?: 'sphere' | 'dog' | 'repair'; dataType?: string; preview?: boolean
     }
     const robotTiles: Tile[] = [
       { label: 'SPHERE',  cost: 100, icon: '/sprites/sphere/south.png', action: 'sphere' },
@@ -68,7 +69,7 @@ export class HUD {
       { label: 'DOG',     cost:  40, icon: '/sprites/dog/south.png',    action: 'dog' },
       { label: 'DEFENSE', cost:  20, icon: '/sprites/defense/south.png', dataType: 'defense', preview: true },
       { label: 'LASER',   cost:  40, icon: '/sprites/laser/south.png',   dataType: 'laser',   preview: true },
-      { label: 'SIGNAL',  cost:  20, icon: '/sprites/signal/south.png',  dataType: 'signal',  preview: true },
+      { label: 'REPAIR',  cost:  70, icon: '/sprites/repair/south.png',  action: 'repair' },
     ]
     // Cyborg roster has only 5 distinct pieces today. We pad with 3 duplicates
     // to fill the 4×2 grid until new cyborg art is generated. (Was 5 duplicates
@@ -303,6 +304,9 @@ export class HUD {
     this.container.querySelectorAll('.hud-tile[data-action="dog"]').forEach(btn => {
       btn.addEventListener('click', () => this.onBuyDog?.())
     })
+    this.container.querySelectorAll('.hud-tile[data-action="repair"]').forEach(btn => {
+      btn.addEventListener('click', () => this.onBuyRepair?.())
+    })
     // Robot structures
     this.container.querySelectorAll<HTMLElement>('#hud-top .hud-tile[data-type]').forEach(btn => {
       btn.addEventListener('click', e => {
@@ -418,6 +422,9 @@ export class HUD {
       })
       this.container.querySelectorAll('.hud-tile[data-action="dog"]').forEach(b => {
         b.classList.toggle('insufficient', credits < Config.UNITS.dog.cost)
+      })
+      this.container.querySelectorAll('.hud-tile[data-action="repair"]').forEach(b => {
+        b.classList.toggle('insufficient', credits < Config.UNITS.repair.cost)
       })
       this.container.querySelectorAll('#hud-top .hud-tile[data-type]').forEach(b => {
         const type = (b as HTMLElement).dataset.type as StructureType

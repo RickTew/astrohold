@@ -130,6 +130,23 @@ export class OpponentAI {
         this.api.spawnDefenderUnit('dog', slot.x, slot.y)
       }
     }
+
+    // REPAIR — single support unit, mid-back columns so it can shuttle
+    // between the back-line sphere and the front-line towers without
+    // walking too far. Skips when budget's already tight — repair is a
+    // nice-to-have once the offensive arsenal is in place.
+    {
+      const cost = Config.UNITS.repair.cost
+      const slots = this.cellsInZoneSorted({
+        zoneXMin: Config.WORLD.LEFT,
+        colMin: 3, colMax: 5,
+        rowPreference: 'center',
+      })
+      if (this.api.getCredits() > stopAt && this.api.getCredits() >= cost && slots.length > 0) {
+        const slot = slots.shift()!
+        this.api.spawnDefenderUnit('repair', slot.x, slot.y)
+      }
+    }
   }
 
   // ── Attacker (Cyborgs) build strategy ──────────────────────────────────

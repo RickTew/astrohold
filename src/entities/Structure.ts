@@ -295,6 +295,53 @@ export class Structure {
     if (this.isDead && !this.dying) this.startDying()
   }
 
+  // Repair-bot heal target — restore HP up to maxHp, refresh the HP bar (or
+  // wall scale) the same way takeDamage does. Returns true iff any HP was
+  // actually restored. Refuses to repair a dead/dying structure (no Lazarus).
+  heal(amount: number): boolean {
+    if (this.isDead || this.dying || this.hp >= this.maxHp) return false
+    const before = this.hp
+    this.hp = Math.min(this.maxHp, this.hp + amount)
+    const restored = this.hp - before
+    if (restored <= 0) return false
+    const ratio = this.hp / this.maxHp
+    if (this.type === 'wall' && this.wallBody) {
+      const s = Math.max(0.05, ratio)
+      this.wallBody.scale.y = s
+      this.wallBody.position.y = -(1 - s) * (this.wallBodyHeight / 2)
+      const mat = this.wallBody.material as THREE.MeshBasicMaterial
+      const dim = 0.5 + 0.5 * ratio
+      const base = new THREE.Color(0.6 * dim, 0.4 * dim, 0.2 * dim)
+        .multiply(new THREE.Color(TEAM_TINT[this.team]))
+      mat.color.copy(base)
+    } else {
+      this.hpBar.scale.x = ratio
+      this.hpBar.position.x = -(1 - ratio) * 14
+      const mat = this.hpBar.material as THREE.MeshBasicMaterial
+      mat.color.setHex(ratio > 0.5 ? 0x00cc44 : ratio > 0.25 ? 0xffaa00 : 0xff2200)
+    }
+    this.pulseRepairVfx()
+    return true
+  }
+
+  // Brief warm-orange material flash on the structure's main sprite so the
+  // player can see a repair just landed. Wall has no sprite — skipped there.
+  private repairPulseTimer: number | null = null
+  private pulseRepairVfx() {
+    const s = this.sprite
+    if (!s) return
+    if (this.repairPulseTimer !== null) clearTimeout(this.repairPulseTimer)
+    s.material.color.setHex(0xffcc66)
+    this.repairPulseTimer = window.setTimeout(() => {
+      if (this.team === 'ai') {
+        s.material.color.setHex(TEAM_TINT['ai'])
+      } else {
+        s.material.color.setHex(TEAM_TINT['player'])
+      }
+      this.repairPulseTimer = null
+    }, 280)
+  }
+
   private startDying() {
     this.dying = true
     if (this.hpBarGroup) this.hpBarGroup.visible = false
