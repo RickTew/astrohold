@@ -11,10 +11,11 @@ import { playExplosion } from '../audio/sfx'
 const STRUCTURE_SPRITE_FOLDERS: Partial<Record<StructureType, string>> = {
   turret:  'tower',    // Robot_Tower — single canonical tower (replaces tower1/tower2)
   bomber:  'bomber',   // Robot_Bomber — AoE grenade-thrower
+  gunwall: 'gunwall',  // Robot_Wall — wall-tier HP turret (8 rotations, no anims)
   defense: 'defense',  // geodesic dome (preview, no rotations)
   gun:     'gun',      // twin-barrel turret (preview)
   laser:   'laser',    // twin-laser turret (preview)
-  signal:  'signal',   // satellite dish (preview)
+  signal:  'signal',   // satellite dish — preview asset preserved for type completeness
 }
 // Structures that ship with a 4-frame explosion sequence (folder/explosion/).
 const STRUCTURE_HAS_EXPLOSION: Partial<Record<StructureType, true>> = {
@@ -27,6 +28,9 @@ const STRUCTURE_HAS_EXPLOSION: Partial<Record<StructureType, true>> = {
 const STRUCTURE_SPRITE_SIZE: Partial<Record<StructureType, number>> = {
   turret: 64,
   bomber: 60,
+  // Gunwall — render at 64 (matching the tower's footprint) so it visually
+  // reads as a heavy front-line emplacement, not a flimsy preview piece.
+  gunwall: 64,
   gun:    40,
 }
 const SPRITE_SIZE = 50   // default — one cell
@@ -37,6 +41,9 @@ const SPRITE_SIZE = 50   // default — one cell
 const STRUCTURE_DEFAULT_DIR: Partial<Record<StructureType, string>> = {
   turret: 'east',
   bomber: 'east',
+  // Gunwall ships with 8 rotations like the tower — faces east toward the
+  // incoming cyborgs by default; the compass-rose buys extra fire arcs.
+  gunwall: 'east',
 }
 const EXPLOSION_FRAME_COUNT = 4
 const EXPLOSION_FRAME_INTERVAL = 0.09
@@ -183,6 +190,7 @@ export class Structure {
     switch (this.type) {
       case 'turret':
       case 'bomber':
+      case 'gunwall':
       case 'defense':
       case 'gun':
       case 'laser':

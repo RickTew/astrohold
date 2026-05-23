@@ -64,16 +64,17 @@ const ARMED_LIFETIME = 3
 // piece runs low.
 function structureRepairPriority(type: string): number {
   switch (type) {
-    case 'cannon': return 9
-    case 'bomber': return 8
-    case 'turret': return 7
-    case 'laser':  return 6
-    case 'gun':    return 5
+    case 'cannon':  return 9
+    case 'bomber':  return 8
+    case 'gunwall': return 8  // tankier than tower, costs as much as cannon — high priority
+    case 'turret':  return 7
+    case 'laser':   return 6
+    case 'gun':     return 5
     case 'defense':
-    case 'signal': return 3
-    case 'wall':   return 2
-    case 'mine':   return 1
-    default:       return 1
+    case 'signal':  return 3
+    case 'wall':    return 2
+    case 'mine':    return 1
+    default:        return 1
   }
 }
 
@@ -250,6 +251,15 @@ export class RevealPhase {
       }
       target.heal(t.healPerTick)
       bot.ammoRemaining = Math.max(0, bot.ammoRemaining - 1)
+      // Replay the weld pose each tick so the bot keeps "working" while
+      // tethered — the clip otherwise ends after the first turn and the
+      // bot would just stand in idle for subsequent ticks.
+      const tx = target instanceof PixelPowerCore
+        ? target.mesh.position.x : target.worldX
+      const ty = target instanceof PixelPowerCore
+        ? target.mesh.position.y : target.worldY
+      bot.faceTarget(tx, ty)
+      bot.playRepairAnim()
       this.combatThisReveal = true
       this.log('defender', `${this.actorLabel(bot)} welds ${this.targetLabel(target)} (+${t.healPerTick})`)
     }
@@ -593,31 +603,21 @@ export class RevealPhase {
 
     // Priority 1 — weld-tether the highest-priority damaged piece in range.
     // Tether is a sustained channel; the bot prefers to lock in for several
-    // turns of repair on the most valuable target.
+    // turns of repair on the most valuable target. The threshold here is
+    // looser than the medic's (priority >= 4 vs >= 8) since the repair bot
+    // has no throw fallback — without it the bot would just walk past a
+    // damaged tower instead of welding it.
     if (unit.ammoRemaining > 0) {
       const inRange = damaged
         .filter(t => Math.hypot(t.x - unit.worldX, t.y - unit.worldY) <= range)
         .sort((a, b) => b.priority - a.priority || b.missing - a.missing)
       const top = inRange[0]
-      if (top && top.priority >= 8) {
+      if (top) {
         return { kind: 'repair-tether', target: top.ref }
       }
     }
 
-    // Priority 2 — throw a repair-pack at whichever damaged piece is
-    // missing the most HP and is in range.
-    if (unit.ammoRemaining > 0) {
-      let best: Target | null = null
-      let bestMissing = 0
-      for (const t of damaged) {
-        const d = Math.hypot(t.x - unit.worldX, t.y - unit.worldY)
-        if (d > range) continue
-        if (t.missing > bestMissing) { best = t; bestMissing = t.missing }
-      }
-      if (best) return { kind: 'repair-throw', target: best.ref }
-    }
-
-    // Priority 3 — drop a pad if 2+ damaged pieces cluster near a deploy
+    // Priority 2 — drop a pad if 2+ damaged pieces cluster near a deploy
     // cell. Same shape as pickPadDeployCell, but the damaged-set covers
     // structures, defender units, sphere, and core sub-cells.
     if (unit.ammoRemaining >= 2) {
@@ -625,7 +625,7 @@ export class RevealPhase {
       if (padCell) return { kind: 'repair-pad', cell: padCell }
     }
 
-    // Priority 4 — walk toward the highest-priority damaged piece. No
+    // Priority 3 — walk toward the highest-priority damaged piece. No
     // range gating; the bot grinds across the field to reach it.
     const target = [...damaged].sort((a, b) => b.priority - a.priority || b.missing - a.missing)[0]
     if (target) {
@@ -1183,11 +1183,6 @@ export class RevealPhase {
       return
     }
 
-    if (action.kind === 'repair-throw') {
-      this.executeRepairThrow(actor, action.target)
-      return
-    }
-
     if (action.kind === 'repair-pad') {
       this.executeRepairPad(actor, action.cell)
       return
@@ -1229,53 +1224,6 @@ export class RevealPhase {
     return { x: t.worldX, y: t.worldY }
   }
 
-  // Robot Repair throw — lob a repair-pack at a damaged defender-side
-  // piece. Same projectile pipeline as the medic's heal-throw (silent
-  // landing, sprite-textured), with .heal() on impact and a warm amber
-  // tint instead of green.
-  private executeRepairThrow(actor: Actor, ref: TargetRef) {
-    if (!(actor instanceof SpriteUnit)) return
-    if (actor.type !== 'repair') return
-    if (actor.ammoRemaining <= 0) return
-
-    const target = this.resolveRepairTarget(ref)
-    if (!target || target.isDead) return
-    if (target.hp >= target.maxHp) return
-
-    const tp = this.repairTargetXY(target)
-    const ax = actor.worldX, ay = actor.worldY
-    const dist = Math.hypot(tp.x - ax, tp.y - ay)
-    const range = Config.UNITS.repair.range
-    if (dist > range) return
-
-    this.decrementActorAmmo(actor)
-    this.combatThisReveal = true
-
-    actor.faceTarget(tp.x, tp.y)
-
-    const muzzle = this.actorMuzzle(actor, tp.x, tp.y)
-    const healAmount = Config.UNITS.repair.damage   // repurposed as repair amount
-    const proj = new Projectile(
-      this.scene, muzzle.x, muzzle.y, null,
-      tp.x, tp.y,
-      0, false, 0, 0xffc874, getMedPackTexture(),
-    )
-    proj.silentLanding = true
-    const targetLabel = this.targetLabel(target)
-    const sourceLabel = this.actorLabel(actor)
-    proj.onHit = () => {
-      if (target.isDead) {
-        this.log('defender', `${sourceLabel}'s repair-pack arrives too late for ${targetLabel}`)
-        return
-      }
-      const healed = target.heal(healAmount)
-      this.log('defender', healed
-        ? `${sourceLabel} repairs ${targetLabel} (+${healAmount})`
-        : `${sourceLabel}'s repair-pack lands but ${targetLabel} is already full`)
-    }
-    this.projectiles.push(proj)
-  }
-
   // Robot Repair pad deployment. Burns 2 charges and drops a RepairPad on
   // the specified cell. Strict-skip on out-of-ammo / cell-occupied / out-
   // of-zone, just like the medic's pad. Pad lives in this.repairPads —
@@ -1296,6 +1244,7 @@ export class RevealPhase {
 
     actor.ammoRemaining = Math.max(0, actor.ammoRemaining - 2)
     actor.faceTarget(x, y)
+    actor.playRepairAnim()
     this.combatThisReveal = true
     this.repairPads.push(new RepairPad(this.scene, cell.col, cell.row))
     this.log('defender', `${this.actorLabel(actor)} deploys a repair-pad at (${cell.col}, ${cell.row})`)
@@ -1329,6 +1278,7 @@ export class RevealPhase {
     target.heal(tether.healPerTick)
     actor.ammoRemaining = Math.max(0, actor.ammoRemaining - 1)
     actor.faceTarget(tp.x, tp.y)
+    actor.playRepairAnim()
     this.combatThisReveal = true
     this.log('defender', `${this.actorLabel(actor)} welds ${this.targetLabel(target)} (+${tether.healPerTick})`)
   }

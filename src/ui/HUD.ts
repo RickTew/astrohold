@@ -62,10 +62,10 @@ export class HUD {
       { label: 'SPHERE',  cost: 100, icon: '/sprites/sphere/south.png', action: 'sphere' },
       { label: 'TOWER',   cost:  30, icon: '/sprites/tower/south.png',  dataType: 'turret' },
       { label: 'BOMBER',  cost:  70, icon: '/sprites/bomber/south.png', dataType: 'bomber' },
-      // WALL slot: the "?" placeholder didn't match the rest of the row,
-      // so we duplicate TOWER until wall art exists. Click handler is
-      // the same (data-type="turret") so both tiles place towers.
-      { label: 'TOWER',   cost:  30, icon: '/sprites/tower/south.png',  dataType: 'turret' },
+      // GUNWALL — Robot_Wall art (8 rotations, no anims). A wall-tier HP
+      // turret that shoots; replaces the duplicate-TOWER placeholder that
+      // used to live here.
+      { label: 'GUNWALL', cost:  60, icon: '/sprites/gunwall/south.png', dataType: 'gunwall' },
       { label: 'DOG',     cost:  40, icon: '/sprites/dog/south.png',    action: 'dog' },
       { label: 'DEFENSE', cost:  20, icon: '/sprites/defense/south.png', dataType: 'defense', preview: true },
       { label: 'LASER',   cost:  40, icon: '/sprites/laser/south.png',   dataType: 'laser',   preview: true },

@@ -35,15 +35,24 @@ D&D-style strategy:
   (2 charges, +15 HP/tick to adjacent cyborgs for 4 ticks), tether (1
   charge/turn, pins both endpoints, +20 HP/turn). Fragile (HP 50). See
   `MedicPad.ts`, `Tether.ts`, and `RevealPhase.medicDefaultAction()`.
-- **Robot Repair** — defender-side twin of the Medic. Same three-mode
-  structure (pack-throw / repair-pad / weld-tether), same 5-charge pool,
-  amber visuals instead of green. Repair targets are anything defender-side
-  with HP: structures, defender mobile units (dog), sphere, Power Core. AI
-  prioritizes Power Core > Cannon > Bomber > Sphere > Tower > … (see
-  `structureRepairPriority` in RevealPhase). Diagonal movement allowed.
-  HP 60, cost 70. See `RepairPad.ts`, `RepairTether.ts`, and
+- **Robot Repair** — defender-side support unit, **two modes only**:
+  repair-pad (2 charges, +15/tick to adjacent defender pieces) and
+  weld-tether (1 charge/turn, +20/turn, pins both endpoints). No throw —
+  the PixelLab export ships a Repair animation but no throw clip, so we
+  dropped that mode rather than render a static frame for it. Both actions
+  trigger the welding pose (`playRepairAnim()`, a new `repair` AnimState).
+  Repair targets anything defender-side with HP: structures, defender
+  mobile units (dog), sphere, Power Core. AI tether priority: Power Core
+  > Cannon ≈ Bomber ≈ Gunwall > Sphere > Tower > Laser > Gun > Wall > Mine
+  (see `structureRepairPriority` in RevealPhase). Diagonal movement
+  allowed. HP 60, cost 70. See `RepairPad.ts`, `RepairTether.ts`,
   `RevealPhase.repairDefaultAction()`. **HUD note:** REPAIR replaced the
   SIGNAL preview tile in the robot grid (bottom-right of the 4×2 layout).
+- **Gunwall (Robot_Wall)** — defender structure. A wall that shoots:
+  HP 200 (vs tower 80), damage 25 (matches tower), range 200 (vs tower
+  250), cost 60, ammo 5. 8-direction sprite art (no anims). Sits in the
+  HUD slot that used to be the duplicate-TOWER WALL placeholder. Uses
+  the same fire-arc compass-rose mechanic as the tower.
 
 ## HUD (session 15)
 Floating top strip with three SVG-silhouetted panels — DO NOT reserve
@@ -70,11 +79,10 @@ pulse ring (on `.hud-tile.selected`), edge-trace orbit (SVG
 via `.phase-reveal` class), unit icon glow. All theme-matched
 (cyan defender / pink attacker).
 
-- LEFT panel — 4×2 robot tile grid (8 pieces): Sphere/Tower/Bomber/TOWER
-  (the WALL slot is a duplicate TOWER until wall art exists) over
-  Dog/Defense/Laser/Repair. Defense/Laser are "preview" pieces with
-  placeholder behavior (no unique mechanics yet); Repair is fully wired
-  (session 16) — see the Robot Repair section above.
+- LEFT panel — 4×2 robot tile grid (8 pieces): Sphere/Tower/Bomber/Gunwall
+  over Dog/Defense/Laser/Repair. Defense/Laser are "preview" pieces with
+  placeholder behavior (no unique mechanics yet); Gunwall + Repair are
+  fully wired (session 16). See the Robot Repair + Gunwall sections above.
 - CENTER panel — clean chamfered rectangle SVG with two internal dividers
   splitting it into three console "screens":
   * **Title bar** (`.cc-title`): BUILD PHASE / PLAN PHASE / BATTLE label

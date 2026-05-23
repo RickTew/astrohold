@@ -192,37 +192,56 @@ same SpriteUnit class as cyborgs, just `side='defender'` and faces east on
 placement. Has its own walking animation; death plays the 4-frame
 explosion (omnidirectional; same frames copied into every dir folder).
 
-### Robot Repair (defender mobile support — NEW, session 16)
+### Robot Repair (defender mobile support — session 16)
 | Stat | Value |
 |---|---|
 | Cost | 70 |
 | HP | 60 |
 | Speed | 65 |
-| Range (throw / tether reach) | 150 |
-| Repair amount | 30 (throw, on land) · 15/tick (pad) · 20/turn (tether) |
+| Range (tether reach) | 150 |
+| Repair amount | 15/tick (pad) · 20/turn (tether) |
 | Ammo (shared charge pool) | 5 |
 | AP | 3 |
 | Diagonal movement | yes (`allowDiagonalMove: true`) |
 
-Defender-side twin of the Cyborg Medic. Three repair modes share the
-5-charge ammo pool: **throw repair-pack** (1 charge, in-range, target gets
-+30 HP on land — uses the med-pack sprite tinted amber), **deploy
-repair-pad** (2 charges, drops a wrench-glyph station that ticks +15 HP to
-adjacent defender pieces for 4 ticks or until destroyed), and **weld-tether**
-(1 charge/turn, glowing amber beam pins both endpoints, +20 HP/turn).
-Repairs anything defender-side with HP: towers, walls, bombers, cannons,
-sphere, the Combat Dog, and the Power Core.
+Defender-side support unit. **Two repair modes** share the 5-charge ammo
+pool: **deploy repair-pad** (2 charges, drops a wrench-glyph station that
+ticks +15 HP to adjacent defender pieces for 4 ticks or until destroyed)
+and **weld-tether** (1 charge/turn, glowing amber beam pins both endpoints,
++20 HP/turn). Repairs anything defender-side with HP: towers, walls,
+bombers, cannons, gunwalls, sphere, the Combat Dog, and the Power Core.
 
-AI priority: weld a high-priority piece (Power Core 12 → Cannon 9 → Bomber
-8 → Sphere 8 → Tower 7 → …) when in range, else throw at the most-damaged
-piece in range, else drop a pad on a cluster of 2+ wounded, else walk
-toward the most-damaged piece.
+(The PixelLab export ships a Repair animation but no throw clip, so the
+throw mode the Medic uses isn't replicated here. The welding pose plays
+every time the bot deploys a pad or attaches/ticks a tether.)
+
+AI priority: weld the highest-priority piece in range (Power Core 12 →
+Cannon 9 → Bomber 8 ≈ Gunwall 8 → Sphere 8 → Tower 7 → …), else drop a
+pad on a cluster of 2+ wounded, else walk toward the most-damaged piece.
 
 Sprite assets: 8-direction rotations + 9-frame walking (Moving) anim +
-9-frame Repair anim (staged on disk; not yet wired since `SpriteUnit` has
-no `repair` AnimState — repair actions snap to static pose for now). Death
-duplicates the 4-frame explodes anim into every direction folder, same as
-the Combat Dog.
+9-frame Repair anim (wired as `repair` AnimState, fires on
+pad/tether actions and re-fires each tether tick). Death duplicates the
+4-frame explodes anim into every direction folder, same as the Combat Dog.
+
+### Gunwall (defender structure — session 16)
+| Stat | Value |
+|---|---|
+| Cost | 60 |
+| HP | 200 |
+| Damage | 25 |
+| Range | 200 |
+| Ammo | 5 |
+| AP | 1 |
+| Fire interval | 2 |
+
+A wall that shoots. Tankier than a tower (HP 200 vs 80) with the same
+damage but shorter range (200 vs 250) — built as a hard point on the
+front line, eats hits and still bites back. Uses the same fire-arc
+compass-rose mechanic as the tower (default east, pay to add more).
+Stationary; can't walk. 8-direction static rotations from Robot_Wall
+(no walking/firing anims yet — sprite simply rotates to its fire facing).
+Sits in the HUD slot that used to be the duplicate-TOWER WALL placeholder.
 
 ### Structures (production)
 

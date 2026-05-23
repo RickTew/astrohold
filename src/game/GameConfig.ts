@@ -71,6 +71,12 @@ export const Config = {
     // defender Bomber is a deliberate placement choice, not a turret.
     bomber:  { cost: 70, hp: 100, damage: 20, range: 200, fireInterval: 4, apBudget: 1, aoeRadius: 50, ammo: 3, label: 'Bomber 70cr' },
     wall:    { cost: 20, hp: 300, damage: 0,  range: 0,   fireInterval: 0, apBudget: 0, aoeRadius: 0,  ammo: 0, label: 'Wall   20cr' },
+    // Gunwall — a wall that shoots. Tankier than a tower (HP 200 vs 80) but
+    // shorter range and slightly less ammo so it isn't a strict upgrade.
+    // Built as a hard point on the front line — eats hits and still bites
+    // back. 8-direction art so it can use the same fire-arc compass-rose
+    // mechanic as the regular tower.
+    gunwall: { cost: 60, hp: 200, damage: 25, range: 200, fireInterval: 2, apBudget: 1, aoeRadius: 0,  ammo: 5, label: 'Gunwall 60cr' },
     mine:    { cost: 20, hp: 50,  damage: 60, range: 60,  fireInterval: 0, apBudget: 0, aoeRadius: 0,  ammo: 1, label: 'Mine   20cr' },
     defense: { cost: 20, hp: 80,  damage: 0,  range: 0,   fireInterval: 0, apBudget: 0, aoeRadius: 0,  ammo: 0, label: 'Defense 20cr (preview)' },
     gun:     { cost: 30, hp: 80,  damage: 15, range: 200, fireInterval: 2, apBudget: 1, aoeRadius: 0,  ammo: 5, label: 'Gun 30cr (preview)' },

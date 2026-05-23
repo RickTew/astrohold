@@ -13,7 +13,7 @@ const DIRECTIONS = [
 type Direction = (typeof DIRECTIONS)[number]
 const ALL_DIRS = DIRECTIONS as readonly Direction[]
 
-export type AnimState = 'idle' | 'walking' | 'shoot' | 'throw' | 'die'
+export type AnimState = 'idle' | 'walking' | 'shoot' | 'throw' | 'die' | 'repair'
 
 // Sprite world size — matches the perceived height of the prior 3D cyborg.
 const SPRITE_SIZE = 60
@@ -179,6 +179,9 @@ const MANIFEST: Record<string, AnimManifest> = {
   // No idle clip ships — rest falls back to the static rotation PNGs.
   repair: {
     walking: { fps: 10, loop: true,  presentDirs: ALL_DIRS, frameCount: 9 },
+    // Welding/working pose — one-shot played when the bot drops a pad or
+    // attaches a tether. PixelLab ships 9 frames × all 8 directions.
+    repair:  { fps: 12, loop: false, presentDirs: ALL_DIRS, frameCount: 9 },
     die:     { fps: 10, loop: false, presentDirs: ALL_DIRS, frameCount: 4 },
   },
 }
@@ -209,7 +212,7 @@ export async function preloadSpriteUnit(type: UnitType, folder: string): Promise
 
   const manifest = MANIFEST[folder]
   const anims: Record<AnimState, AnimDef | undefined> = {
-    idle: undefined, walking: undefined, shoot: undefined, throw: undefined, die: undefined,
+    idle: undefined, walking: undefined, shoot: undefined, throw: undefined, die: undefined, repair: undefined,
   }
   // All states + all directions + all frames load concurrently. HTTP/2 lets
   // the browser multiplex these, so total wall-clock load time drops from
@@ -437,7 +440,7 @@ export class SpriteUnit {
     this.logicalY = y
     this.isMoving = true
     // Only start walking if we're not in the middle of a one-shot (shoot/throw).
-    if (this.currentState !== 'shoot' && this.currentState !== 'throw' && this.currentState !== 'die') {
+    if (this.currentState !== 'shoot' && this.currentState !== 'throw' && this.currentState !== 'repair' && this.currentState !== 'die') {
       this.playState('walking')
     }
   }
@@ -511,6 +514,16 @@ export class SpriteUnit {
     if (this.isDead) return
     if (!animSets.get(this.type)?.anims['throw']) return
     this.playState('throw')
+  }
+
+  // Robot Repair one-shot — welding/working pose triggered when the bot
+  // drops a pad or attaches a tether. Returns to walking/idle after the
+  // clip finishes (handled by advanceFrame). No-op for units without a
+  // 'repair' clip in their manifest (currently only the repair bot has one).
+  playRepairAnim() {
+    if (this.isDead) return
+    if (!animSets.get(this.type)?.anims['repair']) return
+    this.playState('repair')
   }
 
   faceTarget(x: number, y: number) {
@@ -647,7 +660,7 @@ export class SpriteUnit {
           // Clamp on final frame.
           this.frameIndex = this.currentFrames.length - 1
           // One-shot finished — transition back. Death stays on final frame.
-          if (this.currentState === 'shoot' || this.currentState === 'throw') {
+          if (this.currentState === 'shoot' || this.currentState === 'throw' || this.currentState === 'repair') {
             this.playState(this.isMoving ? 'walking' : 'idle')
             return
           }
