@@ -132,7 +132,25 @@ private buildHitPlane(): THREE.Mesh {
     this.hud.setCredits(this.credits)
     // BuildPhase serves the player's purchases — AI uses aiSpawnStructure()
     // directly on Game. So 'player' is the right team tint here.
-    this.structures.push(new Structure(this.scene, this.selectedType, cell.col, cell.row, 'player'))
+    const placed = new Structure(this.scene, this.selectedType, cell.col, cell.row, 'player')
+    this.structures.push(placed)
+    // Wall auto-orient: if a wall sits in the cell to the left OR right,
+    // flip the new piece (and its L/R neighbors) horizontal so the row
+    // reads as one continuous laser barrier. Walls in isolation, or with
+    // only top/bottom neighbors, stay vertical (the default). Right-click
+    // on any placed wall toggles its orientation back if the auto-pick
+    // was wrong.
+    if (placed.type === 'wall') {
+      const left = this.structures.find(s =>
+        s !== placed && s.type === 'wall' && s.row === placed.row && s.col === placed.col - 1)
+      const right = this.structures.find(s =>
+        s !== placed && s.type === 'wall' && s.row === placed.row && s.col === placed.col + 1)
+      if (left || right) {
+        placed.setWallHorizontal(true)
+        left?.setWallHorizontal(true)
+        right?.setWallHorizontal(true)
+      }
+    }
   }
 
   private showGhost(wx: number, wy: number) {

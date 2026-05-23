@@ -164,6 +164,13 @@ export class Structure {
     plateMats: THREE.MeshBasicMaterial[]
   } | null = null
   private wallPulse = 0
+  // Wall orientation. Default = vertical (plates at top/bottom, beam runs
+  // north-south, blocks the east-west cyborg corridor). When set to true
+  // the entire wallBody Group rotates 90° on Z so plates sit left/right
+  // and the beam runs east-west — useful for walls placed in a horizontal
+  // row at a single row index. Toggled by right-click during BUILD, also
+  // auto-set on placement based on neighbor cells.
+  private wallHorizontal = false
   // For sprite structures: kept so the death animation can swap textures.
   private sprite: THREE.Sprite | null = null
   // Death/explosion state — for sprite structures with an explosion sequence.
@@ -351,6 +358,19 @@ export class Structure {
   faceCamera(camera: THREE.Camera) {
     this.hpBarGroup.quaternion.copy(camera.quaternion)
   }
+
+  // Toggle / set the wall's orientation. Vertical (default) = beam runs
+  // north-south; horizontal = beam runs east-west. The whole wallBody
+  // Group rotates 90° on Z — geometry stays the same, including the
+  // damage-feedback scale.x (which thins the beam perpendicular to its
+  // length in either orientation). No-op for non-wall structures.
+  rotateWall() { this.setWallHorizontal(!this.wallHorizontal) }
+  setWallHorizontal(value: boolean) {
+    if (this.type !== 'wall' || !this.wallBody) return
+    this.wallHorizontal = value
+    this.wallBody.rotation.z = value ? Math.PI / 2 : 0
+  }
+  get isWallHorizontal() { return this.wallHorizontal }
 
   takeDamage(amount: number) {
     this.hp = Math.max(0, this.hp - amount)

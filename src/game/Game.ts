@@ -991,6 +991,14 @@ private enterBuildPhase() {
         if (world) {
           const s = this.findStructureNear(world.x, world.y)
           if (s) {
+            // Walls don't have a compass rose (no fire arcs to add) — repurpose
+            // right-click to rotate the laser barrier 90° instead. Lets the
+            // player run a wall horizontally across the bottom of a column or
+            // vertically along its edge.
+            if (s.type === 'wall') {
+              s.rotateWall()
+              return
+            }
             if (s === this.editingStructure) {
               this.closeCompassRose()
             } else {
