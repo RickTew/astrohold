@@ -394,6 +394,24 @@ export class RevealPhase {
       const slam = this.pickSlamWedge(unit)
       if (slam) return { kind: 'slam', cell: slam }
     }
+    // Sniper crouch-and-hold. Once a Sniper has ANY enemy in range from his
+    // current cell, he stays put — fires if he has ammo, holds if he
+    // doesn't. Only moves when no enemy is in range from his current spot.
+    // Matches the "marksman finds a position and locks down" trope; also
+    // stops the slow sniper from walking into close combat where he's
+    // useless. NOTE: sniper range 400 = half the world, so once positioned
+    // he's almost always anchored.
+    if (unit.type === 'sniper') {
+      const target = this.nearestEnemy(unit, Config.UNITS.sniper.range)
+      if (target) {
+        if (unit.ammoRemaining > 0) {
+          return { kind: 'fire', target: { kind: target.kind, id: target.id } }
+        }
+        return { kind: 'hold' }   // anchored even after firing his one round
+      }
+      // No target in current-cell range — fall through to normal advance
+      // so the sniper repositions to find a sight line.
+    }
     // Grenadier-specific: if an armed enemy bomb is adjacent (within 1.5
     // cells), prefer DIFFUSING it over anything else. Costs 1 AP, no
     // damage, bomb vanishes — strictly better than walking into the blast.
@@ -527,21 +545,36 @@ export class RevealPhase {
   }
 
   // Hang-back behavior for support units (medic, future cyborg-repair).
-  // When no ally needs healing, the medic should NOT charge enemies — it
-  // should stay near the squad so it can react to incoming damage. Picks
-  // the nearest non-medic ally and follows them at ~1.5 cells distance.
-  // Holds if already close; holds if no squadmates left.
+  // The medic should ADVANCE WITH THE SQUAD but never lead. Targets a
+  // position one cell behind the FRONT (west-most) ally — close enough
+  // to heal anyone in the formation, but always trailing the front line.
+  // Previous version anchored to the nearest ally, which meant the medic
+  // got stuck at the BACK if rear cyborgs were the closest neighbors.
   private supportHangBackAction(unit: SpriteUnit): QueuedAction {
-    let nearest: SpriteUnit | null = null
-    let nearestDist = Infinity
+    // Find the front-most non-medic cyborg (lowest X — attackers march
+    // west toward the core).
+    let frontX: number | null = null
+    let frontY: number | null = null
     for (const a of this.units) {
       if (a.isDead || a === unit || a.type === 'medic') continue
-      const d = Math.hypot(a.worldX - unit.worldX, a.worldY - unit.worldY)
-      if (d < nearestDist) { nearestDist = d; nearest = a }
+      if (frontX === null || a.worldX < frontX) {
+        frontX = a.worldX
+        frontY = a.worldY
+      }
     }
-    if (!nearest) return { kind: 'hold' }     // alone — wait, don't suicide
-    if (nearestDist <= Config.GRID_CELL * 1.5) return { kind: 'hold' }
-    const cell = this.pickStepTowardPoint(unit, nearest.worldX, nearest.worldY)
+    if (frontX === null || frontY === null) return { kind: 'hold' }
+
+    // Target: 1 cell east of the front (i.e., one row behind). Medic
+    // range is 150 (3 cells), so from this position the medic can still
+    // throw med-packs at the front-line ally AND any ally 2 cells deeper.
+    const TARGET_OFFSET = Config.GRID_CELL
+    const targetX = frontX + TARGET_OFFSET
+    const targetY = frontY
+
+    const dist = Math.hypot(unit.worldX - targetX, unit.worldY - targetY)
+    if (dist < Config.GRID_CELL * 0.8) return { kind: 'hold' }
+
+    const cell = this.pickStepTowardPoint(unit, targetX, targetY)
     if (cell) return { kind: 'move', cell }
     return { kind: 'hold' }
   }
@@ -1006,7 +1039,18 @@ export class RevealPhase {
     const erow = Math.floor((nearest.y - Config.WORLD.BOTTOM) / cs)
     const SEARCH = 4
 
-    let best: { col: number; row: number; net: number; hits: number; nearD: number } | null = null
+    // ZERO-ALLY rule: the thrower refuses to drop a bomb in a cell where
+    // ANY friendly unit's center sits inside the AoE. Even one ally caught
+    // is unacceptable from the player's POV ("don't damage my team"). If
+    // no clean cell is reachable, the thrower holds and walks instead.
+    //
+    // BEYOND-ENEMY preference: among clean (zero-ally) cells, prefer cells
+    // on the FAR side of the target — i.e., cells whose distance from the
+    // thrower is greater than the enemy's distance from the thrower. A
+    // bomb thrown "past" the enemy catches them in its AoE without putting
+    // the AoE between thrower and target where own allies might advance.
+    let best: { col: number; row: number; hits: number; nearD: number; beyondEnemy: boolean } | null = null
+    const enemyD = Math.hypot(nearest.x - ax, nearest.y - ay)
     for (let dc = -SEARCH; dc <= SEARCH; dc++) {
       for (let dr = -SEARCH; dr <= SEARCH; dr++) {
         const col = ecol + dc
@@ -1018,30 +1062,25 @@ export class RevealPhase {
         if (Math.hypot(x - ax, y - ay) > range) continue
         if (actor instanceof Structure && !this.targetInFireArc(actor, x - ax, y - ay)) continue
         if (!this.isCellEmptyForBomb(x, y)) continue
-        // Count enemies AND allies whose center sits in the bomb's AoE.
-        // Friendly-fire: a throw that hits 1 enemy + 1 ally is a wash
-        // (net = 0), so require net > 0 to commit. The thrower itself is
-        // excluded from `allies` above, so it doesn't self-block its own
-        // throw — but the AoE still applies to the thrower on detonation
-        // (cellBombDanger will push it to flee).
+        // Count enemies + allies that would be caught in the AoE.
         let hits = 0
-        let allyHits = 0
         let nearD = Infinity
         for (const e of enemies) {
           const d = Math.hypot(e.x - x, e.y - y)
           if (d <= aoeRadius) { hits++; if (d < nearD) nearD = d }
         }
         if (hits === 0) continue
+        let allyHits = 0
         for (const a of allies) {
-          if (Math.hypot(a.x - x, a.y - y) <= aoeRadius) allyHits++
+          if (Math.hypot(a.x - x, a.y - y) <= aoeRadius) { allyHits++; break }
         }
-        const net = hits - allyHits
-        if (net <= 0) continue
+        if (allyHits > 0) continue  // hard skip — never bomb own team
+        const beyondEnemy = Math.hypot(x - ax, y - ay) > enemyD
         if (!best
-            || net > best.net
-            || (net === best.net && hits > best.hits)
-            || (net === best.net && hits === best.hits && nearD < best.nearD)) {
-          best = { col, row, net, hits, nearD }
+            || hits > best.hits
+            || (hits === best.hits && beyondEnemy && !best.beyondEnemy)
+            || (hits === best.hits && beyondEnemy === best.beyondEnemy && nearD < best.nearD)) {
+          best = { col, row, hits, nearD, beyondEnemy }
         }
       }
     }
