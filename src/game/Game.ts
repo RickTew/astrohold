@@ -86,11 +86,6 @@ export class Game {
   // reveal, cleaned up on expire/death.
   private repairPads: RepairPad[] = []
   private repairTethers: RepairTether[] = []
-  // Tracks reveals in a row that had zero combat events (no shots, no bombs,
-  // no diffuses). After NO_PROGRESS_LIMIT consecutive idle reveals, the
-  // auto-loop halts with a stalemate — prevents the "robot dog wanders
-  // forever while everyone else is out of ammo" lockup.
-  private noProgressReveals = 0
   // Monotonic counter for the combat-history log. First reveal after PLAN
   // is Turn 1; auto-chained reveals bump from there. Never reset within a
   // game — Play Again is a full reload.
@@ -650,12 +645,9 @@ private enterBuildPhase() {
       this.phase = 'lose'; this.hud.setPhase('lose')
     }
     this.revealPhase.onComplete = () => {
-      const hadActions = (this.revealPhase?.totalSteps ?? 0) > 0
-      const hadCombat = this.revealPhase?.combatThisReveal === true
       // Flush this reveal's events to the combat-history log BEFORE we lose
-      // the reference. Even a 0-action reveal gets a header (the player sees
-      // "Turn N — no activity") so the lock-step between gameplay and log
-      // stays obvious.
+      // the reference. Even a 0-action reveal gets a header so the lock-step
+      // between gameplay and log stays obvious.
       const entries = this.revealPhase?.combatLog ?? []
       this.hud.appendCombatLog(this.revealTurn, entries)
       this.revealTurn++
@@ -664,30 +656,16 @@ private enterBuildPhase() {
       // turnsArmed counter bumped. RevealPhase force-detonates expired bombs
       // at the start of the next reveal (see ARMED_LIFETIME there).
       for (const g of this.pendingGrenades) g.advanceTurn()
-      // Tick the no-combat counter. Wandering / advancing without anyone
-      // ever shooting is a deadlock — call stalemate after a few rounds so
-      // the auto-loop can't spin indefinitely.
-      this.noProgressReveals = hadCombat ? 0 : this.noProgressReveals + 1
       if (this.phase !== 'reveal') return   // game ended mid-reveal
-      const NO_PROGRESS_LIMIT = 5
-      if (!hadActions || this.noProgressReveals >= NO_PROGRESS_LIMIT) {
-        // Stalemate: either no piece could act this turn, or no combat has
-        // happened for several reveals in a row. Tell the player which case
-        // we hit so they can see whether it's ammo exhaustion vs gridlock.
-        const reason = !hadActions
-          ? 'No piece could move or fire this turn — every cyborg is blocked or out of ammo, and every defender is out of range or out of ammo.'
-          : `No combat for ${NO_PROGRESS_LIMIT} consecutive turns — pieces are wandering with nothing to hit.`
-        this.hud.showStalemate(reason)
-        return
-      }
-      // Clear queued plans so the next auto-reveal uses default actions
-      // (cyborgs advance / spheres + towers auto-fire) instead of replaying
-      // the original plan turn after turn.
+      // No stalemate gate — battle is die-or-survive, not chess. The auto-
+      // reveal loop continues until win (all cyborgs dead) or lose (core
+      // dead). If both sides have no productive action available, the loop
+      // keeps running with empty reveals; eventually somebody walks into
+      // somebody else's range and combat resumes.
       for (const u of this.attackerUnits) u.clearPlan()
       for (const u of this.defenderUnits) u.clearPlan()
       for (const s of this.spheres)       s.clearPlan()
       for (const s of this.structures)    s.clearPlan()
-      // Chain straight into the next reveal — no PLAN phase between turns.
       this.enterRevealPhase()
     }
   }
