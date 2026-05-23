@@ -737,15 +737,15 @@ export class SpriteUnit {
           this.frameIndex = this.currentFrames.length - 1
           // One-shot finished — transition back. Death stays on final frame.
           if (this.currentState === 'shoot' || this.currentState === 'throw' || this.currentState === 'repair') {
-            // Sniper post-shot: if he still has ammo AND isn't moving,
-            // drop into the dedicated 'aim' state (crouched-aiming sprite).
-            // 'aim' is a 1-frame loop so it holds indefinitely. When ammo
-            // hits 0 OR he starts moving, we fall through to the normal
-            // transition — idle has no clip for sniper, so refreshDirection
-            // resolves to the upright STANDING static rotation. That's the
-            // visible "stand up — gun's empty" pose the user wants.
-            if (this.type === 'sniper' && this.currentState === 'shoot'
-                && !this.isMoving && this.ammoRemaining > 0) {
+            // Sniper post-shot: ALWAYS drop into the 'aim' state (crouched
+            // pose) as long as we're not moving. Previously gated on
+            // ammoRemaining > 0, but with ammo=1 the crouch never had a
+            // frame on-screen — sniper fired and jumped straight to
+            // standing. Holding aim regardless of ammo means the player
+            // sees the crouched pose between shots / after a one-and-done
+            // shot. The "moving on" visual is the walking anim when the
+            // sniper retreats — clearer than the brief standing pose.
+            if (this.type === 'sniper' && this.currentState === 'shoot' && !this.isMoving) {
               this.playState('aim')
               return
             }
