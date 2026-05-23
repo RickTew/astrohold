@@ -121,6 +121,12 @@ export class RevealPhase {
   onComplete: (() => void) | null = null
   onWin: (() => void) | null = null
   onLose: (() => void) | null = null
+  // Fires immediately each time a log line is recorded — Game wires this to
+  // HUD.appendCombatLogEntry so the panel updates in step with the visible
+  // action, instead of dumping a whole reveal's events in a batch after
+  // every animation finishes. The combatLog array is still maintained for
+  // anything that wants the full transcript at end-of-reveal.
+  onLogEntry: ((entry: CombatLogEntry) => void) | null = null
 
   constructor(
     private scene: THREE.Scene,
@@ -1971,7 +1977,9 @@ export class RevealPhase {
   // ── Combat log helpers ──────────────────────────────────────────────────
 
   private log(side: 'defender' | 'attacker' | 'neutral', text: string) {
-    this.combatLog.push({ side, text })
+    const entry: CombatLogEntry = { side, text }
+    this.combatLog.push(entry)
+    this.onLogEntry?.(entry)
   }
 
   private actorLabel(a: AnyTarget): string {

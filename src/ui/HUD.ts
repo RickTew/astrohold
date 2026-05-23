@@ -560,10 +560,19 @@ export class HUD {
   // reliable path, avoids the partial-state landmines a hand-rolled reset
   // would hit (pending grenades, animation frames mid-clip, audio context).
   private showEndMessage(headline: string, subtitle: string, color: string) {
+    // Sci-fi action button: chamfered cyan panel with corner brackets and a
+    // pulsing glow. Reads as a "primary system action" instead of a plain
+    // browser button. Plays a short audio cue on hover too.
     this.messageEl.innerHTML = `
       ${headline}
       <small>${subtitle}</small>
-      <button id="play-again-btn">Play Again</button>
+      <button id="play-again-btn" type="button">
+        <span class="pa-corner pa-tl"></span>
+        <span class="pa-corner pa-tr"></span>
+        <span class="pa-corner pa-bl"></span>
+        <span class="pa-corner pa-br"></span>
+        <span class="pa-label">▶ Play Again</span>
+      </button>
     `
     this.messageEl.style.color = color
     this.messageEl.classList.remove('hidden')
@@ -774,34 +783,69 @@ export class HUD {
     `
   }
 
-  // Append one reveal's worth of combat-log entries under a "── Turn N ──"
-  // header. Writes to BOTH center-panel variants (def + att) so the log is
-  // populated regardless of which side the player picked. Auto-scrolls and
-  // trims to the last ~200 rows so long battles don't bloat memory.
-  appendCombatLog(turn: number, entries: ReadonlyArray<CombatLogEntry>) {
-    if (entries.length === 0) return
+  // Last turn we wrote a header for. Streaming appendCombatLogEntry uses
+  // this to know when to inject a new "── Turn N ──" divider — without it
+  // every entry would either spam its own header or share a header with
+  // entries from a different reveal.
+  private lastLoggedTurn = 0
+
+  // Append a single combat-log entry as it happens. Called from RevealPhase
+  // via onLogEntry the instant a log line is recorded, so the HUD panel
+  // moves in lockstep with the visible action rather than batching a whole
+  // reveal's events at onComplete.
+  appendCombatLogEntry(turn: number, entry: CombatLogEntry) {
     const logs = this.container.querySelectorAll<HTMLElement>('.center-log')
     logs.forEach(log => {
       if (this.combatLogEmpty) {
         log.innerHTML = ''
+        this.combatLogEmpty = false
       }
-      const header = document.createElement('div')
-      header.className = 'log-turn'
-      header.textContent = `── Turn ${turn} ──`
-      log.appendChild(header)
-      for (const e of entries) {
-        const row = document.createElement('div')
-        row.className = `log-entry ${e.side}`
-        row.textContent = e.text
-        log.appendChild(row)
+      if (turn !== this.lastLoggedTurn) {
+        const header = document.createElement('div')
+        header.className = 'log-turn'
+        header.textContent = `── Turn ${turn} ──`
+        log.appendChild(header)
       }
+      const row = document.createElement('div')
+      row.className = `log-entry ${entry.side}`
+      row.textContent = entry.text
+      log.appendChild(row)
       const MAX_ROWS = 220
       while (log.childElementCount > MAX_ROWS) {
         log.removeChild(log.firstChild!)
       }
       log.scrollTop = log.scrollHeight
     })
-    this.combatLogEmpty = false
+    this.lastLoggedTurn = turn
+  }
+
+  // Batch-append kept for safety + the empty-turn case where a reveal has
+  // zero log lines — we still want a "Turn N — (no activity)" placeholder
+  // header so the player can see turns ticking by. Pass [] to emit only
+  // the header.
+  appendCombatLog(turn: number, entries: ReadonlyArray<CombatLogEntry>) {
+    if (entries.length === 0) {
+      // Only emit a header if no streaming entry already inserted one
+      // for this turn.
+      if (this.lastLoggedTurn !== turn) {
+        const logs = this.container.querySelectorAll<HTMLElement>('.center-log')
+        logs.forEach(log => {
+          if (this.combatLogEmpty) {
+            log.innerHTML = ''
+            this.combatLogEmpty = false
+          }
+          const header = document.createElement('div')
+          header.className = 'log-turn'
+          header.textContent = `── Turn ${turn} — (no activity)`
+          log.appendChild(header)
+          log.scrollTop = log.scrollHeight
+        })
+        this.lastLoggedTurn = turn
+      }
+      return
+    }
+    // Non-empty path: streaming already wrote these via appendCombatLogEntry.
+    // No-op so we don't double-emit.
   }
 
   setPlanningSelection(info: PlanningSelectionInfo | null) {

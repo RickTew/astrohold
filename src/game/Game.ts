@@ -644,6 +644,12 @@ private enterBuildPhase() {
     this.revealPhase.onLose = () => {
       this.phase = 'lose'; this.hud.setPhase('lose')
     }
+    // Stream each log line to the HUD as it's recorded so the panel keeps
+    // pace with the action visually instead of dumping a whole reveal's
+    // events in one batch at onComplete.
+    this.revealPhase.onLogEntry = entry => {
+      this.hud.appendCombatLogEntry(this.revealTurn, entry)
+    }
     this.revealPhase.onComplete = () => {
       // Flush this reveal's events to the combat-history log BEFORE we lose
       // the reference. Even a 0-action reveal gets a header so the lock-step
