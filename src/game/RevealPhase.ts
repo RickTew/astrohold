@@ -387,12 +387,32 @@ export class RevealPhase {
       if (fix) return fix
     }
 
-    // Hulk-specific: if 2+ enemies cluster in any cardinal slam wedge AND
-    // we have slam ammo, slam them. Lower per-target damage than punch but
-    // hits up to 3 at once — a real "save it for the cluster" decision.
-    if (unit.type === 'hulk' && unit.slamAmmoRemaining > 0) {
-      const slam = this.pickSlamWedge(unit)
-      if (slam) return { kind: 'slam', cell: slam }
+    // Hulk: single-minded core-march. He's melee-only and HUNGRY for the
+    // Power Core. Decision order is local-only:
+    //   1. Slam clustered enemies if 2+ in a cardinal wedge (special, ammo-gated)
+    //   2. Punch anything in his short melee range (70 = adjacent cells)
+    //   3. Otherwise march toward the core — DON'T get distracted by enemies
+    //      in sight. The Hulk has fists, no ranged option; the only thing
+    //      that wins the game is reaching the core. Bypasses the generic
+    //      fire/sight/advance branches that follow.
+    if (unit.type === 'hulk') {
+      if (unit.slamAmmoRemaining > 0) {
+        const slam = this.pickSlamWedge(unit)
+        if (slam) return { kind: 'slam', cell: slam }
+      }
+      const meleeRange = Config.UNITS.hulk.range
+      const melee = this.nearestEnemy(unit, meleeRange)
+      if (melee) {
+        return { kind: 'fire', target: { kind: melee.kind, id: melee.id } }
+      }
+      if (!this.core.isDead) {
+        const cc = this.core.cellCenters()[0]
+        const cell = this.pickStepTowardPoint(unit, cc.x, cc.y)
+        if (cell) return { kind: 'move', cell }
+        const wander = this.pickWanderStep(unit)
+        if (wander) return { kind: 'move', cell: wander }
+      }
+      return { kind: 'hold' }
     }
     // Sniper find-a-spot-and-shoot. Loop:
     //   1. With ammo: if a target is in range → FIRE (anchor in place).
@@ -428,12 +448,11 @@ export class RevealPhase {
       // Fall through to move / advance if no throw is available right now.
     }
     const range: number = Config.UNITS[unit.type].range
-    // Hulk's punches are FISTS — they don't consume ammo. He always has
-    // hands. The slamAmmo counter still gates slam (special wedge attack);
-    // this exception is only for regular punches.
-    const meleeUnlimited = unit.type === 'hulk'
+    // Hulk has his own block above (single-minded core-march) so we don't
+    // need the melee-unlimited exception here anymore — by the time we
+    // reach this branch, unit is guaranteed not to be a hulk.
     if (range > 0 && !this.isLobbedThrower(unit) && unit.type !== 'medic' && unit.type !== 'repair'
-        && (unit.ammoRemaining > 0 || meleeUnlimited)) {
+        && unit.ammoRemaining > 0) {
       // Bomb counterplay: if there's an armed enemy bomb in range AND we're
       // safely outside its AoE, shoot it instead of an enemy unit. Detonates
       // the bomb harmlessly (from our perspective) — clears the field.
@@ -1333,13 +1352,24 @@ export class RevealPhase {
   }
 
   private shouldDetonateGrenade(g: PendingGrenade): boolean {
-    // Friendly-fire model — any non-dead piece entering the AoE triggers
-    // the bomb, regardless of side. The bomb's owner can't ignore his own
-    // explosive; pickStepTowardPoint already treats armed-bomb cells as
-    // dangerous for everyone (see cellBombDanger), so units will try to
-    // flee their own bombs rather than walk into them.
+    // ENEMY-ONLY trigger: only an enemy stepping into the AoE sets off
+    // the bomb. Allies walking past an idle bomb won't trigger it (it
+    // would feel terrible if your own grenadier's mistake blew up an
+    // ally just for walking nearby). NOTE: friendly-fire still applies
+    // on DETONATION — once the bomb goes off, the blast hits everyone
+    // in radius regardless of side. cellBombDanger keeps fleeing all
+    // armed bombs (own + enemy) since "blast you when an enemy walks
+    // close" is still a real threat.
     const r = g.aoeRadius
-    for (const u of this.units)         if (!u.isDead && Math.hypot(u.worldX - g.worldX, u.worldY - g.worldY) <= r) return true
+    if (g.side === 'defender') {
+      // Defender bomb — triggers on attackers only
+      for (const u of this.units) {
+        if (u.isDead) continue
+        if (Math.hypot(u.worldX - g.worldX, u.worldY - g.worldY) <= r) return true
+      }
+      return false
+    }
+    // Attacker bomb — triggers on defender pieces + core only
     for (const s of this.spheres)       if (!s.isDead && Math.hypot(s.worldX - g.worldX, s.worldY - g.worldY) <= r) return true
     for (const s of this.structures)    if (!s.isDead && Math.hypot(s.worldX - g.worldX, s.worldY - g.worldY) <= r) return true
     for (const d of this.defenderUnits) if (!d.isDead && Math.hypot(d.worldX - g.worldX, d.worldY - g.worldY) <= r) return true
@@ -1758,6 +1788,8 @@ export class RevealPhase {
     if (actor instanceof SpriteUnit) {
       actor.faceTarget(aim.x, aim.y)
       actor.playAttackAnim()
+      // Sniper one-liner — fires once per battle, on the actual shot.
+      if (actor.type === 'sniper') actor.announceOnce('sniper_shot')
     }
     // Omnidirectional structures (Sentry) rotate to face the target each
     // shot. setSingleFacing both updates fireFacings AND swaps the sprite

@@ -480,23 +480,39 @@ export class SpriteUnit {
   private spokenSet = new Set<SpeechTrigger>()
   checkSpeechTriggers() {
     if (this.isDead) return
-    // Medic + Repair ammo represents heal-charges, not bullets — skip
-    // the "out of clips" callouts for them since the phrasing doesn't fit.
-    const hasOffensiveAmmo = this.type !== 'medic' && this.type !== 'repair'
     if (this.hp / this.maxHp <= 0.25) this.maybeSpeak('low_hp')
-    if (hasOffensiveAmmo) {
-      if (this.ammoRemaining === 1) this.maybeSpeak('low_ammo')
+    // Medic + Repair: ammo represents heal charges. Different callout
+    // ("X packs left" instead of "X rounds left") to match the mechanic.
+    if (this.type === 'medic' || this.type === 'repair') {
+      if (this.ammoRemaining === 2) this.maybeSpeak('medic_low_packs', { n: 2 })
+      else if (this.ammoRemaining === 1) this.maybeSpeak('medic_low_packs', { n: 1 })
       else if (this.ammoRemaining === 0) this.maybeSpeak('out_of_ammo')
+      return
+    }
+    // Offensive units — show actual round count in the low-ammo bubble.
+    if (this.ammoRemaining > 0 && this.ammoRemaining <= 2) {
+      this.maybeSpeak('low_ammo', { n: this.ammoRemaining })
+    } else if (this.ammoRemaining === 0) {
+      this.maybeSpeak('out_of_ammo')
     }
   }
   notifyAmmoChanged() { this.checkSpeechTriggers() }
-  private maybeSpeak(trigger: SpeechTrigger) {
-    if (this.spokenSet.has(trigger)) return
-    this.spokenSet.add(trigger)
+  // One-shot announcement (fires once per battle). Used by RevealPhase
+  // to call out specific events like "sniper takes the shot."
+  announceOnce(trigger: SpeechTrigger) {
+    this.maybeSpeak(trigger)
+  }
+  private maybeSpeak(trigger: SpeechTrigger, context?: { n?: number }) {
+    // Each (trigger + n value) is gated independently so we can say
+    // "3 shots left" then later "1 shot left" — same trigger, different
+    // counts. The key includes the substituted value.
+    const key = (context && context.n !== undefined ? `${trigger}:${context.n}` : trigger) as SpeechTrigger
+    if (this.spokenSet.has(key)) return
+    this.spokenSet.add(key)
     const scene = this.mesh.parent
     if (!(scene instanceof THREE.Scene)) return
     const voice: SpeechVoice = this._side === 'attacker' ? 'cyborg' : 'robot'
-    spawnSpeechBubble(scene, this.logicalX, this.logicalY, voice, trigger)
+    spawnSpeechBubble(scene, this.logicalX, this.logicalY, voice, trigger, context)
   }
 
   // Medic heal target — restore HP up to maxHp, trigger green pulse VFX on

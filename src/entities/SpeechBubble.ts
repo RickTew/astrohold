@@ -10,19 +10,33 @@ import * as THREE from 'three'
 //   'robot'  — mechanical ALL-CAPS, used by defender units + structures
 
 export type SpeechVoice = 'cyborg' | 'robot'
-export type SpeechTrigger = 'low_hp' | 'low_ammo' | 'out_of_ammo'
+export type SpeechTrigger =
+  | 'low_hp' | 'low_ammo' | 'out_of_ammo'
+  | 'sniper_shot' | 'medic_low_packs'
 
+// Lines may include {n} which is replaced with the context value
+// (current ammo count, pack count, etc.) before render. Keeps the lines
+// data-driven for repeated callouts at different counts.
 const LINES: Record<SpeechVoice, Record<SpeechTrigger, string[]>> = {
   cyborg: {
-    low_hp:      ["Aaargh!", "I'm hit!", "Need a medic!", "Patch me up!", "Bleeding out!"],
-    low_ammo:    ["Last clip!", "Almost out!", "Should've packed more!", "One round left!"],
-    out_of_ammo: ["I'm out!", "Down to fists!", "Need ammo!", "Pistol's dry!"],
+    low_hp:           ["MEDIC!!", "Where's the medic?", "Aaargh!", "I'm hit!", "Need a patch!", "Bleeding out!"],
+    low_ammo:         ["{n} shots left!", "Down to {n}!", "Last few rounds!", "Almost out!"],
+    out_of_ammo:      ["I'm out!", "Down to fists!", "Need ammo!", "Pistol's dry!"],
+    sniper_shot:      ["Lining one up... shot.", "Target acquired... gone.", "One shot, one kill.", "Eagle eye."],
+    medic_low_packs:  ["{n} packs left!", "Running low on supplies!", "Down to {n} kits!"],
   },
   robot: {
-    low_hp:      ["SYSTEMS CRITICAL", "INTEGRITY: LOW", "DAMAGE: SEVERE", "ARMOR FAILING"],
-    low_ammo:    ["AMMUNITION LOW", "ROUND COUNT: 1", "RESERVES DEPLETING"],
-    out_of_ammo: ["AMMUNITION DEPLETED", "WEAPON OFFLINE", "RELOAD UNAVAILABLE"],
+    low_hp:           ["SYSTEMS CRITICAL", "INTEGRITY: LOW", "DAMAGE: SEVERE", "ARMOR FAILING"],
+    low_ammo:         ["{n} ROUNDS LEFT", "AMMUNITION: {n}", "RESERVES LOW"],
+    out_of_ammo:      ["AMMUNITION DEPLETED", "WEAPON OFFLINE", "RELOAD UNAVAILABLE"],
+    sniper_shot:      ["TARGET ELIMINATED", "MARK STRUCK", "ONE SHOT CONFIRMED"],
+    medic_low_packs:  ["REPAIR CHARGES: {n}", "CHARGES LOW: {n}", "SUPPLIES DEPLETING"],
   },
+}
+
+export interface SpeechContext {
+  /** Substituted into {n} in the line template. Undefined → no substitution. */
+  n?: number
 }
 
 // One canvas texture per unique (voice, text). Repeat lines on later
@@ -99,9 +113,14 @@ export function spawnSpeechBubble(
   x: number, y: number,
   voice: SpeechVoice,
   trigger: SpeechTrigger,
+  context: SpeechContext = {},
 ) {
   const lines = LINES[voice][trigger]
-  const text = lines[Math.floor(Math.random() * lines.length)]
+  const raw = lines[Math.floor(Math.random() * lines.length)]
+  // Substitute {n} if a count was provided. Falls back to the literal
+  // {n} placeholder if context.n is undefined (so we'd see the broken
+  // string in the bubble — easy to spot during dev).
+  const text = context.n !== undefined ? raw.replace('{n}', String(context.n)) : raw
   const tex = makeTexture(text, voice)
   const mat = new THREE.SpriteMaterial({
     map: tex, transparent: true,

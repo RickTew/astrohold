@@ -16,6 +16,8 @@ import { RepairPad } from '../entities/RepairPad'
 import { RepairTether } from '../entities/RepairTether'
 import { FireArcPreview } from '../entities/FireArcPreview'
 import { OpponentAI, OpponentSide } from '../ai/OpponentAI'
+import { recordBattle, BattleRecord } from './BattleStats'
+import type { CombatLogEntry } from './RevealPhase'
 
 type Phase = 'loading' | 'pick-side' | 'build' | 'planning' | 'reveal' | 'win' | 'lose'
 
@@ -90,6 +92,15 @@ export class Game {
   // is Turn 1; auto-chained reveals bump from there. Never reset within a
   // game — Play Again is a full reload.
   private revealTurn = 1
+
+  // Running per-side battle stats. Updated each reveal in onComplete by
+  // parsing the combat log; flushed to localStorage on game end via
+  // recordBattleEnd. Resets on Play Again (full page reload).
+  private statsDamage = { attacker: 0, defender: 0 }
+  private statsKills  = { attacker: 0, defender: 0 }
+  // True if recordBattleEnd already fired for this game — prevents a
+  // double-record if win/lose handlers ever stack.
+  private battleRecorded = false
 
   // Single-player mode: the player picks one side at load; the other side
   // runs on autopilot via OpponentAI. Set after the side picker resolves.
@@ -665,9 +676,11 @@ private enterBuildPhase() {
     )
     this.revealPhase.onWin = () => {
       this.phase = 'win'; this.hud.setPhase('win')
+      this.recordBattleEnd('cyborgs_eliminated')
     }
     this.revealPhase.onLose = () => {
       this.phase = 'lose'; this.hud.setPhase('lose')
+      this.recordBattleEnd('core_destroyed')
     }
     // Stream each log line to the HUD as it's recorded so the panel keeps
     // pace with the action visually instead of dumping a whole reveal's
@@ -681,6 +694,7 @@ private enterBuildPhase() {
       // between gameplay and log stays obvious.
       const entries = this.revealPhase?.combatLog ?? []
       this.hud.appendCombatLog(this.revealTurn, entries)
+      this.accumulateStatsFromLog(entries)
       this.revealTurn++
       this.revealPhase = null
       // End-of-reveal bomb tick: unarmed → armed, already-armed gets its
@@ -696,6 +710,7 @@ private enterBuildPhase() {
       if (!this.powerCore.isDead && !this.cyborgsCanAttack()) {
         this.phase = 'win'
         this.hud.setPhase('win')
+        this.recordBattleEnd('attrition')
         return
       }
       // No stalemate gate — battle is die-or-survive. Loop continues until
@@ -706,6 +721,54 @@ private enterBuildPhase() {
       for (const s of this.structures)    s.clearPlan()
       this.enterRevealPhase()
     }
+  }
+
+  // Parse combat-log entries and add per-side damage + kill totals.
+  // Log format from RevealPhase.log: "X hits Y (−25)" or "X AoE — N hit
+  // (−123, M killed)". Side is set by the logger; we read damage out of
+  // the parenthesized suffix. Used by recordBattleEnd to write a stats
+  // snapshot for later balance analysis.
+  private accumulateStatsFromLog(entries: ReadonlyArray<CombatLogEntry>) {
+    for (const e of entries) {
+      if (e.side !== 'attacker' && e.side !== 'defender') continue
+      // Damage — "(−N" or "(−N," patterns. Uses Unicode minus U+2212.
+      const dmgMatch = e.text.match(/\(−(\d+)/)
+      if (dmgMatch) this.statsDamage[e.side] += parseInt(dmgMatch[1], 10)
+      // Kills — every "killed" word in a damage line counts. AoE lines
+      // include "N killed" with the count.
+      const killCountMatch = e.text.match(/(\d+)\s+killed/)
+      if (killCountMatch) this.statsKills[e.side] += parseInt(killCountMatch[1], 10)
+      else if (e.text.includes('killed')) this.statsKills[e.side] += 1
+    }
+  }
+
+  // Snapshot the current game state and persist a BattleRecord to
+  // localStorage. Called from each terminal path (core dead / cyborgs
+  // eliminated / attrition). endType is informational — the player POV
+  // win/lose derives from playerSide + endType.
+  private recordBattleEnd(endType: BattleRecord['endType']) {
+    if (this.battleRecorded) return
+    this.battleRecorded = true
+    const playerWon =
+      (this.playerSide === 'defender' && endType !== 'core_destroyed') ||
+      (this.playerSide === 'attacker' && endType === 'core_destroyed')
+    const aliveAttacker = this.attackerUnits.filter(u => !u.isDead).length
+    const aliveDefender =
+      this.defenderUnits.filter(u => !u.isDead).length +
+      this.spheres.filter(s => !s.isDead).length +
+      this.structures.filter(s => !s.isDead).length
+    recordBattle({
+      endedAt: new Date().toISOString(),
+      outcome: playerWon ? 'win' : 'lose',
+      endType,
+      playerSide: this.playerSide ?? 'defender',
+      turns: this.revealTurn,
+      alive: { attacker: aliveAttacker, defender: aliveDefender },
+      damageDealt: { ...this.statsDamage },
+      kills: { ...this.statsKills },
+      coreHpEnd: this.powerCore.hp,
+      coreMaxHp: this.powerCore.maxHp,
+    })
   }
 
   // True if at least one alive cyborg can still inflict damage. Medics are

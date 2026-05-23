@@ -437,17 +437,21 @@ export class Structure {
     if (this.type === 'wall' || this.type === 'mine' || this.type === 'defense' || this.type === 'signal') return
     if (this.hp / this.maxHp <= 0.25) this.maybeSpeak('low_hp')
     if (Config.STRUCTURES[this.type].ammo > 0) {
-      if (this.ammoRemaining === 1) this.maybeSpeak('low_ammo')
-      else if (this.ammoRemaining === 0) this.maybeSpeak('out_of_ammo')
+      if (this.ammoRemaining > 0 && this.ammoRemaining <= 2) {
+        this.maybeSpeak('low_ammo', { n: this.ammoRemaining })
+      } else if (this.ammoRemaining === 0) {
+        this.maybeSpeak('out_of_ammo')
+      }
     }
   }
   notifyAmmoChanged() { this.checkSpeechTriggers() }
-  private maybeSpeak(trigger: SpeechTrigger) {
-    if (this.spokenSet.has(trigger)) return
-    this.spokenSet.add(trigger)
+  private maybeSpeak(trigger: SpeechTrigger, context?: { n?: number }) {
+    const key = (context && context.n !== undefined ? `${trigger}:${context.n}` : trigger) as SpeechTrigger
+    if (this.spokenSet.has(key)) return
+    this.spokenSet.add(key)
     const scene = this.mesh.parent
     if (!(scene instanceof THREE.Scene)) return
-    spawnSpeechBubble(scene, this.worldX, this.worldY, 'robot', trigger)
+    spawnSpeechBubble(scene, this.worldX, this.worldY, 'robot', trigger, context)
   }
 
   // Sprite-based damage feedback for non-wall structures. Builds a tinted
