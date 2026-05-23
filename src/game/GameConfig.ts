@@ -30,6 +30,12 @@ export const Config = {
   // shredded by entrenched defender Sphere + Laser arrays, so the AI needs
   // bodies. 0.5 = +50% (1500 cr). Tune up if AI still loses too easily.
   AI_CREDIT_BONUS: 0.5,
+  // Attacker (cyborg) side gets MORE base credits than defenders. Defenders
+  // have stationary high-HP structures + repair-bot healing, so attackers
+  // need extra bodies to compensate. Applied on top of any AI bonus —
+  // player-attacker base = 1000 × 1.3 = 1300; AI-attacker = 1300 × 1.5 = 1950.
+  // Adjusted from a balance pass where defender consistently won by attrition.
+  ATTACKER_CREDIT_BONUS: 0.3,
   TURN_INTERVAL: 0.65,   // seconds per battle turn — also drives unit move speed
   // Cost to add an extra fire-arc facing to a directional structure (turret /
   // bomber / cannon / gun / laser). Player opens the compass-rose popup by
@@ -72,11 +78,12 @@ export const Config = {
     bomber:  { cost: 70, hp: 100, damage: 20, range: 200, fireInterval: 4, apBudget: 1, aoeRadius: 65, ammo: 3, label: 'Bomber 70cr' },
     wall:    { cost: 20, hp: 300, damage: 0,  range: 0,   fireInterval: 0, apBudget: 0, aoeRadius: 0,  ammo: 0, label: 'Wall   20cr' },
     // Sentry — heavy-armor turret (the art is a tracked vehicle with gun
-    // arms — reads as a tower, not a wall). Tankier than a tower (HP 200
+    // arms — reads as a tower, not a wall). Tankier than a tower (HP 150
     // vs 80) but shorter range and slightly less ammo so it isn't a strict
-    // upgrade. Built as a hard point on the front line — eats hits and
-    // still bites back. 8-direction art for the compass-rose fire arcs.
-    sentry:  { cost: 60, hp: 200, damage: 25, range: 200, fireInterval: 2, apBudget: 1, aoeRadius: 0,  ammo: 5, label: 'Sentry 60cr' },
+    // upgrade. Originally shipped at HP 200 — balance pass showed that
+    // combined with repair-bot healing it became effectively unkillable;
+    // dropped to 150 (~2× tower HP at 2× cost) for honest value.
+    sentry:  { cost: 60, hp: 150, damage: 25, range: 200, fireInterval: 2, apBudget: 1, aoeRadius: 0,  ammo: 5, label: 'Sentry 60cr' },
     mine:    { cost: 20, hp: 50,  damage: 60, range: 60,  fireInterval: 0, apBudget: 0, aoeRadius: 0,  ammo: 1, label: 'Mine   20cr' },
     defense: { cost: 20, hp: 80,  damage: 0,  range: 0,   fireInterval: 0, apBudget: 0, aoeRadius: 0,  ammo: 0, label: 'Defense 20cr (preview)' },
     gun:     { cost: 30, hp: 80,  damage: 15, range: 200, fireInterval: 2, apBudget: 1, aoeRadius: 0,  ammo: 5, label: 'Gun 30cr (preview)' },

@@ -313,16 +313,25 @@ private enterBuildPhase() {
     this.phase = 'build'
     this.attackerUnits = []
     this.defenderUnits = []
-    // AI side gets a credit bonus — the human's positional judgement
-    // outweighs raw piece count, so the AI fields a bigger squad to
-    // compensate. Player side keeps START_CREDITS exactly.
-    const aiSideCredits = Math.floor(Config.START_CREDITS * (1 + Config.AI_CREDIT_BONUS))
+    // Per-side credit calculation. Two bonuses stack:
+    //   ATTACKER_CREDIT_BONUS — cyborgs always get more base credits than
+    //     defenders because defender pieces are stationary, tanky, and
+    //     healable. Without this attackers consistently lose by attrition.
+    //   AI_CREDIT_BONUS — the AI on either side gets an extra multiplier
+    //     to compensate for not having a human's positional judgement.
+    // Defender base = START_CREDITS (1000). Attacker base = ×1.3 = 1300.
+    // AI-side either base × 1.5 on top — so player-attacker is 1300, AI-
+    // attacker is 1950, player-defender is 1000, AI-defender is 1500.
     const aiIsAttacker  = this.playerSide === 'defender'
     const aiIsDefender  = this.playerSide === 'attacker'
-    this.attCredits = aiIsAttacker ? aiSideCredits : Config.START_CREDITS
+    const attackerBase  = Math.floor(Config.START_CREDITS * (1 + Config.ATTACKER_CREDIT_BONUS))
+    const defenderBase  = Config.START_CREDITS
+    const attackerCr    = aiIsAttacker ? Math.floor(attackerBase * (1 + Config.AI_CREDIT_BONUS)) : attackerBase
+    const defenderCr    = aiIsDefender ? Math.floor(defenderBase * (1 + Config.AI_CREDIT_BONUS)) : defenderBase
+    this.attCredits = attackerCr
     this.hud.setPhase('build')
     this.hud.setAttCredits(this.attCredits)
-    const buildPhaseCredits = aiIsDefender ? aiSideCredits : Config.START_CREDITS
+    const buildPhaseCredits = defenderCr
     this.buildPhase = new BuildPhase(
       this.scene, this.camera, this.hud, buildPhaseCredits,
       // Cross-system occupancy: structures must respect existing

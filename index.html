@@ -555,8 +555,21 @@
       line-height: 1.4;
       color: #99bbcc;
       padding-right: 4px;
+      /* Themed scrollbar — Firefox + WebKit. Without these the default
+         scrollbar appears as a thick black/grey vertical bar that looks
+         like an unrelated artifact running down the panel. */
       scrollbar-width: thin;
+      scrollbar-color: rgba(106, 196, 255, 0.45) transparent;
       text-align: center;
+    }
+    .center-log::-webkit-scrollbar          { width: 6px; }
+    .center-log::-webkit-scrollbar-track    { background: transparent; }
+    .center-log::-webkit-scrollbar-thumb    {
+      background: rgba(106, 196, 255, 0.40);
+      border-radius: 3px;
+    }
+    .center-log::-webkit-scrollbar-thumb:hover {
+      background: rgba(106, 196, 255, 0.65);
     }
     .center-log .log-turn {
       color: #ffcc66;
@@ -800,6 +813,20 @@
     #play-again-btn .pa-bl { bottom: 3px; left: 3px;    border-right: 0; border-top: 0; }
     #play-again-btn .pa-br { bottom: 3px; right: 3px;   border-left: 0;  border-top: 0; }
     #play-again-btn .pa-label { position: relative; z-index: 1; }
+    /* Play arrow — CSS-drawn triangle in the same color as the label.
+       Inline ▶ Unicode character rendered as a colorful emoji on macOS
+       and didn't match the rest of the button. A border-triangle ensures
+       a single-style monochrome arrow that picks up currentColor. */
+    #play-again-btn .pa-arrow {
+      display: inline-block;
+      width: 0; height: 0;
+      border-style: solid;
+      border-width: 8px 0 8px 13px;
+      border-color: transparent transparent transparent currentColor;
+      margin-right: 12px;
+      vertical-align: middle;
+      filter: drop-shadow(0 0 4px rgba(140, 220, 255, 0.8));
+    }
     @keyframes pa-pulse {
       0%, 100% { box-shadow:
         0 0 18px rgba(80, 180, 255, 0.45),

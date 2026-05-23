@@ -132,26 +132,14 @@ export class HUD {
     // corners on all sides, internal divider line under the banner area.
     const centerPanelSvg = (side: 'def' | 'att') => `
       <svg class="panel-frame" viewBox="0 0 320 210" preserveAspectRatio="none" aria-hidden="true">
-        <!-- Clean chamfered rectangle. Internal divider lines split the
-             panel into three horizontal sections so each piece of content
-             gets its own "screen" inside the console:
-               y=4..58    title bar (BUILD PHASE)
-               y=58..158  content area (CR, matchup, status)
-               y=158..206 action bar (READY button) -->
+        <!-- Clean chamfered rectangle. Divider lines that used to split the
+             panel into 3 sub-screens were removed — the panel is now a
+             single combat-log readout, so the internal lines just looked
+             like artifacts cutting through the text. -->
         <path d="M 14,4 L 306,4 L 316,14 L 316,196 L 306,206 L 14,206 L 4,196 L 4,14 Z"
               fill="rgba(8, 18, 32, 0.58)"
               stroke="${side === 'def' ? '#5aa7d4' : '#d45a7a'}"
               stroke-width="2.8" stroke-linejoin="miter"
-              vector-effect="non-scaling-stroke"/>
-        <!-- Divider under the title bar -->
-        <line x1="14" y1="58" x2="306" y2="58"
-              stroke="${side === 'def' ? '#5aa7d4' : '#d45a7a'}"
-              stroke-width="1.2" stroke-opacity="0.40"
-              vector-effect="non-scaling-stroke"/>
-        <!-- Divider above the action bar -->
-        <line x1="14" y1="158" x2="306" y2="158"
-              stroke="${side === 'def' ? '#5aa7d4' : '#d45a7a'}"
-              stroke-width="1.2" stroke-opacity="0.40"
               vector-effect="non-scaling-stroke"/>
         <!-- Decorative corner tick marks — read as "screw heads" anchoring
              the console panel. Subtle, just enough texture to feel mechanical. -->
@@ -571,7 +559,8 @@ export class HUD {
         <span class="pa-corner pa-tr"></span>
         <span class="pa-corner pa-bl"></span>
         <span class="pa-corner pa-br"></span>
-        <span class="pa-label">▶ Play Again</span>
+        <span class="pa-arrow"></span>
+        <span class="pa-label">Play Again</span>
       </button>
     `
     this.messageEl.style.color = color
