@@ -849,15 +849,16 @@ export class RevealPhase {
     return c ? { col: c.col, row: c.row } : null
   }
 
-  // How much armed enemy-bomb damage would a unit on `side` standing at
-  // (x, y) absorb if every armed bomb in range went off right now. Used by
-  // pickStepTowardPoint to flee primed AoE. Only ARMED bombs count —
-  // freshly-thrown unarmed grenades don't yet pose a threat.
-  private cellBombDanger(x: number, y: number, side: 'attacker' | 'defender'): number {
+  // How much armed-bomb damage would a unit standing at (x, y) absorb if
+  // every armed bomb in radius went off right now. Used by pickStepTowardPoint
+  // to flee primed AoE. With the friendly-fire model, ALL armed bombs are
+  // counted — a unit will flee its own side's bombs too (it can't shrug
+  // off the explosion just because its team threw it). `side` parameter
+  // kept for signature compatibility but no longer filters anything.
+  private cellBombDanger(x: number, y: number, _side: 'attacker' | 'defender'): number {
     let total = 0
     for (const g of this.pendingGrenades) {
       if (!g.armed) continue
-      if (g.side === side) continue   // own side's bombs don't trigger on us
       if (Math.hypot(g.worldX - x, g.worldY - y) <= g.aoeRadius) total += g.damage
     }
     return total
@@ -916,10 +917,13 @@ export class RevealPhase {
     const ax = this.actorX(actor)
     const ay = this.actorY(actor)
 
-    // Collect enemy positions for the side-appropriate target set. Power
-    // Core is represented by its four sub-cell centers so a bomb landing
-    // adjacent to ANY of them counts as a core hit.
+    // Collect enemy AND ally positions. Power Core is represented by its
+    // four sub-cell centers so a bomb landing adjacent to ANY of them
+    // counts as a core hit. Bombs are friendly-fire now, so we also need
+    // to know which cells would catch our own teammates — the AI should
+    // refuse throws that hurt us more than them.
     const enemies: { x: number; y: number }[] = []
+    const allies: { x: number; y: number }[] = []
     if (actor.side === 'attacker') {
       for (const s of this.spheres)       if (!s.isDead) enemies.push({ x: s.worldX, y: s.worldY })
       for (const s of this.structures)    if (!s.isDead) enemies.push({ x: s.worldX, y: s.worldY })
@@ -927,8 +931,23 @@ export class RevealPhase {
       if (!this.core.isDead) {
         for (const cc of this.core.cellCenters()) enemies.push({ x: cc.x, y: cc.y })
       }
+      for (const u of this.units) {
+        if (u.isDead) continue
+        if (actor instanceof SpriteUnit && u === actor) continue  // don't count self
+        allies.push({ x: u.worldX, y: u.worldY })
+      }
     } else {
       for (const u of this.units) if (!u.isDead) enemies.push({ x: u.worldX, y: u.worldY })
+      for (const s of this.spheres)       if (!s.isDead) allies.push({ x: s.worldX, y: s.worldY })
+      for (const s of this.structures) {
+        if (s.isDead) continue
+        if (actor === s) continue                             // don't count self (defender bomber)
+        allies.push({ x: s.worldX, y: s.worldY })
+      }
+      for (const d of this.defenderUnits) if (!d.isDead) allies.push({ x: d.worldX, y: d.worldY })
+      if (!this.core.isDead) {
+        for (const cc of this.core.cellCenters()) allies.push({ x: cc.x, y: cc.y })
+      }
     }
     if (enemies.length === 0) return null
 
@@ -947,7 +966,7 @@ export class RevealPhase {
     const erow = Math.floor((nearest.y - Config.WORLD.BOTTOM) / cs)
     const SEARCH = 4
 
-    let best: { col: number; row: number; hits: number; nearD: number } | null = null
+    let best: { col: number; row: number; net: number; hits: number; nearD: number } | null = null
     for (let dc = -SEARCH; dc <= SEARCH; dc++) {
       for (let dr = -SEARCH; dr <= SEARCH; dr++) {
         const col = ecol + dc
@@ -957,24 +976,32 @@ export class RevealPhase {
         if (x < Config.WORLD.LEFT || x > Config.WORLD.RIGHT) continue
         if (y < Config.WORLD.BOTTOM || y > Config.WORLD.TOP) continue
         if (Math.hypot(x - ax, y - ay) > range) continue
-        // Structures only throw within their fire arc — same constraint
-        // as direct-fire targeting. Mobile throwers (cyborg Bomber /
-        // Grenadier) can lob in any direction since they pivot to face.
         if (actor instanceof Structure && !this.targetInFireArc(actor, x - ax, y - ay)) continue
         if (!this.isCellEmptyForBomb(x, y)) continue
-        // Count enemies whose center sits in the bomb's AoE if it landed
-        // here. Zero = wasted throw — skip the cell entirely.
+        // Count enemies AND allies whose center sits in the bomb's AoE.
+        // Friendly-fire: a throw that hits 1 enemy + 1 ally is a wash
+        // (net = 0), so require net > 0 to commit. The thrower itself is
+        // excluded from `allies` above, so it doesn't self-block its own
+        // throw — but the AoE still applies to the thrower on detonation
+        // (cellBombDanger will push it to flee).
         let hits = 0
+        let allyHits = 0
         let nearD = Infinity
         for (const e of enemies) {
           const d = Math.hypot(e.x - x, e.y - y)
           if (d <= aoeRadius) { hits++; if (d < nearD) nearD = d }
         }
         if (hits === 0) continue
+        for (const a of allies) {
+          if (Math.hypot(a.x - x, a.y - y) <= aoeRadius) allyHits++
+        }
+        const net = hits - allyHits
+        if (net <= 0) continue
         if (!best
-            || hits > best.hits
-            || (hits === best.hits && nearD < best.nearD)) {
-          best = { col, row, hits, nearD }
+            || net > best.net
+            || (net === best.net && hits > best.hits)
+            || (net === best.net && hits === best.hits && nearD < best.nearD)) {
+          best = { col, row, net, hits, nearD }
         }
       }
     }
@@ -1163,9 +1190,11 @@ export class RevealPhase {
     }
   }
 
-  // Proximity-fuse bombs: any enemy entering the aoeRadius detonates the
-  // bomb immediately. Side-aware — defender bombs only trigger on cyborgs,
-  // attacker bombs trigger on robots/dogs/core.
+  // Proximity-fuse bombs: any non-dead piece entering the aoeRadius
+  // detonates the bomb immediately — friendly-fire model, no side
+  // discrimination. The thrower's own teammates can set off the bomb
+  // (and take damage from the blast), so the AI penalizes ally-overlap
+  // when picking throw cells.
   private tickPendingGrenades(delta: number) {
     for (let i = this.pendingGrenades.length - 1; i >= 0; i--) {
       const g = this.pendingGrenades[i]
@@ -1202,18 +1231,16 @@ export class RevealPhase {
   }
 
   private shouldDetonateGrenade(g: PendingGrenade): boolean {
+    // Friendly-fire model — any non-dead piece entering the AoE triggers
+    // the bomb, regardless of side. The bomb's owner can't ignore his own
+    // explosive; pickStepTowardPoint already treats armed-bomb cells as
+    // dangerous for everyone (see cellBombDanger), so units will try to
+    // flee their own bombs rather than walk into them.
     const r = g.aoeRadius
-    if (g.side === 'defender') {
-      for (const u of this.units) {
-        if (u.isDead) continue
-        if (Math.hypot(u.worldX - g.worldX, u.worldY - g.worldY) <= r) return true
-      }
-      return false
-    }
-    // Attacker bomb — trigger on any defender piece in range.
-    for (const s of this.spheres)        if (!s.isDead && Math.hypot(s.worldX - g.worldX, s.worldY - g.worldY) <= r) return true
-    for (const s of this.structures)     if (!s.isDead && Math.hypot(s.worldX - g.worldX, s.worldY - g.worldY) <= r) return true
-    for (const d of this.defenderUnits)  if (!d.isDead && Math.hypot(d.worldX - g.worldX, d.worldY - g.worldY) <= r) return true
+    for (const u of this.units)         if (!u.isDead && Math.hypot(u.worldX - g.worldX, u.worldY - g.worldY) <= r) return true
+    for (const s of this.spheres)       if (!s.isDead && Math.hypot(s.worldX - g.worldX, s.worldY - g.worldY) <= r) return true
+    for (const s of this.structures)    if (!s.isDead && Math.hypot(s.worldX - g.worldX, s.worldY - g.worldY) <= r) return true
+    for (const d of this.defenderUnits) if (!d.isDead && Math.hypot(d.worldX - g.worldX, d.worldY - g.worldY) <= r) return true
     if (!this.core.isDead) {
       for (const cc of this.core.cellCenters()) {
         if (Math.hypot(cc.x - g.worldX, cc.y - g.worldY) <= r) return true
@@ -1710,14 +1737,17 @@ export class RevealPhase {
     if (!isAoe) playGunshot()
   }
 
-  private applyAoe(cx: number, cy: number, radius: number, damage: number, source: Actor): AoeSummary {
-    return this.applyAoeForSide(cx, cy, radius, damage, source.side)
+  private applyAoe(cx: number, cy: number, radius: number, damage: number, _source: Actor): AoeSummary {
+    return this.applyAoeForSide(cx, cy, radius, damage, _source.side)
   }
 
-  // Splash damage application. Returns the number of pieces hit, total damage
-  // dealt, and how many of those hits were killing blows — log lines read
-  // these to format the post-action summary.
-  private applyAoeForSide(cx: number, cy: number, radius: number, damage: number, side: 'attacker' | 'defender'): AoeSummary {
+  // Splash damage application. AoE explosions are FRIENDLY-FIRE — every
+  // non-dead piece in radius takes damage regardless of which side it
+  // belongs to. The `side` parameter is kept on the signature for the
+  // log label (which side fired the bomb) but no longer filters who gets
+  // hit. Returns the number of pieces hit, total damage dealt, and kill
+  // count for the post-action summary.
+  private applyAoeForSide(cx: number, cy: number, radius: number, damage: number, _side: 'attacker' | 'defender'): AoeSummary {
     let hits = 0, kills = 0
     const hit = (target: { isDead: boolean; takeDamage(n: number): void }) => {
       if (target.isDead) return
@@ -1725,29 +1755,28 @@ export class RevealPhase {
       hits++
       if (target.isDead) kills++
     }
-    if (side === 'defender') {
-      for (const u of this.units) {
-        if (u.isDead) continue
-        if (this.inRadius(u.worldX, u.worldY, cx, cy, radius)) hit(u)
-      }
-    } else {
-      for (const s of this.spheres) {
-        if (s.isDead) continue
-        if (this.inRadius(s.worldX, s.worldY, cx, cy, radius)) hit(s)
-      }
-      for (const s of this.structures) {
-        if (s.isDead) continue
-        if (this.inRadius(s.worldX, s.worldY, cx, cy, radius)) hit(s)
-      }
-      for (const u of this.defenderUnits) {
-        if (u.isDead) continue
-        if (this.inRadius(u.worldX, u.worldY, cx, cy, radius)) hit(u)
-      }
-      if (!this.core.isDead) {
-        const cc = this.core.cellCenters()
-        const inside = cc.some(p => this.inRadius(p.x, p.y, cx, cy, radius))
-        if (inside) hit(this.core)
-      }
+    // Cyborgs (attacker units)
+    for (const u of this.units) {
+      if (u.isDead) continue
+      if (this.inRadius(u.worldX, u.worldY, cx, cy, radius)) hit(u)
+    }
+    // Defender pieces (spheres + structures + dog/repair + core)
+    for (const s of this.spheres) {
+      if (s.isDead) continue
+      if (this.inRadius(s.worldX, s.worldY, cx, cy, radius)) hit(s)
+    }
+    for (const s of this.structures) {
+      if (s.isDead) continue
+      if (this.inRadius(s.worldX, s.worldY, cx, cy, radius)) hit(s)
+    }
+    for (const u of this.defenderUnits) {
+      if (u.isDead) continue
+      if (this.inRadius(u.worldX, u.worldY, cx, cy, radius)) hit(u)
+    }
+    if (!this.core.isDead) {
+      const cc = this.core.cellCenters()
+      const inside = cc.some(p => this.inRadius(p.x, p.y, cx, cy, radius))
+      if (inside) hit(this.core)
     }
     return { hits, damageDealt: hits * damage, kills }
   }
