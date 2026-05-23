@@ -269,6 +269,14 @@ export class SpriteUnit {
   // RevealPhase casts at the read site.
   tether: unknown = null
 
+  // Cell the unit came FROM on its most recent move. Persists across
+  // reveals so pickStepTowardPoint can avoid backtracking — a unit that
+  // sidestepped north past a wall should keep heading north rather than
+  // oscillating N → S → N. Default -999 = "never moved" so the first step
+  // has no backtrack restriction. Updated in moveTo.
+  lastTraversedCol = -999
+  lastTraversedRow = -999
+
   private sprite: THREE.Sprite
   private hpBarGroup: THREE.Group
   private hpBarFill: THREE.Mesh
@@ -436,6 +444,11 @@ export class SpriteUnit {
     // until our mesh visually reaches the new logical position.
     this.prevX = this.logicalX
     this.prevY = this.logicalY
+    // Persistent "came-from" memory for anti-backtrack in pickStepTowardPoint
+    // (kept across reveals, unlike prevX/Y which resets when the walk
+    // animation completes).
+    this.lastTraversedCol = Math.floor((this.prevX - Config.WORLD.LEFT) / Config.GRID_CELL)
+    this.lastTraversedRow = Math.floor((this.prevY - Config.WORLD.BOTTOM) / Config.GRID_CELL)
     this.logicalX = x
     this.logicalY = y
     this.isMoving = true

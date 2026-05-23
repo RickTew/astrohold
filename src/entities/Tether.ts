@@ -15,12 +15,19 @@ import { SpriteUnit } from './SpriteUnit'
 const BEAM_WIDTH = 5         // world units
 const HALO_WIDTH = 14        // halo width behind the core beam
 const HEAL_PER_TICK = 20
+// Hard cap on tether duration. After this many ticks the bond auto-ends so
+// the medic can re-target instead of staying pinned to a single ally that
+// keeps taking damage faster than the tether heals (also stops the visual
+// from feeling permanently "stuck on" to the player).
+const MAX_TICKS = 5
 
 export class Tether {
   readonly id: string
   readonly medic: SpriteUnit
   readonly target: SpriteUnit
   readonly healPerTick = HEAL_PER_TICK
+  readonly maxTicks = MAX_TICKS
+  ticksActive = 0
   isDead = false
 
   private scene: THREE.Scene

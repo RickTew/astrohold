@@ -187,7 +187,8 @@ export class RevealPhase {
       const { medic, target } = t
       const shouldEnd =
         medic.isDead || target.isDead ||
-        medic.ammoRemaining <= 0 || target.hp >= target.maxHp
+        medic.ammoRemaining <= 0 || target.hp >= target.maxHp ||
+        t.ticksActive >= t.maxTicks
       if (shouldEnd) {
         medic.tether = null
         target.tether = null
@@ -195,9 +196,10 @@ export class RevealPhase {
         this.log('attacker', `${this.actorLabel(medic)} releases the tether on ${this.actorLabel(target)}`)
         continue
       }
-      // Heal + burn ammo.
+      // Heal + burn ammo + tick counter.
       target.heal(t.healPerTick)
       medic.ammoRemaining = Math.max(0, medic.ammoRemaining - 1)
+      t.ticksActive++
       this.combatThisReveal = true
       this.log('attacker', `${this.actorLabel(medic)} channels heal to ${this.actorLabel(target)} (+${t.healPerTick})`)
     }
@@ -238,7 +240,8 @@ export class RevealPhase {
       const { bot, target } = t
       const shouldEnd =
         bot.isDead || target.isDead ||
-        bot.ammoRemaining <= 0 || t.targetIsFull()
+        bot.ammoRemaining <= 0 || t.targetIsFull() ||
+        t.ticksActive >= t.maxTicks
       if (shouldEnd) {
         bot.tether = null
         // Defender mobile target also gets the pin released so default-action
@@ -251,6 +254,7 @@ export class RevealPhase {
       }
       target.heal(t.healPerTick)
       bot.ammoRemaining = Math.max(0, bot.ammoRemaining - 1)
+      t.ticksActive++
       // Replay the weld pose each tick so the bot keeps "working" while
       // tethered — the clip otherwise ends after the first turn and the
       // bot would just stand in idle for subsequent ticks.
@@ -780,43 +784,69 @@ export class RevealPhase {
     return bestId === null ? null : { id: bestId, kind: bestKind, x: bestX, y: bestY, d: bestDist }
   }
 
-  // Step one cell toward (tx, ty) — picks the adjacent cell that reduces
-  // distance the most and isn't occupied AND isn't sitting inside an armed
-  // enemy bomb's AoE. Returns null if no valid step. Reactive-AI flee:
-  // candidates are scored by (distance to target) + (danger from armed
-  // enemy bombs covering this cell). Bomb damage dominates pure distance
-  // so a unit will sidestep instead of walking through a primed AoE — but
-  // if every legal step is dangerous, it still picks the least-bad one.
+  // Step one cell toward (tx, ty). Picks the best move using a two-tier
+  // search:
   //
-  // Cardinal-only by default — units pick from N/S/E/W neighbors. Future
-  // diagonal-capable units (e.g., Hulk) gate on Config.UNITS[type]
-  // .allowDiagonalMove and unlock the 8-cell search.
+  //  Tier 1 — DISTANCE-REDUCING — preferred. Any neighbor cell whose
+  //   distance to the target is less than the current distance.
+  //
+  //  Tier 2 — SIDEWAYS — fallback when tier 1 is empty. Neighbors that
+  //   don't reduce distance but stay within ~one cell of the current
+  //   distance. Lets the unit flow PAST a blocking obstacle (wall, tower)
+  //   instead of jamming and falling through to wander.
+  //
+  // Anti-backtrack: candidates matching the unit's lastTraversedCol/Row
+  // are skipped unless they're the ONLY option. Keeps a unit committed to
+  // a detour direction (kept going N past a wall instead of bouncing
+  // N → S → N → S between adjacent sideways picks).
+  //
+  // Each tier sorts by (distance + dangerWeight). Bomb-AoE damage dominates
+  // pure distance so a unit will sidestep one tile to dodge a primed grenade
+  // — but if every legal step is dangerous, it still picks the least-bad one.
+  //
+  // Cardinal-only by default; per-unit allowDiagonalMove unlocks 8-way.
   private pickStepTowardPoint(unit: SpriteUnit, tx: number, ty: number): CellRef | null {
     const cs = Config.GRID_CELL
     const curDist = Math.hypot(tx - unit.worldX, ty - unit.worldY)
-    type Cand = { col: number; row: number; x: number; y: number; d: number; danger: number }
-    const candidates: Cand[] = []
+    type Cand = {
+      col: number; row: number; x: number; y: number; d: number;
+      danger: number; isBacktrack: boolean;
+    }
+    const reducing: Cand[] = []
+    const sideways: Cand[] = []
     const allowDiagonal = (Config.UNITS[unit.type] as { allowDiagonalMove?: boolean }).allowDiagonalMove === true
     const steps = allowDiagonal ? DIAGONAL_STEPS : CARDINAL_STEPS
+    const SIDEWAYS_THRESHOLD = cs   // up to one cell's worth worse — covers any cardinal sidestep on diagonal targets
     for (const [dx, dy] of steps) {
       const x = unit.worldX + dx * cs
       const y = unit.worldY + dy * cs
       if (x < Config.WORLD.LEFT || x > Config.WORLD.RIGHT) continue
       if (y < Config.WORLD.BOTTOM || y > Config.WORLD.TOP) continue
+      if (this.isCellOccupiedAtBattle(x, y, unit)) continue
       const col = Math.floor((x - Config.WORLD.LEFT) / cs)
       const row = Math.floor((y - Config.WORLD.BOTTOM) / cs)
       const d = Math.hypot(tx - x, ty - y)
-      if (d >= curDist) continue   // must reduce distance
-      if (this.isCellOccupiedAtBattle(x, y, unit)) continue
-      candidates.push({ col, row, x, y, d, danger: this.cellBombDanger(x, y, unit.side) })
+      const isBacktrack = col === unit.lastTraversedCol && row === unit.lastTraversedRow
+      const cand: Cand = {
+        col, row, x, y, d,
+        danger: this.cellBombDanger(x, y, unit.side),
+        isBacktrack,
+      }
+      if (d < curDist - 0.5) reducing.push(cand)
+      else if (d <= curDist + SIDEWAYS_THRESHOLD) sideways.push(cand)
     }
-    if (candidates.length === 0) return null
-    // Score = distance + (danger weight). Weight tuned so any non-zero
-    // bomb damage outranks ~2 cell-lengths of distance — a unit will gladly
-    // sidestep one tile to dodge a primed grenade.
-    candidates.sort((a, b) => (a.d + a.danger * 2) - (b.d + b.danger * 2))
-    const c = candidates[0]
-    return { col: c.col, row: c.row }
+    // Score helper — distance + danger weight. Backtrack candidates get a
+    // big penalty so they only win when no non-backtrack option exists.
+    const score = (c: Cand) => c.d + c.danger * 2 + (c.isBacktrack ? 1000 : 0)
+    const pickFrom = (pool: Cand[]): Cand | null => {
+      if (pool.length === 0) return null
+      pool.sort((a, b) => score(a) - score(b))
+      return pool[0]
+    }
+    // Try tier 1 first; if empty, tier 2. If both empty (fully boxed in),
+    // return null so the caller falls through to wander.
+    const c = pickFrom(reducing) ?? pickFrom(sideways)
+    return c ? { col: c.col, row: c.row } : null
   }
 
   // How much armed enemy-bomb damage would a unit on `side` standing at
@@ -869,23 +899,55 @@ export class RevealPhase {
     return null
   }
 
-  // Pick the empty cell within thrower's range that's closest to the nearest
-  // enemy. Returns null if no enemy in throw + a-bit range, or no empty cell
-  // qualifies. Works for both SpriteUnit (cyborg) and Structure (defender
-  // bomber).
+  // Pick the empty cell within thrower's range where the bomb's AoE
+  // actually overlaps at least one enemy's current position. Without this
+  // overlap check the thrower happily lobs at "the cell closest to the
+  // nearest enemy" — which, with a 45–55 unit AoE and 50-unit cells,
+  // misses the enemy entirely and fuse-expires on empty ground.
+  //
+  // Scoring: prefer cells that catch the MOST enemies in their AoE; tie-
+  // break on minimum distance to the nearest hit enemy. Returns null if no
+  // cell would catch any enemy — caller falls through to move, saving the
+  // ammo for a productive throw later.
   private pickBombThrowCell(actor: Actor): CellRef | null {
     const range = this.actorRange(actor)
+    const aoeRadius = this.actorAoeRadius(actor)
+    if (aoeRadius <= 0) return null
     const ax = this.actorX(actor)
     const ay = this.actorY(actor)
-    const enemy = this.nearestEnemyXY(actor, range + Config.GRID_CELL * 2)
-    if (!enemy) return null
+
+    // Collect enemy positions for the side-appropriate target set. Power
+    // Core is represented by its four sub-cell centers so a bomb landing
+    // adjacent to ANY of them counts as a core hit.
+    const enemies: { x: number; y: number }[] = []
+    if (actor.side === 'attacker') {
+      for (const s of this.spheres)       if (!s.isDead) enemies.push({ x: s.worldX, y: s.worldY })
+      for (const s of this.structures)    if (!s.isDead) enemies.push({ x: s.worldX, y: s.worldY })
+      for (const d of this.defenderUnits) if (!d.isDead) enemies.push({ x: d.worldX, y: d.worldY })
+      if (!this.core.isDead) {
+        for (const cc of this.core.cellCenters()) enemies.push({ x: cc.x, y: cc.y })
+      }
+    } else {
+      for (const u of this.units) if (!u.isDead) enemies.push({ x: u.worldX, y: u.worldY })
+    }
+    if (enemies.length === 0) return null
+
+    // Center the search on the nearest enemy. SEARCH=4 covers a 9×9 grid
+    // — wide enough that even with diagonal AoE coverage we can find
+    // valid cells around clusters.
+    let nearest: { x: number; y: number; d: number } | null = null
+    for (const e of enemies) {
+      const d = Math.hypot(e.x - ax, e.y - ay)
+      if (!nearest || d < nearest.d) nearest = { x: e.x, y: e.y, d }
+    }
+    if (!nearest || nearest.d > range + Config.GRID_CELL * 2) return null
 
     const cs = Config.GRID_CELL
-    const ecol = Math.floor((enemy.x - Config.WORLD.LEFT) / cs)
-    const erow = Math.floor((enemy.y - Config.WORLD.BOTTOM) / cs)
+    const ecol = Math.floor((nearest.x - Config.WORLD.LEFT) / cs)
+    const erow = Math.floor((nearest.y - Config.WORLD.BOTTOM) / cs)
+    const SEARCH = 4
 
-    let best: { col: number; row: number; score: number } | null = null
-    const SEARCH = 3
+    let best: { col: number; row: number; hits: number; nearD: number } | null = null
     for (let dc = -SEARCH; dc <= SEARCH; dc++) {
       for (let dr = -SEARCH; dr <= SEARCH; dr++) {
         const col = ecol + dc
@@ -895,16 +957,36 @@ export class RevealPhase {
         if (x < Config.WORLD.LEFT || x > Config.WORLD.RIGHT) continue
         if (y < Config.WORLD.BOTTOM || y > Config.WORLD.TOP) continue
         if (Math.hypot(x - ax, y - ay) > range) continue
-        // Structures only throw within their fire arc — same constraint as
-        // direct-fire targeting. Mobile throwers (cyborg Bomber / Grenadier)
-        // can lob in any direction since they pivot to face their throw.
+        // Structures only throw within their fire arc — same constraint
+        // as direct-fire targeting. Mobile throwers (cyborg Bomber /
+        // Grenadier) can lob in any direction since they pivot to face.
         if (actor instanceof Structure && !this.targetInFireArc(actor, x - ax, y - ay)) continue
         if (!this.isCellEmptyForBomb(x, y)) continue
-        const de = Math.hypot(x - enemy.x, y - enemy.y)
-        if (!best || de < best.score) best = { col, row, score: de }
+        // Count enemies whose center sits in the bomb's AoE if it landed
+        // here. Zero = wasted throw — skip the cell entirely.
+        let hits = 0
+        let nearD = Infinity
+        for (const e of enemies) {
+          const d = Math.hypot(e.x - x, e.y - y)
+          if (d <= aoeRadius) { hits++; if (d < nearD) nearD = d }
+        }
+        if (hits === 0) continue
+        if (!best
+            || hits > best.hits
+            || (hits === best.hits && nearD < best.nearD)) {
+          best = { col, row, hits, nearD }
+        }
       }
     }
     return best ? { col: best.col, row: best.row } : null
+  }
+
+  // Read AoE radius from the per-type config. Returns 0 for non-AoE actors
+  // (units without aoeRadius, structures that don't lob).
+  private actorAoeRadius(actor: Actor): number {
+    if (actor instanceof SpriteUnit) return Config.UNITS[actor.type].aoeRadius ?? 0
+    if (actor instanceof Structure)  return Config.STRUCTURES[actor.type].aoeRadius ?? 0
+    return 0
   }
 
   // Closest armed enemy bomb within `maxDist` of the unit — used by Grenadier
@@ -1277,6 +1359,7 @@ export class RevealPhase {
 
     target.heal(tether.healPerTick)
     actor.ammoRemaining = Math.max(0, actor.ammoRemaining - 1)
+    tether.ticksActive++
     actor.faceTarget(tp.x, tp.y)
     actor.playRepairAnim()
     this.combatThisReveal = true
@@ -1308,6 +1391,7 @@ export class RevealPhase {
     // First tick happens NOW so the player sees an immediate heal + spend.
     target.heal(tether.healPerTick)
     actor.ammoRemaining = Math.max(0, actor.ammoRemaining - 1)
+    tether.ticksActive++
     actor.faceTarget(target.worldX, target.worldY)
     this.combatThisReveal = true
     this.log(actor.side, `${this.actorLabel(actor)} tethers ${this.targetLabel(target)} (+${tether.healPerTick})`)
