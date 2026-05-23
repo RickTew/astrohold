@@ -14,6 +14,7 @@ import { MedicPad } from '../entities/MedicPad'
 import { Tether } from '../entities/Tether'
 import { RepairPad } from '../entities/RepairPad'
 import { RepairTether } from '../entities/RepairTether'
+import { AmmoBox, AmmoKitType } from '../entities/AmmoBox'
 import { FireArcPreview } from '../entities/FireArcPreview'
 import { OpponentAI, OpponentSide } from '../ai/OpponentAI'
 import { recordBattle, BattleRecord } from './BattleStats'
@@ -88,6 +89,10 @@ export class Game {
   // reveal, cleaned up on expire/death.
   private repairPads: RepairPad[] = []
   private repairTethers: RepairTether[] = []
+  // Resupply crates that drop into the battlefield during BATTLE. One
+  // spawns every AMMO_BOX_INTERVAL reveals (until MAX_AMMO_BOXES are on
+  // the field). Picked up when a unit walks onto its cell.
+  private ammoBoxes: AmmoBox[] = []
   // Monotonic counter for the combat-history log. First reveal after PLAN
   // is Turn 1; auto-chained reveals bump from there. Never reset within a
   // game — Play Again is a full reload.
@@ -673,6 +678,7 @@ private enterBuildPhase() {
     this.revealPhase = new RevealPhase(
       this.scene, this.powerCore, this.attackerUnits, this.structures, this.spheres, this.defenderUnits,
       this.pendingGrenades, this.medicPads, this.tethers, this.repairPads, this.repairTethers,
+      this.ammoBoxes,
     )
     this.revealPhase.onWin = () => {
       this.phase = 'win'; this.hud.setPhase('win')
@@ -701,6 +707,13 @@ private enterBuildPhase() {
       // turnsArmed counter bumped. RevealPhase force-detonates expired bombs
       // at the start of the next reveal (see ARMED_LIFETIME there).
       for (const g of this.pendingGrenades) g.advanceTurn()
+      // Sweep crates that got picked up this reveal.
+      for (let i = this.ammoBoxes.length - 1; i >= 0; i--) {
+        if (this.ammoBoxes[i].isDead) this.ammoBoxes.splice(i, 1)
+      }
+      // Resupply crate scheduling: drop a new crate every N reveals up
+      // to a soft cap so the battlefield doesn't fill with boxes.
+      this.maybeSpawnAmmoBox()
       if (this.phase !== 'reveal') return   // game ended mid-reveal
       // Defender-wins-by-attrition check: if no cyborg can damage the core
       // anymore (every shooter is out of ammo, no Hulk alive to punch
@@ -769,6 +782,41 @@ private enterBuildPhase() {
       coreHpEnd: this.powerCore.hp,
       coreMaxHp: this.powerCore.maxHp,
     })
+  }
+
+  // Drop a resupply crate every N reveals during BATTLE. Capped at a
+  // small number so the battlefield doesn't fill with boxes. Position
+  // is a random empty cell inside the middle no-build zone
+  // (DEFENDER_MAX_X < x < ATTACKER_MIN_X). Type is weighted: ammo is
+  // common, grenades / medkits / repair kits are rarer so they feel
+  // like a meaningful find for the unit that needs them.
+  private readonly AMMO_BOX_INTERVAL = 5
+  private readonly MAX_AMMO_BOXES = 4
+  private maybeSpawnAmmoBox() {
+    if (this.revealTurn % this.AMMO_BOX_INTERVAL !== 0) return
+    if (this.ammoBoxes.filter(b => !b.isDead).length >= this.MAX_AMMO_BOXES) return
+    const cs = Config.GRID_CELL
+    const minCol = Math.floor((Config.DEFENDER_MAX_X - Config.WORLD.LEFT) / cs)
+    const maxCol = Math.floor((Config.ATTACKER_MIN_X - Config.WORLD.LEFT) / cs) - 1
+    const rowCount = Math.floor((Config.WORLD.TOP - Config.WORLD.BOTTOM) / cs)
+    // Try up to 20 random cells to find an empty one
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const col = minCol + Math.floor(Math.random() * (maxCol - minCol + 1))
+      const row = Math.floor(Math.random() * rowCount)
+      const x = Config.WORLD.LEFT + col * cs + cs / 2
+      const y = Config.WORLD.BOTTOM + row * cs + cs / 2
+      if (this.isCellOccupied(x, y)) continue
+      if (this.ammoBoxes.some(b => !b.isDead && b.worldX === x && b.worldY === y)) continue
+      // Type pick — weighted bag
+      const roll = Math.random()
+      const type: AmmoKitType =
+        roll < 0.55 ? 'ammo' :
+        roll < 0.75 ? 'grenade' :
+        roll < 0.90 ? 'medkit' :
+        'repair_kit'
+      this.ammoBoxes.push(new AmmoBox(this.scene, col, row, type))
+      return
+    }
   }
 
   // True if at least one alive cyborg can still inflict damage. Medics are
@@ -963,6 +1011,10 @@ private enterBuildPhase() {
       if (p.isDead) continue
       if (Math.abs(p.worldX - x) < E && Math.abs(p.worldY - y) < E) return true
     }
+    for (const b of this.ammoBoxes) {
+      if (b.isDead) continue
+      if (Math.abs(b.worldX - x) < E && Math.abs(b.worldY - y) < E) return true
+    }
     return false
   }
 
@@ -1041,6 +1093,7 @@ private enterBuildPhase() {
     for (const t of this.tethers) t.update(delta)
     for (const p of this.repairPads) p.animate(delta)
     for (const t of this.repairTethers) t.update(delta)
+    for (const b of this.ammoBoxes) b.animate(delta)
     this.buildPhase?.faceCamera(this.camera)
     this.revealPhase?.update(delta)
     this.revealPhase?.faceCamera(this.camera)
@@ -1338,6 +1391,8 @@ private enterBuildPhase() {
     this.repairPads = []
     for (const t of this.repairTethers) t.dispose()
     this.repairTethers = []
+    for (const b of this.ammoBoxes) b.dispose()
+    this.ammoBoxes = []
     this.renderer.dispose()
     this.scene.clear()
     this.hud?.dispose()

@@ -12,6 +12,7 @@ import { MedicPad } from '../entities/MedicPad'
 import { Tether } from '../entities/Tether'
 import { RepairPad } from '../entities/RepairPad'
 import { RepairTether, RepairTetherTarget } from '../entities/RepairTether'
+import { AmmoBox, KIT_AMOUNT } from '../entities/AmmoBox'
 import { playGunshot, playExplosion } from '../audio/sfx'
 
 // Phase 3 reveal engine: consumes the queued plans the player set up during
@@ -150,6 +151,7 @@ export class RevealPhase {
     private tethers: Tether[] = [],
     private repairPads: RepairPad[] = [],
     private repairTethers: RepairTether[] = [],
+    private ammoBoxes: AmmoBox[] = [],
   ) {
     this.steps = this.buildSteps()
     // Force-detonate bombs that have outlived their fuse. Done before any
@@ -444,8 +446,15 @@ export class RevealPhase {
         }
         // No target in current-cell range — fall through to repositioning
       } else {
-        // Empty rifle, no melee — retreat east toward the attacker spawn
-        // edge. If already at the edge, hold.
+        // Empty rifle. Prefer detouring to an ammo crate if one's in
+        // sight — re-arming and re-engaging is more interesting than
+        // retreating. If no crate, retreat east toward the spawn edge.
+        const sight = Config.UNITS.sniper.sightRange ?? 450
+        const box = this.nearestAmmoBoxFor(unit, sight)
+        if (box) {
+          const cell = this.pickStepTowardPoint(unit, box.worldX, box.worldY)
+          if (cell) return { kind: 'move', cell }
+        }
         const retreatX = Config.WORLD.RIGHT - Config.GRID_CELL * 0.5
         if (unit.worldX < retreatX - Config.GRID_CELL) {
           const cell = this.pickStepTowardPoint(unit, retreatX, unit.worldY)
@@ -503,6 +512,15 @@ export class RevealPhase {
       if (melee) {
         return { kind: 'fire', target: { kind: melee.kind, id: melee.id } }
       }
+      // Nothing adjacent to punch — try to grab a resupply crate so we
+      // can shoot again next turn. Falls through to the normal sight/
+      // march logic if no crate's visible.
+      const sight = Config.UNITS[unit.type].sightRange ?? 280
+      const box = this.nearestAmmoBoxFor(unit, sight)
+      if (box) {
+        const cell = this.pickStepTowardPoint(unit, box.worldX, box.worldY)
+        if (cell) return { kind: 'move', cell }
+      }
     }
     const sight: number = Config.UNITS[unit.type].sightRange ?? range
     const moveTarget = this.nearestEnemy(unit, sight)
@@ -541,9 +559,15 @@ export class RevealPhase {
   // ahead of the front line just gets the medic killed before anyone
   // needs treatment.
   private medicDefaultAction(unit: SpriteUnit): QueuedAction | null {
-    // Out of charges — medic has no offense, retreat east toward the
-    // attacker spawn edge. Per user: "medics and snipers to pull back."
+    // Out of charges — medic has no offense. Prefer a medkit crate if
+    // one's in sight; otherwise retreat east toward the spawn edge.
     if (unit.ammoRemaining <= 0) {
+      const sight = Config.UNITS.medic.sightRange ?? 280
+      const box = this.nearestAmmoBoxFor(unit, sight)
+      if (box) {
+        const cell = this.pickStepTowardPoint(unit, box.worldX, box.worldY)
+        if (cell) return { kind: 'move', cell }
+      }
       const retreatX = Config.WORLD.RIGHT - Config.GRID_CELL * 0.5
       if (unit.worldX < retreatX - Config.GRID_CELL) {
         const cell = this.pickStepTowardPoint(unit, retreatX, unit.worldY)
@@ -682,10 +706,16 @@ export class RevealPhase {
   // and no useful repositioning target — caller falls through to a wander
   // step so the repair bot drifts without freezing the round.
   private repairDefaultAction(unit: SpriteUnit): QueuedAction | null {
-    // Out of charges — repair bot has no offense, retreat WEST toward the
-    // defender backline. Same support-pull-back rule as medic. Without
-    // this the empty bot would wander forward into combat.
+    // Out of charges — repair bot has no offense. Prefer a repair-kit
+    // crate if visible; otherwise retreat west toward the defender
+    // backline. Same support-pull-back rule as medic.
     if (unit.ammoRemaining <= 0) {
+      const sight = Config.UNITS.repair.sightRange ?? 280
+      const box = this.nearestAmmoBoxFor(unit, sight)
+      if (box) {
+        const cell = this.pickStepTowardPoint(unit, box.worldX, box.worldY)
+        if (cell) return { kind: 'move', cell }
+      }
       const retreatX = Config.WORLD.LEFT + Config.GRID_CELL * 0.5
       if (unit.worldX > retreatX + Config.GRID_CELL) {
         const cell = this.pickStepTowardPoint(unit, retreatX, unit.worldY)
@@ -999,6 +1029,21 @@ export class RevealPhase {
     // return null so the caller falls through to wander.
     const c = pickFrom(reducing) ?? pickFrom(sideways)
     return c ? { col: c.col, row: c.row } : null
+  }
+
+  // Nearest pickup-able ammo box for `unit`. Used to detour out-of-ammo
+  // units to resupply before falling back to retreat / wander. Returns
+  // null when no compatible box is within maxDist.
+  private nearestAmmoBoxFor(unit: SpriteUnit, maxDist: number): AmmoBox | null {
+    let best: AmmoBox | null = null
+    let bestD = maxDist
+    for (const box of this.ammoBoxes) {
+      if (box.isDead) continue
+      if (!box.canBePickedUpBy(unit.type)) continue
+      const d = Math.hypot(box.worldX - unit.worldX, box.worldY - unit.worldY)
+      if (d < bestD) { best = box; bestD = d }
+    }
+    return best
   }
 
   // Penalty for stepping near other allies of the same type. Right now
@@ -1839,6 +1884,34 @@ export class RevealPhase {
     actor.moveTo(dest.x, dest.y)
     // Mine trigger: if this move lands the unit on/near a live mine, detonate.
     this.checkMineTriggers(actor, dest.x, dest.y)
+    // Resupply pickup: if a compatible ammo crate sits at the destination,
+    // the unit grabs it and tops up its ammo (capped at the unit's max).
+    this.checkAmmoBoxPickup(actor, dest.x, dest.y)
+  }
+
+  // Pick up any compatible ammo crate at (x, y). Capped at the unit's
+  // max ammo so over-cap stockpiling isn't a thing. Logs the grab so the
+  // combat panel shows it; counts as a combat event so the auto-loop
+  // doesn't stalemate while units are resupplying.
+  private checkAmmoBoxPickup(unit: SpriteUnit, x: number, y: number) {
+    const E = 1
+    for (const box of this.ammoBoxes) {
+      if (box.isDead) continue
+      if (Math.abs(box.worldX - x) > E || Math.abs(box.worldY - y) > E) continue
+      if (!box.canBePickedUpBy(unit.type)) continue
+      const max = Config.UNITS[unit.type].ammo
+      const before = unit.ammoRemaining
+      unit.ammoRemaining = Math.min(max, unit.ammoRemaining + KIT_AMOUNT)
+      const gained = unit.ammoRemaining - before
+      box.dispose()
+      this.combatThisReveal = true
+      const kitLabel = box.type === 'medkit' ? 'medkit'
+        : box.type === 'repair_kit' ? 'repair kit'
+        : box.type === 'grenade' ? 'grenade box'
+        : 'ammo box'
+      this.log(unit.side, `${this.actorLabel(unit)} grabs a ${kitLabel} (+${gained})`)
+      return  // only one pickup per move
+    }
   }
 
   private executeAttack(actor: Actor, action: QueuedAction) {
