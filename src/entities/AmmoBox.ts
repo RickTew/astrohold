@@ -48,21 +48,13 @@ function makeBoxTexture(type: AmmoKitType): THREE.Texture {
   const c = document.createElement('canvas')
   c.width = 32; c.height = 32
   const ctx = c.getContext('2d')!
-  // Per-type palette + icon glyph
-  let bg: string, accent: string, glyph: string, glyphColor: string
+  // Per-type palette
+  let bg: string, accent: string, glyphColor: string
   switch (type) {
-    case 'ammo':
-      bg = '#3a3a1c'; accent = '#dcc44c'; glyph = '⌖'; glyphColor = '#fff2a8'
-      break
-    case 'grenade':
-      bg = '#1c3a1c'; accent = '#4cdc4c'; glyph = '✲'; glyphColor = '#caffca'
-      break
-    case 'medkit':
-      bg = '#f0f6ff'; accent = '#cc2222'; glyph = '+'; glyphColor = '#cc2222'
-      break
-    case 'repair_kit':
-      bg = '#2a3344'; accent = '#ffa84a'; glyph = '🔧'; glyphColor = '#ffd9a8'
-      break
+    case 'ammo':       bg = '#3a3a1c'; accent = '#dcc44c'; glyphColor = '#fff2a8'; break
+    case 'grenade':    bg = '#1c3a1c'; accent = '#4cdc4c'; glyphColor = '#caffca'; break
+    case 'medkit':     bg = '#f0f6ff'; accent = '#cc2222'; glyphColor = '#cc2222'; break
+    case 'repair_kit': bg = '#2a3344'; accent = '#ffa84a'; glyphColor = '#ffd9a8'; break
   }
   // Crate body — chamfered square
   ctx.fillStyle = bg
@@ -80,12 +72,48 @@ function makeBoxTexture(type: AmmoKitType): THREE.Texture {
   ctx.fillRect(25, 4, 3, 3)
   ctx.fillRect(4, 25, 3, 3)
   ctx.fillRect(25, 25, 3, 3)
-  // Icon glyph centered
-  ctx.font = type === 'repair_kit' ? '16px sans-serif' : 'bold 18px sans-serif'
+  // Per-type icon — drawn explicitly so the symbol is perfectly centered.
+  // Unicode glyphs had varying baselines that shifted the icon off-center
+  // depending on the font fallback.
   ctx.fillStyle = glyphColor
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  ctx.fillText(glyph, 16, 17)
+  ctx.strokeStyle = glyphColor
+  switch (type) {
+    case 'ammo': {
+      // Sniper-style crosshair: + with a center dot
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.moveTo(16, 8);  ctx.lineTo(16, 24)
+      ctx.moveTo(8, 16);  ctx.lineTo(24, 16)
+      ctx.stroke()
+      ctx.beginPath(); ctx.arc(16, 16, 2, 0, Math.PI * 2); ctx.fill()
+      break
+    }
+    case 'grenade': {
+      // Round grenade body with a short fuse on top
+      ctx.beginPath(); ctx.arc(16, 17, 6, 0, Math.PI * 2); ctx.fill()
+      ctx.lineWidth = 2
+      ctx.strokeStyle = glyphColor
+      ctx.beginPath(); ctx.moveTo(16, 10); ctx.lineTo(16, 7); ctx.stroke()
+      // Small spark above the fuse
+      ctx.beginPath(); ctx.arc(16, 6, 1.5, 0, Math.PI * 2); ctx.fill()
+      break
+    }
+    case 'medkit': {
+      // Red cross, thick centered bars
+      const arm = 3, len = 12
+      ctx.fillRect(16 - arm, 16 - len / 2, arm * 2, len)
+      ctx.fillRect(16 - len / 2, 16 - arm, len, arm * 2)
+      break
+    }
+    case 'repair_kit': {
+      // Stylized wrench — two crossed bars at 45° with a circle handle
+      ctx.save(); ctx.translate(16, 16); ctx.rotate(Math.PI / 4)
+      ctx.fillRect(-1.5, -8, 3, 16)
+      ctx.fillRect(-8, -1.5, 16, 3)
+      ctx.restore()
+      break
+    }
+  }
 
   const tex = new THREE.CanvasTexture(c)
   tex.magFilter = THREE.NearestFilter
@@ -104,6 +132,11 @@ export class AmmoBox {
   readonly type: AmmoKitType
   readonly worldX: number
   readonly worldY: number
+  // 1 HP — any direct hit or AoE shrapnel destroys the crate. Defenders
+  // can shoot them to deny enemy reloads (spending a round to deny ~2),
+  // and a grenade landing on or near a crate vaporizes its contents.
+  hp = 1
+  readonly maxHp = 1
   isDead = false
   sprite: THREE.Sprite
   private pulseTime = 0
@@ -131,6 +164,12 @@ export class AmmoBox {
   // True if this crate can refill `unitType`'s ammunition pool.
   canBePickedUpBy(unitType: UnitType): boolean {
     return kitForUnit(unitType) === this.type
+  }
+
+  takeDamage(amount: number) {
+    if (this.isDead) return
+    this.hp = Math.max(0, this.hp - amount)
+    if (this.hp <= 0) this.dispose()
   }
 
   // Soft pulse so the crate stands out against the terrain.

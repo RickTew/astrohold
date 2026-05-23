@@ -602,6 +602,16 @@ export class SpriteUnit {
     this.playState('repair')
   }
 
+  // Force a sniper out of the crouched 'aim' pose into the upright
+  // standing rotation. Used when the sniper is fully done (at retreat
+  // edge with no ammo + no opponent in view) — gives the player the
+  // "stand up, gun's empty" visual cue.
+  standUpFromAim() {
+    if (this.type === 'sniper' && this.currentState === 'aim' && !this.isMoving) {
+      this.playState('idle')
+    }
+  }
+
   faceTarget(x: number, y: number) {
     const dx = x - this.logicalX
     const dy = y - this.logicalY

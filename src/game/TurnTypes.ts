@@ -3,7 +3,7 @@
 
 export type CellRef = { col: number; row: number }
 
-export type TargetKind = 'unit' | 'sphere' | 'structure' | 'core' | 'bomb'
+export type TargetKind = 'unit' | 'sphere' | 'structure' | 'core' | 'bomb' | 'ammobox'
 export type TargetRef = { kind: TargetKind; id: string }
 
 export type QueuedActionKind =

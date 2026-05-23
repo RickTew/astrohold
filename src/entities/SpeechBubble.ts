@@ -14,23 +14,23 @@ export type SpeechTrigger =
   | 'low_hp' | 'low_ammo' | 'out_of_ammo'
   | 'sniper_shot' | 'medic_low_packs'
 
-// Lines may include {n} which is replaced with the context value
-// (current ammo count, pack count, etc.) before render. Keeps the lines
-// data-driven for repeated callouts at different counts.
+// Lines may include {n} (count) and {s} (auto-pluralizer: '' if n==1
+// else 's') so "{n} shot{s} left!" renders "1 shot left!" / "3 shots left!"
+// without per-count duplicates. Robot voice uses {S} for capital 's'.
 const LINES: Record<SpeechVoice, Record<SpeechTrigger, string[]>> = {
   cyborg: {
     low_hp:           ["MEDIC!!", "Where's the medic?", "Aaargh!", "I'm hit!", "Need a patch!", "Bleeding out!"],
-    low_ammo:         ["{n} shots left!", "Down to {n}!", "Last few rounds!", "Almost out!"],
+    low_ammo:         ["{n} shot{s} left!", "Down to {n}!", "Last few rounds!", "Almost out!"],
     out_of_ammo:      ["I'm out!", "Down to fists!", "Need ammo!", "Pistol's dry!"],
     sniper_shot:      ["Lining one up... shot.", "Target acquired... gone.", "One shot, one kill.", "Eagle eye."],
-    medic_low_packs:  ["{n} packs left!", "Running low on supplies!", "Down to {n} kits!"],
+    medic_low_packs:  ["{n} pack{s} left!", "Running low on supplies!", "Down to {n} kit{s}!"],
   },
   robot: {
     low_hp:           ["SYSTEMS CRITICAL", "INTEGRITY: LOW", "DAMAGE: SEVERE", "ARMOR FAILING"],
-    low_ammo:         ["{n} ROUNDS LEFT", "AMMUNITION: {n}", "RESERVES LOW"],
+    low_ammo:         ["{n} ROUND{S} LEFT", "AMMUNITION: {n}", "RESERVES LOW"],
     out_of_ammo:      ["AMMUNITION DEPLETED", "WEAPON OFFLINE", "RELOAD UNAVAILABLE"],
     sniper_shot:      ["TARGET ELIMINATED", "MARK STRUCK", "ONE SHOT CONFIRMED"],
-    medic_low_packs:  ["REPAIR CHARGES: {n}", "CHARGES LOW: {n}", "SUPPLIES DEPLETING"],
+    medic_low_packs:  ["REPAIR CHARGES: {n}", "{n} CHARGE{S} LEFT", "SUPPLIES DEPLETING"],
   },
 }
 
@@ -123,10 +123,15 @@ export function spawnSpeechBubble(
 ) {
   const lines = LINES[voice][trigger]
   const raw = lines[Math.floor(Math.random() * lines.length)]
-  // Substitute {n} if a count was provided. Falls back to the literal
-  // {n} placeholder if context.n is undefined (so we'd see the broken
-  // string in the bubble — easy to spot during dev).
-  const text = context.n !== undefined ? raw.replace('{n}', String(context.n)) : raw
+  // Substitute {n} (count) and {s}/{S} (auto-pluralizer — empty when
+  // n==1, else 's'/'S'). Lines without {n} pass through unchanged.
+  let text = raw
+  if (context.n !== undefined) {
+    const s = context.n === 1 ? '' : 's'
+    text = text.replace(/\{n\}/g, String(context.n))
+               .replace(/\{s\}/g, s)
+               .replace(/\{S\}/g, s.toUpperCase())
+  }
   const tex = makeTexture(text, voice)
   const mat = new THREE.SpriteMaterial({
     map: tex, transparent: true,

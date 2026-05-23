@@ -357,8 +357,18 @@ export class RevealPhase {
         continue
       }
       const target = this.pickNearestEnemyOf(st)
-      if (!target) continue
-      list.push({ actor: st, action: { kind: 'fire', target: { kind: 'unit', id: target.id } } })
+      if (target) {
+        list.push({ actor: st, action: { kind: 'fire', target: { kind: 'unit', id: target.id } } })
+        continue
+      }
+      // No cyborg in range — defenders can shoot ammo crates to deny
+      // enemy reloads. Costs the structure 1 ammo to destroy a crate
+      // (1 HP), so it's a trade: lose one shot to deny ~2 shots'
+      // worth of enemy ammo. Only fires if the crate sits in our arc.
+      const crate = this.pickNearestAmmoBoxInRange(st)
+      if (crate) {
+        list.push({ actor: st, action: { kind: 'fire', target: { kind: 'ammobox', id: crate.id } } })
+      }
     }
 
     // Initiative DESC. Tiebreak: defender first (irrelevant in practice since
@@ -460,6 +470,10 @@ export class RevealPhase {
           const cell = this.pickStepTowardPoint(unit, retreatX, unit.worldY)
           if (cell) return { kind: 'move', cell }
         }
+        // At the retreat edge with no ammo and no crate in sight —
+        // STAND UP out of the crouched aim pose. Visual "rifle empty"
+        // cue that the user wanted.
+        unit.standUpFromAim()
         return { kind: 'hold' }
       }
     }
@@ -1344,6 +1358,25 @@ export class RevealPhase {
     return nearest
   }
 
+  // Closest in-range ammo crate the defender structure can fire at.
+  // Honors the structure's fire-arc constraint (omni-fire pieces like
+  // sentry ignore the arc). Returns null if no crate is in range.
+  private pickNearestAmmoBoxInRange(struct: Structure): AmmoBox | null {
+    const omni = STRUCTURE_OMNI_FIRE[struct.type] === true
+    let nearest: AmmoBox | null = null
+    let nearestDist: number = struct.range
+    for (const box of this.ammoBoxes) {
+      if (box.isDead) continue
+      const dx = box.worldX - struct.worldX
+      const dy = box.worldY - struct.worldY
+      const d = Math.sqrt(dx * dx + dy * dy)
+      if (d > nearestDist) continue
+      if (!omni && !this.targetInFireArc(struct, dx, dy)) continue
+      nearestDist = d; nearest = box
+    }
+    return nearest
+  }
+
   // True if (dx, dy) points within any of `struct.fireFacings` ± half-arc.
   // Used for direct-fire structures AND bomb-throw cell picking — both are
   // constrained to the structure's facing wedge(s).
@@ -2102,6 +2135,18 @@ export class RevealPhase {
       const inside = cc.some(p => this.inRadius(p.x, p.y, cx, cy, radius))
       if (inside) hit(this.core)
     }
+    // Ammo crates caught in the blast vaporize — user observed a grenade
+    // landing on a crate, expects the crate to be destroyed. Boxes count
+    // as kills in the summary (objects destroyed) but their damage is
+    // tracked separately since they have 1 HP.
+    for (const box of this.ammoBoxes) {
+      if (box.isDead) continue
+      if (this.inRadius(box.worldX, box.worldY, cx, cy, radius)) {
+        box.takeDamage(damage)
+        hits++
+        if (box.isDead) kills++
+      }
+    }
     return { hits, damageDealt: hits * damage, kills }
   }
 
@@ -2163,6 +2208,10 @@ export class RevealPhase {
 
   private resolveTargetEntity(ref: TargetRef): { takeDamage(n: number): void; isDead: boolean } | null {
     if (ref.kind === 'core') return this.core.isDead ? null : this.core
+    if (ref.kind === 'ammobox') {
+      const box = this.ammoBoxes.find(b => b.id === ref.id)
+      return box && !box.isDead ? box : null
+    }
     const all: Actor[] = [...this.units, ...this.defenderUnits, ...this.spheres, ...this.structures]
     const hit = all.find(p => p.id === ref.id)
     return hit && !hit.isDead ? hit : null
@@ -2176,6 +2225,10 @@ export class RevealPhase {
     if (ref.kind === 'bomb') {
       const b = this.pendingGrenades.find(g => g.id === ref.id)
       return b && b.armed ? { x: b.worldX, y: b.worldY } : null
+    }
+    if (ref.kind === 'ammobox') {
+      const box = this.ammoBoxes.find(b => b.id === ref.id)
+      return box && !box.isDead ? { x: box.worldX, y: box.worldY } : null
     }
     const all: Actor[] = [...this.units, ...this.defenderUnits, ...this.spheres, ...this.structures]
     const hit = all.find(p => p.id === ref.id)
@@ -2303,6 +2356,12 @@ export class RevealPhase {
     if (t instanceof SphereDefender) return 'Sphere'
     if (t instanceof SpriteUnit) return Config.UNITS[t.type].label
     if (t instanceof Structure)  return Config.STRUCTURES[t.type].label.replace(/\s*\d+cr.*$/, '').trim()
+    if (t instanceof AmmoBox) {
+      return t.type === 'medkit' ? 'medkit crate'
+        : t.type === 'repair_kit' ? 'repair-kit crate'
+        : t.type === 'grenade' ? 'grenade crate'
+        : 'ammo crate'
+    }
     return 'target'
   }
 }
