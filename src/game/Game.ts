@@ -196,6 +196,10 @@ export class Game {
     // as the dominant objective piece. Sprite overflows the footprint
     // visually — fine, it's billboard-only.
     this.powerCore = new PixelPowerCore(this.scene, Config.POWER_CORE.X, Config.POWER_CORE.Y, Config.GRID_CELL * 3)
+    // Persistent visual overlay for the core's electric defense zone —
+    // 12 cells around the 2×2 core. Translucent yellow tiles so the
+    // player can see the danger area at all times.
+    this.scene.add(this.makeCoreDefenseOverlay())
 
     // Map-wide strategy grid. Game is shifting toward chess-like turn-based
     // play with one piece per square (see docs/STATS.md). The grid makes the
@@ -305,6 +309,30 @@ export class Game {
     if (!this.buildPhase.spendCredits(cost)) return false
     this.buildPhase.getStructures().push(new Structure(this.scene, type, col, row, 'ai'))
     return true
+  }
+
+  // Yellow translucent tiles over the core's electric-defense zone. One
+  // mesh per cell (12 cells around the 2×2 core). Persistent — visible
+  // from BUILD onwards so the player can plan around the threat area.
+  // Cyborgs entering any of these cells eat the core's electric pulse
+  // at the next reveal start (see RevealPhase.tickCoreDefense).
+  private makeCoreDefenseOverlay(): THREE.Group {
+    const group = new THREE.Group()
+    const cs = Config.GRID_CELL
+    const cells = this.powerCore.defenseZoneCells()
+    const geo = new THREE.PlaneGeometry(cs - 4, cs - 4)
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0xffd24a,         // electric-yellow
+      transparent: true,
+      opacity: 0.18,
+      depthWrite: false,
+    })
+    for (const c of cells) {
+      const tile = new THREE.Mesh(geo, mat)
+      tile.position.set(c.x, c.y, 0.35)  // just above ground (0.3 grid)
+      group.add(tile)
+    }
+    return group
   }
 
   private makeMapGrid(): THREE.LineSegments {

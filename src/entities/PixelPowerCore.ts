@@ -208,6 +208,34 @@ export class PixelPowerCore {
     ]
   }
 
+  // Electric-defense danger zone — 4×4 cells centered on the core. The
+  // inner 2×2 is the core itself; the outer ring is the kill zone.
+  // Returns the 12 OUTER ring cells (not including core cells) so the
+  // visual overlay + AoE both target the right tiles. World-clipped:
+  // cells off-map are omitted.
+  defenseZoneCells(): Array<{ x: number; y: number }> {
+    const cs = Config.GRID_CELL
+    const half = cs / 2
+    const cx = this.mesh.position.x
+    const cy = this.mesh.position.y
+    const out: Array<{ x: number; y: number }> = []
+    // Core centroid sits at a grid intersection. Cell centers offset
+    // ±0.5 and ±1.5 cells in each axis form the 4×4 footprint.
+    for (let dx = -1.5; dx <= 1.5; dx += 1) {
+      for (let dy = -1.5; dy <= 1.5; dy += 1) {
+        // Skip the inner 2×2 (the core itself).
+        if (Math.abs(dx) === 0.5 && Math.abs(dy) === 0.5) continue
+        const x = cx + dx * cs
+        const y = cy + dy * cs
+        // World clip — north/south edges and the west side could fall off.
+        if (x < Config.WORLD.LEFT + half || x > Config.WORLD.RIGHT - half) continue
+        if (y < Config.WORLD.BOTTOM + half || y > Config.WORLD.TOP - half) continue
+        out.push({ x, y })
+      }
+    }
+    return out
+  }
+
   update(delta: number) {
     if (!loaded) return
 

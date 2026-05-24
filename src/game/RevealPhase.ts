@@ -186,6 +186,41 @@ export class RevealPhase {
     // start of the reveal so towers are at top HP before they auto-fire.
     this.tickRepairPads()
     this.tickRepairTethers()
+    // Power-core electric defense — pulses every reveal if any cyborg is
+    // standing in the 4×4 zone around the core. Visual overlay shows the
+    // danger area persistently (see Game.makeCoreDefenseOverlay).
+    this.tickCoreDefense()
+  }
+
+  // Core electric defense — if any live cyborg is inside the 12-cell zone
+  // around the core, damage all of them. Single pulse per reveal, AoE-style.
+  // Cloak doesn't help (geometry-based, like other AoE).
+  private tickCoreDefense() {
+    if (this.core.isDead) return
+    const zoneCells = this.core.defenseZoneCells()
+    if (zoneCells.length === 0) return
+    const CORE_DEFENSE_DAMAGE = 20
+    const E = 1   // cell-center tolerance
+    let hits = 0, kills = 0
+    for (const u of this.units) {
+      if (u.isDead) continue
+      const inZone = zoneCells.some(c =>
+        Math.abs(c.x - u.worldX) < E && Math.abs(c.y - u.worldY) < E)
+      if (!inZone) continue
+      u.takeDamage(CORE_DEFENSE_DAMAGE)
+      hits++
+      if (u.isDead) kills++
+      // Blue lightning burst on each zapped cyborg.
+      this.explosions.push(new Explosion(this.scene, u.worldX, u.worldY, 28, 0.4, 0x66ccff))
+      this.emit({ kind: 'damage', actorType: 'core', side: 'defender', amount: CORE_DEFENSE_DAMAGE })
+      if (u.isDead) this.emit({ kind: 'kill', actorType: 'core', side: 'defender' })
+    }
+    if (hits > 0) {
+      this.combatThisReveal = true
+      this.log('defender',
+        `Power Core electric defense — ${hits} hit (−${hits * CORE_DEFENSE_DAMAGE}${kills > 0 ? `, ${kills} killed` : ''})`)
+      this.emit({ kind: 'action', actorType: 'core', side: 'defender', action: 'core_pulse' })
+    }
   }
 
   private expireOldBombs() {
