@@ -148,11 +148,30 @@
       width: 100%;
       height: 100%;
     }
-    /* AFTER-only grid: one extra column per row so a new tile lands
-       beside the existing eight without forcing a third row. Tiles are
-       content-sized (`auto`), so this just widens the cluster; tile
-       style is untouched. */
-    .tile-grid.tg-5col { grid-template-columns: repeat(5, auto); }
+    /* Empty upgrade-slot placeholder — same footprint as a real tile so
+       the grid stays aligned at 4×2, but visibly inert. Lets the AFTER
+       row show all 16 slots without faking pieces in them. */
+    .hud-tile.empty-slot {
+      border-style: dashed;
+      border-color: rgba(106, 196, 255, 0.20);
+      background: rgba(8, 18, 32, 0.35);
+      cursor: default;
+      opacity: 0.6;
+    }
+    .hud-tile.empty-slot:hover {
+      transform: none;
+      box-shadow: none;
+      border-color: rgba(106, 196, 255, 0.20);
+    }
+    .hud-tile.empty-slot .tile-icon {
+      background: transparent;
+      border: 1px dashed rgba(106, 196, 255, 0.18);
+    }
+    .hud-tile.empty-slot .tile-label {
+      color: rgba(160, 200, 220, 0.4);
+      font-size: 9px;
+    }
+    .hud-tile.empty-slot .tile-cost { visibility: hidden; }
     .hud-tile {
       position: relative;
       display: flex;
@@ -196,6 +215,16 @@
     .hud-tile.preview .tile-icon img {
       transform: scale(0.78);
       transform-origin: center;
+    }
+    /* Mine icon — yellow disc with orange ring, matches the in-game
+       procedural mine (sphere + torus). */
+    .hud-tile .icon-mine {
+      width: 100%; height: 100%;
+      background:
+        radial-gradient(circle at center, #ffd24a 0%, #ffb000 28%, transparent 30%),
+        radial-gradient(circle at center, transparent 36%, #ff6600 42%, #ff6600 52%, transparent 54%),
+        radial-gradient(ellipse at center, rgba(255, 132, 22, 0.25) 0%, transparent 70%);
+      box-shadow: inset 0 0 10px rgba(255, 132, 22, 0.45);
     }
     /* Wall icon — procedural laser-wall mini-version. Matches the
        in-game visual (metallic plates top/bottom + cyan beam). */
@@ -421,21 +450,52 @@
       { label: 'REPAIR', cost:  70, icon: './sprites/repair/south.png' },
     ]
 
-    // AFTER row: production tiles + Cannon (first of the new pieces).
-    // Cannon's structure-sprite stand-in is the 'gun' twin-barrel icon
-    // (the /sprites/cannon/ folder is the cyborg unit, not the turret).
-    // Adding one at a time so each addition is easy to review.
-    const robotTilesAfter = [
-      ...robotTilesProduction,
-      { label: 'CANNON', cost: 60, icon: './sprites/gun/south.png' },
+    // AFTER row: 16-slot proposal — LEFT and RIGHT panels carry
+    // DIFFERENT items (no duplicate sphere on both sides). 11 active
+    // pieces + 5 empty placeholder slots for future upgrades. User can
+    // reorder the lists; nothing is locked in.
+    //
+    //   LEFT TOP    : SPHERE | TOWER  | BOMBER | SENTRY
+    //   LEFT BOTTOM : CANNON | LASER  | MINE   | WALL
+    //   RIGHT TOP   : DOG    | REPAIR | SIGNAL | UPGRADE
+    //   RIGHT BOTTOM: UPGRADE| UPGRADE| UPGRADE| UPGRADE
+    //
+    // Cannon's `iconScale: 1.0` overrides the default 1.55× zoom that
+    // the cyborg unit sprites need — the gun-sprite stand-in is already
+    // sized correctly at its native resolution.
+    const robotTilesAfterLeft = [
+      { label: 'SPHERE', cost: 100, icon: './sprites/sphere/south.png' },
+      { label: 'TOWER',  cost:  30, icon: './sprites/tower/south.png'  },
+      { label: 'BOMBER', cost:  70, icon: './sprites/bomber/south.png' },
+      { label: 'SENTRY', cost:  60, icon: './sprites/sentry/south.png' },
+      { label: 'CANNON', cost:  60, icon: './sprites/gun/south.png', iconScale: 1.0 },
+      { label: 'LASER',  cost:  40, icon: './sprites/laser/south.png', preview: true },
+      { label: 'MINE',   cost:  20, icon: 'mine' },
+      { label: 'WALL',   cost:  20, icon: 'wall' },
+    ]
+    const robotTilesAfterRight = [
+      { label: 'DOG',     cost: 40, icon: './sprites/dog/south.png'    },
+      { label: 'REPAIR',  cost: 70, icon: './sprites/repair/south.png' },
+      { label: 'SIGNAL',  cost: 70, icon: './sprites/signal/south.png' },
+      { label: 'UPGRADE', cost:  0, empty: true },
+      { label: 'UPGRADE', cost:  0, empty: true },
+      { label: 'UPGRADE', cost:  0, empty: true },
+      { label: 'UPGRADE', cost:  0, empty: true },
+      { label: 'UPGRADE', cost:  0, empty: true },
     ]
 
     function tileHtml(t) {
       const classes = ['hud-tile']
       if (t.preview) classes.push('preview')
-      const iconEl = t.icon === 'wall'
-        ? '<div class="tile-icon"><div class="icon-wall"></div></div>'
-        : `<div class="tile-icon"><img src="${t.icon}" alt=""/></div>`
+      if (t.empty)   classes.push('empty-slot')
+      let iconEl
+      if (t.empty)            iconEl = '<div class="tile-icon"></div>'
+      else if (t.icon === 'wall') iconEl = '<div class="tile-icon"><div class="icon-wall"></div></div>'
+      else if (t.icon === 'mine') iconEl = '<div class="tile-icon"><div class="icon-mine"></div></div>'
+      else {
+        const styleAttr = t.iconScale ? ` style="transform:scale(${t.iconScale});transform-origin:center"` : ''
+        iconEl = `<div class="tile-icon"><img src="${t.icon}" alt=""${styleAttr}/></div>`
+      }
       return `<div class="${classes.join(' ')}">${iconEl}<div class="tile-label">${t.label}</div><div class="tile-cost">${t.cost}cr</div></div>`
     }
 
@@ -465,14 +525,14 @@
       </svg>`
     }
 
-    function renderHud(target, tiles, opts) {
-      const tileList = tiles || robotTilesProduction
-      const gridClass = opts && opts.gridClass ? ` ${opts.gridClass}` : ''
+    function renderHud(target, leftTiles, rightTiles) {
+      const left  = leftTiles  || robotTilesProduction
+      const right = rightTiles || leftTiles || robotTilesProduction
       target.innerHTML = `
         <div class="hud-panel hud-left" data-side="def">
           ${panelSvg(false)}
           <div class="panel-content">
-            <div class="tile-grid${gridClass}">${tileList.map(tileHtml).join('')}</div>
+            <div class="tile-grid">${left.map(tileHtml).join('')}</div>
           </div>
         </div>
         <div class="hud-panel hud-center" data-side="def">
@@ -496,7 +556,7 @@
         <div class="hud-panel hud-right" data-side="def">
           ${panelSvg(true)}
           <div class="panel-content">
-            <div class="tile-grid${gridClass}">${tileList.map(tileHtml).join('')}</div>
+            <div class="tile-grid">${right.map(tileHtml).join('')}</div>
           </div>
         </div>
       `
@@ -510,12 +570,16 @@
       })
     }
 
-    // BEFORE: production 8-tile 4×2 layout, untouched.
-    // AFTER:  same tile style, one extra column (5×2), CANNON added.
+    // BEFORE: production 8-tile 4×2 layout (LEFT and RIGHT mirror each
+    // other — matches today's HUD.ts which renders robotTiles on both
+    // panels). Untouched.
+    // AFTER:  16-slot proposal (4×2 per panel). LEFT and RIGHT carry
+    // DIFFERENT items so no duplicates; total 11 active pieces + 5
+    // upgrade placeholders.
     const before = document.getElementById('hud-before')
     const after  = document.getElementById('hud-after')
     renderHud(before)
-    renderHud(after, robotTilesAfter, { gridClass: 'tg-5col' })
+    renderHud(after, robotTilesAfterLeft, robotTilesAfterRight)
   </script>
 
 </body>
