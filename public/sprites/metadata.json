@@ -1,0 +1,36 @@
+{
+  "group_id": null,
+  "states": [
+    {
+      "character": {
+        "id": "5a1f094b-4613-4e6a-97e1-e8e048ca3a4a",
+        "name": "Cyborg Gatling ",
+        "prompt": "combat tower for defense that and AI ROBOT has build to protect their base. ",
+        "size": {
+          "width": 104,
+          "height": 104
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-05-17T12:58:50.954628+00:00"
+      },
+      "folder": "Cyborg_Gatling",
+      "frames": {
+        "rotations": {
+          "south": "Cyborg_Gatling/rotations/south.png",
+          "south-east": "Cyborg_Gatling/rotations/south-east.png",
+          "east": "Cyborg_Gatling/rotations/east.png",
+          "north-east": "Cyborg_Gatling/rotations/north-east.png",
+          "north": "Cyborg_Gatling/rotations/north.png",
+          "north-west": "Cyborg_Gatling/rotations/north-west.png",
+          "west": "Cyborg_Gatling/rotations/west.png",
+          "south-west": "Cyborg_Gatling/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.0",
+  "export_date": "2026-05-24T08:50:15.587253"
+}

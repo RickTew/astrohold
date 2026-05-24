@@ -697,6 +697,17 @@
         <div class="wip-label">FREEZE MINE</div>
         <div class="wip-note">Variant — freeze (stun + slow). Disables movement for N turns. Mine variant for either side.</div>
       </div>
+      <!-- CYBORG TOWERS (8-direction art, gameplay TBD). -->
+      <div class="wip-card">
+        <div class="wip-icon"><img src="./sprites/cyborg_gatling/south.png" alt=""/></div>
+        <div class="wip-label">CYBORG GATLING</div>
+        <div class="wip-note">Multi-barrel rotary cannon tower. Ships with full 8 rotations. Wired to CYBORGS AFTER right panel; mechanic still to spec.</div>
+      </div>
+      <div class="wip-card">
+        <div class="wip-icon"><img src="./sprites/cyborg_sentry/south.png" alt=""/></div>
+        <div class="wip-label">CYBORG SENTRY</div>
+        <div class="wip-note">Defensive melee tower (cyborg analog of Robot Sentry, close-quarters). 8 rotations + walking-anim frames in the zip. Needs an attack mechanic.</div>
+      </div>
       <!-- GRENADES (sphere-only — throwable, no legs). -->
       <div class="wip-card">
         <div class="wip-icon"><img src="./sprites/grenade_bomb/south.png" alt=""/></div>
@@ -817,15 +828,28 @@
       { label: 'MINE',      cost:  20, icon: './sprites/cyborg_mine/south.png', iconScale: 1.0 },
       { label: 'UPGRADE',   cost:   0, empty: true },
     ]
+    // Cyborg RIGHT panel: tower-style structures. Top row = robot
+    // towers borrowed as stand-ins until cyborg-specific tower art
+    // exists for each role. Bottom row = the two cyborg-native towers
+    // we just extracted (Gatling + Sentry) + upgrade slots.
+    //
+    // Cyborg Sentry is intended as a DEFENSIVE-only melee tower
+    // (like Robot Sentry but close-quarters) per user spec — needs
+    // attack mechanic spec'd later.
     const cyborgTilesAfterRight = [
-      { label: 'UPGRADE', cost: 0, empty: true },
-      { label: 'UPGRADE', cost: 0, empty: true },
-      { label: 'UPGRADE', cost: 0, empty: true },
-      { label: 'UPGRADE', cost: 0, empty: true },
-      { label: 'UPGRADE', cost: 0, empty: true },
-      { label: 'UPGRADE', cost: 0, empty: true },
-      { label: 'UPGRADE', cost: 0, empty: true },
-      { label: 'UPGRADE', cost: 0, empty: true },
+      { label: 'CANNON',  cost:  60, icon: './sprites/gun/south.png',          iconScale: 1.0 },
+      { label: 'TOWER',   cost:  30, icon: './sprites/tower/south.png'       },
+      { label: 'BOMBER',  cost:  70, icon: './sprites/bomber/south.png'      },
+      { label: 'LASER',   cost:  40, icon: './sprites/laser/south.png',        preview: true },
+      // GATLING — cyborg-specific tower. Multi-barrel rotary cannon.
+      // Sprite ships with full 8 rotations; HUD icon uses south.png.
+      { label: 'GATLING', cost:  80, icon: './sprites/cyborg_gatling/south.png', iconScale: 1.0 },
+      // SENTRY — cyborg defensive melee tower. Walking-anim frames
+      // shipped in the zip (preserved under /sprites/cyborg_sentry/
+      // animations/), reserved for future close-combat mechanic.
+      { label: 'SENTRY',  cost:  60, icon: './sprites/cyborg_sentry/south.png', iconScale: 1.0 },
+      { label: 'UPGRADE', cost:   0, empty: true },
+      { label: 'UPGRADE', cost:   0, empty: true },
     ]
 
     function tileHtml(t) {
