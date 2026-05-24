@@ -87,8 +87,17 @@ export const Config = {
     mine:    { cost: 20, hp: 50,  damage: 60, range: 60,  fireInterval: 0, apBudget: 0, aoeRadius: 0,  ammo: 1, label: 'Mine   20cr' },
     defense: { cost: 20, hp: 80,  damage: 0,  range: 0,   fireInterval: 0, apBudget: 0, aoeRadius: 0,  ammo: 0, label: 'Defense 20cr (preview)' },
     gun:     { cost: 30, hp: 80,  damage: 15, range: 200, fireInterval: 2, apBudget: 1, aoeRadius: 0,  ammo: 5, label: 'Gun 30cr (preview)' },
-    laser:   { cost: 40, hp: 70,  damage: 25, range: 300, fireInterval: 3, apBudget: 1, aoeRadius: 0,  ammo: 5, label: 'Laser 40cr (preview)' },
-    signal:  { cost: 20, hp: 50,  damage: 0,  range: 0,   fireInterval: 0, apBudget: 0, aoeRadius: 0,  ammo: 0, label: 'Signal 20cr (preview)' },
+    // Laser — twin-laser direct-fire turret. Promoted out of "preview" in
+    // S17.2: stats kept (damage 25, range 300 = longest direct-fire on the
+    // defender side, ammo 5). HP 70 — squishier than tower (80) so it
+    // demands repair support to last.
+    laser:   { cost: 40, hp: 70,  damage: 25, range: 300, fireInterval: 3, apBudget: 1, aoeRadius: 0,  ammo: 5, label: 'Laser  40cr' },
+    // Signal — EMP emitter (satellite dish art). NO direct damage. Auto-
+    // targets the cyborg currently FURTHEST INSIDE the middle map and stuns
+    // them for 2 turns (no fire, no move). 2 ammo = 2 EMP strikes per game
+    // per Signal. Range 500 covers the full middle corridor. Designed as a
+    // strategic counter to back-line snipers/hulks before they engage.
+    signal:  { cost: 70, hp: 80,  damage: 0,  range: 500, fireInterval: 0, apBudget: 1, aoeRadius: 0,  ammo: 2, label: 'Signal 70cr (EMP)' },
   },
 
   UNITS: {

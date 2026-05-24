@@ -323,6 +323,11 @@ export class SpriteUnit {
   // the first turn in range is spent crouching (no fire), the next turn fires.
   // Reset by moveTo (walking breaks the crouch) and standUpFromAim.
   private _crouched = false
+  // EMP stun: while > 0, the unit's default action returns 'hold' and
+  // decrements by 1. Set by Signal EMP strikes (RevealPhase). Survives
+  // through walks/fires since it's a forced inaction — the cyborg's
+  // systems are disabled regardless of intent.
+  stunnedTurns = 0
 
   constructor(
     scene: THREE.Scene,
@@ -762,11 +767,14 @@ export class SpriteUnit {
   private applySpriteOffset() {
     let dx = 0
     if (this.type === 'sniper' && this.currentState === 'aim') {
-      // Body sits ~1/4 of sprite width opposite to facing. Shift the sprite
-      // along facing so the body recenters; rifle extends past cell edge.
+      // Body sits ~30% of sprite width opposite to facing in the
+      // crouched-aim pose. Shift the sprite along facing so the BODY
+      // lands on the cell center; rifle extends past the cell edge.
+      // Bumped from 0.22 → 0.30 in S17.2 — user reported body still
+      // visibly off-center at 0.22.
       const size = spriteSizeFor(this.type)
-      if (this.currentDir === 'east') dx = +size * 0.22
-      else if (this.currentDir === 'west') dx = -size * 0.22
+      if (this.currentDir === 'east') dx = +size * 0.30
+      else if (this.currentDir === 'west') dx = -size * 0.30
     }
     this.sprite.position.set(dx, 0, 5)
   }

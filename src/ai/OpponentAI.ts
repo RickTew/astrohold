@@ -85,6 +85,20 @@ export class OpponentAI {
       }
     }
 
+    // CANNON — AoE turret, mid-front. Defender answer to clustered cyborgs.
+    {
+      const cost = Config.STRUCTURES.cannon.cost
+      const slots = this.cellsInZoneSorted({
+        zoneXMin: Config.WORLD.LEFT,
+        colMin: 5, colMax: 7,
+        rowPreference: 'center',
+      })
+      if (this.api.getCredits() > stopAt && this.api.getCredits() >= cost && slots.length > 0) {
+        const slot = slots.shift()!
+        this.api.spawnStructure('cannon', slot.col, slot.row)
+      }
+    }
+
     // BOMBER — area-control trap, mid lane.
     {
       const cost = Config.STRUCTURES.bomber.cost
@@ -96,6 +110,50 @@ export class OpponentAI {
       if (this.api.getCredits() > stopAt && this.api.getCredits() >= cost && slots.length > 0) {
         const slot = slots.shift()!
         this.api.spawnStructure('bomber', slot.col, slot.row)
+      }
+    }
+
+    // LASER — long-range direct fire, back cols (range 300 reaches the
+    // middle map from anywhere in defender zone).
+    {
+      const cost = Config.STRUCTURES.laser.cost
+      const slots = this.cellsInZoneSorted({
+        zoneXMin: Config.WORLD.LEFT,
+        colMin: 3, colMax: 5,
+        rowPreference: 'edges',
+      })
+      if (this.api.getCredits() > stopAt && this.api.getCredits() >= cost && slots.length > 0) {
+        const slot = slots.shift()!
+        this.api.spawnStructure('laser', slot.col, slot.row)
+      }
+    }
+
+    // MINE — passive trap. Front-edge cells where cyborgs walk through.
+    {
+      const cost = Config.STRUCTURES.mine.cost
+      const slots = this.cellsInZoneSorted({
+        zoneXMin: Config.WORLD.LEFT,
+        colMin: 7, colMax: 7,
+        rowPreference: 'shuffle',
+      })
+      if (this.api.getCredits() > stopAt && this.api.getCredits() >= cost && slots.length > 0) {
+        const slot = slots.shift()!
+        this.api.spawnStructure('mine', slot.col, slot.row)
+      }
+    }
+
+    // SIGNAL — EMP emitter, deep back so it stays alive long enough to
+    // fire its 2 charges. Range 500 reaches the entire middle map.
+    {
+      const cost = Config.STRUCTURES.signal.cost
+      const slots = this.cellsInZoneSorted({
+        zoneXMin: Config.WORLD.LEFT,
+        colMin: 2, colMax: 3,
+        rowPreference: 'center',
+      })
+      if (this.api.getCredits() > stopAt && this.api.getCredits() >= cost && slots.length > 0) {
+        const slot = slots.shift()!
+        this.api.spawnStructure('signal', slot.col, slot.row)
       }
     }
 
@@ -163,8 +221,12 @@ export class OpponentAI {
     const pool: Pick[] = [
       { kind: 'sphere',    cost: Config.SPHERE.cost },
       { kind: 'structure', type: 'turret', cost: Config.STRUCTURES.turret.cost },
+      { kind: 'structure', type: 'cannon', cost: Config.STRUCTURES.cannon.cost },
       { kind: 'structure', type: 'bomber', cost: Config.STRUCTURES.bomber.cost },
       { kind: 'structure', type: 'sentry', cost: Config.STRUCTURES.sentry.cost },
+      { kind: 'structure', type: 'laser',  cost: Config.STRUCTURES.laser.cost },
+      { kind: 'structure', type: 'mine',   cost: Config.STRUCTURES.mine.cost },
+      { kind: 'structure', type: 'signal', cost: Config.STRUCTURES.signal.cost },
       { kind: 'structure', type: 'wall',   cost: Config.STRUCTURES.wall.cost },
       { kind: 'defender',  type: 'dog',    cost: Config.UNITS.dog.cost },
       { kind: 'defender',  type: 'repair', cost: Config.UNITS.repair.cost },

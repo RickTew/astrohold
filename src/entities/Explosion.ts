@@ -10,11 +10,12 @@ export class Explosion {
     readonly x: number,
     readonly y: number,
     readonly radius: number,
-    private duration = 0.5
+    private duration = 0.5,
+    color = 0xff6600,
   ) {
     const geo = new THREE.RingGeometry(0, radius, 24)
     const mat = new THREE.MeshBasicMaterial({
-      color: 0xff6600,
+      color,
       transparent: true,
       opacity: 1,
       side: THREE.DoubleSide,

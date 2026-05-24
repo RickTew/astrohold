@@ -66,23 +66,38 @@ export class HUD {
     type Tile = {
       label: string; cost: number; icon: string;
       action?: 'sphere' | 'dog' | 'repair'; dataType?: string; preview?: boolean
+      // Placeholder slot so the grid keeps its 4×3 shape even with 11
+      // active tiles. Rendered as an invisible tile so the layout doesn't
+      // collapse around the missing cell.
+      spacer?: boolean
     }
+    // 12 robot tiles laid out 4×3. S17.2 promoted Cannon, Mine, Laser, and
+    // Signal (EMP) out of the orphan-config / preview state. One slot left
+    // blank for now (`spacer: true`) — kept rather than duplicating a tile
+    // so the grid stays visually clean and a future piece slots in cleanly.
     const robotTiles: Tile[] = [
-      { label: 'SPHERE',  cost: 100, icon: '/sprites/sphere/south.png', action: 'sphere' },
-      { label: 'TOWER',   cost:  30, icon: '/sprites/tower/south.png',  dataType: 'turret' },
-      { label: 'BOMBER',  cost:  70, icon: '/sprites/bomber/south.png', dataType: 'bomber' },
-      // SENTRY — heavy-armor turret on tracks (Robot_Wall art reads as a
-      // tower, not a wall). HP 200 / dmg 25 / range 200 — a front-line
-      // hardpoint that eats hits while keeping its gun online.
-      { label: 'SENTRY',  cost:  60, icon: '/sprites/sentry/south.png', dataType: 'sentry' },
-      { label: 'DOG',     cost:  40, icon: '/sprites/dog/south.png',    action: 'dog' },
+      { label: 'SPHERE',  cost: 100, icon: '/sprites/sphere/south.png',  action: 'sphere' },
+      { label: 'TOWER',   cost:  30, icon: '/sprites/tower/south.png',   dataType: 'turret' },
+      // Cannon HUD icon uses /sprites/gun/south.png to match the in-game
+       // visual (Structure.ts reuses the gun sprite for the Cannon stand-in).
+      { label: 'CANNON',  cost:  60, icon: '/sprites/gun/south.png',     dataType: 'cannon' },
+      { label: 'SENTRY',  cost:  60, icon: '/sprites/sentry/south.png',  dataType: 'sentry' },
+      { label: 'BOMBER',  cost:  70, icon: '/sprites/bomber/south.png',  dataType: 'bomber' },
+      { label: 'LASER',   cost:  40, icon: '/sprites/laser/south.png',   dataType: 'laser' },
+      // Mine renders procedurally in-game (yellow sphere + orange torus).
+      // HUD icon uses the magic 'mine' value → CSS gradient mini-version.
+      { label: 'MINE',    cost:  20, icon: 'mine',                       dataType: 'mine' },
       // WALL — procedural laser-wall (no sprite). Two metallic emitter
       // plates at top + bottom of the cell with a pulsing cyan energy beam
       // between them. HUD icon uses the `icon: 'wall'` magic value to
       // render a CSS-gradient mini-version of the in-game visual.
-      { label: 'WALL',    cost:  20, icon: 'wall',                       dataType: 'wall' },
-      { label: 'LASER',   cost:  40, icon: '/sprites/laser/south.png',   dataType: 'laser',   preview: true },
-      { label: 'REPAIR',  cost:  70, icon: '/sprites/repair/south.png',  action: 'repair' },
+      { label: 'WALL',    cost:  20, icon: 'wall',                        dataType: 'wall' },
+      { label: 'DOG',     cost:  40, icon: '/sprites/dog/south.png',      action: 'dog' },
+      { label: 'REPAIR',  cost:  70, icon: '/sprites/repair/south.png',   action: 'repair' },
+      // SIGNAL — EMP emitter (satellite dish art). Stuns the furthest
+      // cyborg in the middle map for 2 turns. 2 ammo per Signal.
+      { label: 'SIGNAL',  cost:  70, icon: '/sprites/signal/south.png',   dataType: 'signal' },
+      { label: '', cost: 0, icon: '', spacer: true },
     ]
     // Cyborg roster has only 5 distinct pieces today. We pad with 3 duplicates
     // to fill the 4×2 grid until new cyborg art is generated. (Was 5 duplicates
@@ -98,6 +113,11 @@ export class HUD {
       { label: 'HULK',     cost: 100, icon: '/sprites/hulk/south.png',      dataType: 'hulk' },
     ]
     const tileHtml = (t: Tile, sideTag: 'def' | 'att') => {
+      if (t.spacer) {
+        // Invisible placeholder — keeps the 4×3 grid shape with 11 active
+        // tiles. Non-interactive (no click handler binds since no data-* attr).
+        return `<div class="hud-tile spacer" aria-hidden="true"></div>`
+      }
       const classes = ['hud-tile', sideTag]
       if (t.preview) classes.push('preview')
       const data = t.action ? `data-action="${t.action}"`
@@ -105,6 +125,8 @@ export class HUD {
                 : ''
       const iconEl = t.icon === 'wall'
         ? '<div class="tile-icon icon-wall"></div>'
+        : t.icon === 'mine'
+        ? '<div class="tile-icon icon-mine"></div>'
         : `<div class="tile-icon"><img src="${t.icon}" alt=""/></div>`
       // title attribute kicks in at narrow widths (≤640px) where the tile
       // label is CSS-hidden — browser shows it on hover, players can still

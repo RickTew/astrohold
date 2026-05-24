@@ -356,6 +356,18 @@ export class RevealPhase {
         if (cell) list.push({ actor: st, action: { kind: 'throw', cell } })
         continue
       }
+      if (st.type === 'signal') {
+        // Signal EMP — target the cyborg currently FURTHEST INSIDE the
+        // middle map (x ∈ [DEFENDER_MAX_X, ATTACKER_MIN_X]). "Furthest"
+        // here means farthest east — closest to spawn, hardest to reach
+        // with normal DPS. Stunning a back-line sniper or hulk before
+        // they engage is the EMP's signature strategic play.
+        const target = this.pickEmpTarget(st)
+        if (target) {
+          list.push({ actor: st, action: { kind: 'emp', target: { kind: 'unit', id: target.id } } })
+        }
+        continue
+      }
       const target = this.pickNearestEnemyOf(st)
       if (target) {
         list.push({ actor: st, action: { kind: 'fire', target: { kind: 'unit', id: target.id } } })
@@ -390,6 +402,13 @@ export class RevealPhase {
   // cyborgs still advance toward the core (their objective) and defender
   // mobile units (dogs) wander to a random adjacent cell.
   private defaultMobileUnitAction(unit: SpriteUnit): QueuedAction | null {
+    // EMP stun: while > 0, the cyborg's systems are offline — no action
+    // this turn, decrement the counter. Trumps every other branch (including
+    // tether-pinning) since EMP is a forced disable, not a behavior choice.
+    if (unit.stunnedTurns > 0) {
+      unit.stunnedTurns--
+      return { kind: 'hold' }
+    }
     // Tether-pinned: medic + target both hold while a tether is active.
     // tickTethers does the heal at start-of-reveal; the units themselves
     // don't take a normal action this turn.
@@ -1390,6 +1409,35 @@ export class RevealPhase {
     return nearest
   }
 
+  // Signal EMP target picker. Looks at cyborgs currently inside the middle
+  // map zone (between defender and attacker zones) and returns the FURTHEST
+  // one — the cyborg with the biggest X (closest to the cyborg spawn edge).
+  // This prioritizes stunning back-line units (snipers, hulks) before they
+  // engage, where regular defender DPS can't reach. Skips cyborgs already
+  // stunned (don't waste a charge re-stunning the same target).
+  private pickEmpTarget(struct: Structure): SpriteUnit | null {
+    let furthest: SpriteUnit | null = null
+    let furthestX = -Infinity
+    for (const u of this.units) {
+      if (u.isDead) continue
+      if (u.stunnedTurns > 0) continue
+      // Must be inside the middle map (no-build zone). DEFENDER_MAX_X is
+      // the right edge of defender zone; ATTACKER_MIN_X is the left edge
+      // of attacker zone.
+      if (u.worldX < Config.DEFENDER_MAX_X) continue
+      if (u.worldX > Config.ATTACKER_MIN_X) continue
+      // Must be in EMP range (Signal range = 500, covers full middle map).
+      const dx = u.worldX - struct.worldX
+      const dy = u.worldY - struct.worldY
+      if (Math.hypot(dx, dy) > struct.range) continue
+      if (u.worldX > furthestX) {
+        furthest = u
+        furthestX = u.worldX
+      }
+    }
+    return furthest
+  }
+
   // Closest in-range ammo crate the defender structure can fire at.
   // Honors the structure's fire-arc constraint (omni-fire pieces like
   // sentry ignore the arc). Returns null if no crate is in range.
@@ -1626,6 +1674,35 @@ export class RevealPhase {
       this.executeRepairTether(actor, action.target)
       return
     }
+
+    if (action.kind === 'emp') {
+      this.executeEmp(actor, action.target)
+      return
+    }
+  }
+
+  // Signal EMP: stun the target cyborg for 2 turns, spawn a blue burst on
+  // the target's cell, consume 1 ammo from the firing Signal structure.
+  // No damage. If the target died between targeting + execution, fizzle
+  // silently (still costs ammo — the EMP charge was committed).
+  private executeEmp(actor: Actor, ref: TargetRef) {
+    if (!(actor instanceof Structure) || actor.type !== 'signal') return
+    this.decrementActorAmmo(actor)
+    const target = ref.kind === 'unit'
+      ? this.units.find(u => u.id === ref.id && !u.isDead)
+      : null
+    if (!target) {
+      this.log('defender', `${this.actorLabel(actor)} EMP fizzles — target gone`)
+      return
+    }
+    const stunTurns: number = 2
+    target.stunnedTurns = Math.max(target.stunnedTurns, stunTurns)
+    // Visual: blue lightning ring on the target's cell. Reuses Explosion
+    // with a blue tint; smaller radius (no AoE), shorter fade.
+    this.explosions.push(new Explosion(this.scene, target.worldX, target.worldY, 40, 0.45, 0x66ccff))
+    this.combatThisReveal = true
+    this.log('defender',
+      `${this.actorLabel(actor)} EMP strikes ${this.actorLabel(target)} — stunned ${stunTurns} turns`)
   }
 
   // Resolve a TargetRef to a concrete repairable defender entity. Unlike

@@ -19,6 +19,9 @@ export type QueuedActionKind =
   // modes whose action visuals actually match. Targets: defender structures,
   // defender mobile units, sphere, and the Power Core.
   | 'repair-pad' | 'repair-tether'
+  // Signal EMP strike — defender structure action targeting one cyborg.
+  // Stuns the target for 2 turns; no damage.
+  | 'emp'
 
 export type QueuedAction =
   | { kind: 'move';    cell: CellRef }
@@ -43,6 +46,8 @@ export type QueuedAction =
   // or the Power Core (resolved by TargetRef.kind).
   | { kind: 'repair-pad';    cell: CellRef }
   | { kind: 'repair-tether'; target: TargetRef }
+  // Signal EMP strike. Target must be a cyborg (TargetRef.kind === 'unit').
+  | { kind: 'emp';           target: TargetRef }
 
 export const AP_COST: Record<QueuedActionKind, number> = {
   move: 1,
@@ -56,6 +61,7 @@ export const AP_COST: Record<QueuedActionKind, number> = {
   'heal-tether': 1,
   'repair-pad': 2,
   'repair-tether': 1,
+  emp: 1,
 }
 
 // Stationary pieces (Sphere, structures, core) use this fallback. Set HIGHER

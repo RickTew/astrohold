@@ -16,8 +16,13 @@ const STRUCTURE_SPRITE_FOLDERS: Partial<Record<StructureType, string>> = {
   sentry:  'sentry',   // Robot_Wall art — heavy-armor turret (8 rotations, no anims)
   defense: 'defense',  // geodesic dome (preview, no rotations)
   gun:     'gun',      // twin-barrel turret (preview)
-  laser:   'laser',    // twin-laser turret (preview)
-  signal:  'signal',   // satellite dish — preview asset preserved for type completeness
+  // S17.2 Cannon structure reuses the 'gun' twin-barrel sprite as a
+  // visual stand-in — read as a heavy gun emplacement. Replace with
+  // dedicated cannon art when commissioned. (The /sprites/cannon/ folder
+  // is the cyborg Cannon UNIT, a humanoid — not appropriate here.)
+  cannon:  'gun',
+  laser:   'laser',    // twin-laser turret
+  signal:  'signal',   // satellite dish — EMP emitter
 }
 // Structures that ship with a 4-frame explosion sequence (folder/explosion/).
 const STRUCTURE_HAS_EXPLOSION: Partial<Record<StructureType, true>> = {
@@ -237,6 +242,7 @@ export class Structure {
     switch (this.type) {
       case 'turret':
       case 'bomber':
+      case 'cannon':
       case 'sentry':
       case 'defense':
       case 'gun':
