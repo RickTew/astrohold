@@ -200,6 +200,30 @@
   </div>
 
   <div class="panel">
+    <h2 style="margin-top:0">ASSISTS BY PIECE TYPE</h2>
+    <p class="hint" style="margin:0 0 10px;">Damage delivered to a target someone else killed. High assist + low kill = setting up other pieces.</p>
+    <div id="assists-by-piece"></div>
+  </div>
+
+  <div class="panel">
+    <h2 style="margin-top:0">ATTACKS / MOVEMENT BY PIECE TYPE</h2>
+    <p class="hint" style="margin:0 0 10px;">Engagement signal. Attacks = total fire/throw/slam actions. Cells walked = move steps. Low movement + low attacks = piece sat idle.</p>
+    <div id="engagement-by-piece"></div>
+  </div>
+
+  <div class="panel">
+    <h2 style="margin-top:0">COST EFFECTIVENESS</h2>
+    <p class="hint" style="margin:0 0 10px;">Damage per credit spent across all games + kills per 100cr. Ranks how much value each piece type delivers per cost.</p>
+    <div id="cost-effectiveness"></div>
+  </div>
+
+  <div class="panel">
+    <h2 style="margin-top:0">ENEMY-ELIMINATED TURN</h2>
+    <p class="hint" style="margin:0 0 10px;">Turn at which the enemy side reached 0 alive units. Compare to total turns — gap means the winning side took extra turns after eliminating the enemy (e.g. attacker cleared defenders but still needed turns to reach the core).</p>
+    <div id="enemy-clear"></div>
+  </div>
+
+  <div class="panel">
     <h2 style="margin-top:0">ACTION COUNTS</h2>
     <div id="action-counts"></div>
   </div>
@@ -270,6 +294,13 @@
       const dmgByPiece = {}
       const killsByPiece = {}
       const actions = {}
+      // S17.4 additions
+      const assistsByPiece = {}
+      const cellsWalkedByPiece = {}
+      const attacksByPiece = {}
+      const creditsByPiece = { attacker: {}, defender: {} }
+      const enemyClearTurns = []   // turn numbers where enemy was eliminated
+      const enemyClearGamesByOutcome = { win: 0, lose: 0, neverCleared: 0 }
       for (const r of records) {
         if (r.piecesByType) {
           for (const [t, n] of Object.entries(r.piecesByType.attacker || {})) piecesBuilt.attacker[t] = (piecesBuilt.attacker[t] || 0) + n
@@ -278,11 +309,37 @@
         if (r.damageByPieceType) for (const [t, n] of Object.entries(r.damageByPieceType)) dmgByPiece[t] = (dmgByPiece[t] || 0) + n
         if (r.killsByPieceType)  for (const [t, n] of Object.entries(r.killsByPieceType))  killsByPiece[t] = (killsByPiece[t] || 0) + n
         if (r.actionCounts)      for (const [t, n] of Object.entries(r.actionCounts))      actions[t]      = (actions[t] || 0) + n
+        if (r.assistsByPieceType)     for (const [t, n] of Object.entries(r.assistsByPieceType))     assistsByPiece[t]     = (assistsByPiece[t] || 0) + n
+        if (r.cellsWalkedByPieceType) for (const [t, n] of Object.entries(r.cellsWalkedByPieceType)) cellsWalkedByPiece[t] = (cellsWalkedByPiece[t] || 0) + n
+        if (r.attacksByPieceType)     for (const [t, n] of Object.entries(r.attacksByPieceType))     attacksByPiece[t]     = (attacksByPiece[t] || 0) + n
+        if (r.creditsSpentByPieceType) {
+          for (const [t, n] of Object.entries(r.creditsSpentByPieceType.attacker || {})) creditsByPiece.attacker[t] = (creditsByPiece.attacker[t] || 0) + n
+          for (const [t, n] of Object.entries(r.creditsSpentByPieceType.defender || {})) creditsByPiece.defender[t] = (creditsByPiece.defender[t] || 0) + n
+        }
+        if (typeof r.enemyEliminatedAtTurn === 'number') {
+          enemyClearTurns.push({ clearedAt: r.enemyEliminatedAtTurn, totalTurns: r.turns, outcome: r.outcome })
+          enemyClearGamesByOutcome[r.outcome]++
+        } else {
+          enemyClearGamesByOutcome.neverCleared++
+        }
       }
       // Convert raw totals → per-game averages where useful
       const avgPiecesBuilt = {
         attacker: Object.fromEntries(Object.entries(piecesBuilt.attacker).map(([t, n]) => [t, (n / total).toFixed(1)])),
         defender: Object.fromEntries(Object.entries(piecesBuilt.defender).map(([t, n]) => [t, (n / total).toFixed(1)])),
+      }
+      // Cost-effectiveness — damage / credit and kills / credit, per piece type.
+      // Combines attacker + defender credits since pieces are side-locked anyway.
+      const allCredits = { ...creditsByPiece.attacker, ...creditsByPiece.defender }
+      const damagePerCredit = {}
+      const killsPerCredit = {}
+      for (const [t, dmg] of Object.entries(dmgByPiece)) {
+        const cost = allCredits[t] || 0
+        if (cost > 0) damagePerCredit[t] = (dmg / cost).toFixed(2)
+      }
+      for (const [t, k] of Object.entries(killsByPiece)) {
+        const cost = allCredits[t] || 0
+        if (cost > 0) killsPerCredit[t] = (k / cost * 100).toFixed(2)   // kills per 100cr
       }
 
       return {
@@ -290,6 +347,9 @@
         defenderGames, defenderWins, attackerGames, attackerWins,
         byEnd, avgTurns, avgAttDmg, avgDefDmg,
         avgPiecesBuilt, dmgByPiece, killsByPiece, actions,
+        assistsByPiece, cellsWalkedByPiece, attacksByPiece,
+        damagePerCredit, killsPerCredit,
+        enemyClearTurns, enemyClearGamesByOutcome,
       }
     }
 
@@ -304,6 +364,10 @@
         document.getElementById('damage-by-piece').innerHTML = ''
         document.getElementById('kills-by-piece').innerHTML = ''
         document.getElementById('action-counts').innerHTML = ''
+        document.getElementById('assists-by-piece').innerHTML = ''
+        document.getElementById('engagement-by-piece').innerHTML = ''
+        document.getElementById('cost-effectiveness').innerHTML = ''
+        document.getElementById('enemy-clear').innerHTML = ''
         document.getElementById('recent').innerHTML = ''
         return
       }
@@ -343,6 +407,57 @@
       // Action counts
       const actionRows = Object.entries(a.actions).sort((x, y) => y[1] - x[1])
       document.getElementById('action-counts').innerHTML = tablePiece(actionRows)
+
+      // Assists by piece
+      const assistRows = Object.entries(a.assistsByPiece).sort((x, y) => y[1] - x[1])
+      document.getElementById('assists-by-piece').innerHTML = tablePiece(assistRows)
+
+      // Attacks + Movement side-by-side
+      const atkRows = Object.entries(a.attacksByPiece).sort((x, y) => y[1] - x[1])
+      const mvRows  = Object.entries(a.cellsWalkedByPiece).sort((x, y) => y[1] - x[1])
+      document.getElementById('engagement-by-piece').innerHTML =
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">' +
+          '<div><div style="font-family:Orbitron,monospace;font-size:10px;letter-spacing:2px;color:#88c5e0;margin-bottom:6px">ATTACKS</div>' +
+            tablePiece(atkRows) + '</div>' +
+          '<div><div style="font-family:Orbitron,monospace;font-size:10px;letter-spacing:2px;color:#88c5e0;margin-bottom:6px">CELLS WALKED</div>' +
+            tablePiece(mvRows) + '</div>' +
+        '</div>'
+
+      // Cost-effectiveness — damage per credit + kills per 100cr
+      const dmgPerCrRows = Object.entries(a.damagePerCredit).sort((x, y) => parseFloat(y[1]) - parseFloat(x[1]))
+      const killPerCrRows = Object.entries(a.killsPerCredit).sort((x, y) => parseFloat(y[1]) - parseFloat(x[1]))
+      document.getElementById('cost-effectiveness').innerHTML =
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">' +
+          '<div><div style="font-family:Orbitron,monospace;font-size:10px;letter-spacing:2px;color:#88c5e0;margin-bottom:6px">DAMAGE / CREDIT</div>' +
+            tablePiece(dmgPerCrRows) + '</div>' +
+          '<div><div style="font-family:Orbitron,monospace;font-size:10px;letter-spacing:2px;color:#88c5e0;margin-bottom:6px">KILLS / 100CR</div>' +
+            tablePiece(killPerCrRows) + '</div>' +
+        '</div>'
+
+      // Enemy-eliminated turn — table of (cleared turn, total turns, gap, outcome)
+      if (a.enemyClearTurns.length === 0) {
+        document.getElementById('enemy-clear').innerHTML = '<div class="empty">No game recorded an enemy-eliminated event yet.</div>'
+      } else {
+        const rows = a.enemyClearTurns.map(e => `
+          <tr>
+            <td class="num">${e.clearedAt}</td>
+            <td class="num">${e.totalTurns}</td>
+            <td class="num">${e.totalTurns - e.clearedAt}</td>
+            <td style="color:${e.outcome === 'win' ? '#d4ff7a' : '#ff7a9a'}">${e.outcome}</td>
+          </tr>`).join('')
+        const neverNote = a.enemyClearGamesByOutcome.neverCleared > 0
+          ? `<div class="hint" style="margin-top:8px">${a.enemyClearGamesByOutcome.neverCleared} game(s) ended without the enemy ever being eliminated.</div>`
+          : ''
+        document.getElementById('enemy-clear').innerHTML = `<table>
+          <thead><tr>
+            <th style="text-align:right">CLEARED AT TURN</th>
+            <th style="text-align:right">TOTAL TURNS</th>
+            <th style="text-align:right">GAP (post-clear)</th>
+            <th>OUTCOME</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>${neverNote}`
+      }
 
       // Recent battles (latest first)
       const recent = [...records].reverse().slice(0, 20)

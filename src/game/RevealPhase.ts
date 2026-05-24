@@ -50,6 +50,9 @@ export type PieceEvent =
   | { kind: 'damage'; actorType: string; side: 'attacker' | 'defender'; amount: number }
   | { kind: 'kill';   actorType: string; side: 'attacker' | 'defender' }
   | { kind: 'action'; actorType: string; side: 'attacker' | 'defender'; action: string }
+  | { kind: 'assist'; actorType: string; side: 'attacker' | 'defender' }
+  | { kind: 'move';   actorType: string; side: 'attacker' | 'defender' }
+  | { kind: 'attack'; actorType: string; side: 'attacker' | 'defender' }
 
 interface AoeSummary { hits: number; damageDealt: number; kills: number }
 
@@ -164,6 +167,44 @@ export class RevealPhase {
     if (actor instanceof SphereDefender) return 'sphere'
     return actor.type   // SpriteUnit + Structure both have .type
   }
+  // Assist tracking — for each target that has taken damage this match,
+  // remember the set of attacker types that hit it. On kill, every non-
+  // killer attacker in the set gets an 'assist' event. Target IDs:
+  // SpriteUnit/Structure/SphereDefender use .id; PowerCore uses 'core'.
+  private damageHistory = new Map<string, Set<string>>()
+  private targetId(target: { id?: string } | PixelPowerCore): string {
+    if (target instanceof PixelPowerCore) return 'core'
+    return target.id ?? '?'
+  }
+  // Centralized damage attribution. Emits damage, kill, and assist events
+  // and updates damageHistory. Call this whenever takeDamage is applied
+  // by a known attacker (skip for unattributed sources like wall self-damage).
+  private attribute(
+    target: { id?: string; isDead: boolean } | PixelPowerCore,
+    attackerType: string,
+    side: 'attacker' | 'defender',
+    amount: number,
+    killed: boolean,
+  ) {
+    this.emit({ kind: 'damage', actorType: attackerType, side, amount })
+    const id = this.targetId(target)
+    if (killed) {
+      this.emit({ kind: 'kill', actorType: attackerType, side })
+      // Fire assist credit for any prior damager that wasn't the killer.
+      const damagers = this.damageHistory.get(id)
+      if (damagers) {
+        for (const damagerType of damagers) {
+          if (damagerType !== attackerType) {
+            this.emit({ kind: 'assist', actorType: damagerType, side })
+          }
+        }
+        this.damageHistory.delete(id)   // free memory; target is dead
+      }
+    } else {
+      if (!this.damageHistory.has(id)) this.damageHistory.set(id, new Set())
+      this.damageHistory.get(id)!.add(attackerType)
+    }
+  }
 
   constructor(
     private scene: THREE.Scene,
@@ -216,14 +257,14 @@ export class RevealPhase {
       if (!inZone) continue
       u.takeDamage(CORE_DEFENSE_DAMAGE)
       hits++
-      if (u.isDead) kills++
+      const killed = u.isDead
+      if (killed) kills++
       // Blue lightning burst on each zapped cyborg + a wider halo ring
       // so the pulse reads clearly through chaos. Two layered explosions:
       // the inner one is the hit flash, the outer ring is the discharge.
       this.explosions.push(new Explosion(this.scene, u.worldX, u.worldY, 60, 0.55, 0x88ddff))
       this.explosions.push(new Explosion(this.scene, u.worldX, u.worldY, 30, 0.35, 0xffffff))
-      this.emit({ kind: 'damage', actorType: 'core', side: 'defender', amount: CORE_DEFENSE_DAMAGE })
-      if (u.isDead) this.emit({ kind: 'kill', actorType: 'core', side: 'defender' })
+      this.attribute(u, 'core', 'defender', CORE_DEFENSE_DAMAGE, killed)
     }
     if (hits > 0) {
       this.combatThisReveal = true
@@ -2116,15 +2157,15 @@ export class RevealPhase {
     const E = 1
     let hits = 0, kills = 0
     this.emit({ kind: 'action', actorType: 'hulk', side: actor.side, action: 'slam' })
+    this.emit({ kind: 'attack', actorType: 'hulk', side: actor.side })
     for (const wc of wedgeCells) {
       this.explosions.push(new Explosion(this.scene, wc.x, wc.y, 22, 0.35))
-      const hit = (t: { isDead: boolean; takeDamage(n: number): void }) => {
+      const hit = (t: { id?: string; isDead: boolean; takeDamage(n: number): void } | PixelPowerCore) => {
         if (t.isDead) return
         t.takeDamage(damage); hits++
         const killed = t.isDead
         if (killed) kills++
-        this.emit({ kind: 'damage', actorType: 'hulk', side: actor.side, amount: damage })
-        if (killed) this.emit({ kind: 'kill', actorType: 'hulk', side: actor.side })
+        this.attribute(t, 'hulk', actor.side, damage, killed)
       }
       if (actor.side === 'attacker') {
         for (const s of this.spheres) {
@@ -2182,6 +2223,10 @@ export class RevealPhase {
     const dest = this.cellCenter(cell)
     if (this.isCellOccupiedAtBattle(dest.x, dest.y, actor)) return   // strict skip
     actor.moveTo(dest.x, dest.y)
+    // Telemetry — one 'move' event per successful step. Game tallies into
+    // cellsWalkedByPieceType so /stats.html can show engagement (low number
+    // means the type held / was blocked / never advanced).
+    this.emit({ kind: 'move', actorType: actor.type, side: actor.side })
     // Mine trigger: if this move lands the unit on/near a live mine, detonate.
     this.checkMineTriggers(actor, dest.x, dest.y)
     // Resupply pickup: if a compatible ammo crate sits at the destination,
@@ -2275,6 +2320,10 @@ export class RevealPhase {
       actor.setSingleFacing(aimAngle)
     }
 
+    // Telemetry: one 'attack' event per executeAttack call (i.e. per
+    // shot/throw), regardless of how many hits the AoE generates.
+    this.emit({ kind: 'attack', actorType: this.actorTypeKey(actor), side: actor.side })
+
     // Melee fallback is always a single-target punch — never AoE, even
     // for actor types that normally have aoeRadius > 0 (grenadier, cyborg
     // bomber). Without this gate, an out-of-ammo grenadier punching an
@@ -2334,8 +2383,7 @@ export class RevealPhase {
             targetEntity.takeDamage(damage)
             const killed = targetEntity.isDead
             this.log(attackerSide, `${this.actorLabel(actor)} hits ${targetLabel} (−${damage}${killed ? `, killed` : ''})`)
-            this.emit({ kind: 'damage', actorType: attackerType, side: attackerSide, amount: damage })
-            if (killed) this.emit({ kind: 'kill', actorType: attackerType, side: attackerSide })
+            this.attribute(targetEntity, attackerType, attackerSide, damage, killed)
           }
         } else {
           this.log(actor.side, `${this.actorLabel(actor)} fires (target lost)`)
@@ -2395,19 +2443,13 @@ export class RevealPhase {
   // count for the post-action summary.
   private applyAoeForSide(cx: number, cy: number, radius: number, damage: number, side: 'attacker' | 'defender', attackerType?: string): AoeSummary {
     let hits = 0, kills = 0
-    const emit = attackerType
-      ? (dmg: number, killed: boolean) => {
-          this.emit({ kind: 'damage', actorType: attackerType, side, amount: dmg })
-          if (killed) this.emit({ kind: 'kill', actorType: attackerType, side })
-        }
-      : () => {}
-    const hit = (target: { isDead: boolean; takeDamage(n: number): void }) => {
+    const hit = (target: { id?: string; isDead: boolean; takeDamage(n: number): void } | PixelPowerCore, dmg = damage) => {
       if (target.isDead) return
-      target.takeDamage(damage)
+      target.takeDamage(dmg)
       hits++
       const killed = target.isDead
       if (killed) kills++
-      emit(damage, killed)
+      if (attackerType) this.attribute(target, attackerType, side, dmg, killed)
     }
     // Cyborgs (attacker units). Grenadiers wear extra explosive shielding —
     // AoE damage halved. Models heavier blast plating around the bomb-vest
@@ -2421,7 +2463,7 @@ export class RevealPhase {
         hits++
         const killed = u.isDead
         if (killed) kills++
-        emit(shielded, killed)
+        if (attackerType) this.attribute(u, attackerType, side, shielded, killed)
       } else {
         hit(u)
       }
@@ -2477,8 +2519,7 @@ export class RevealPhase {
           u.takeDamage(dmg); hits++
           const killed = u.isDead
           if (killed) kills++
-          this.emit({ kind: 'damage', actorType: 'mine', side: 'defender', amount: dmg })
-          if (killed) this.emit({ kind: 'kill', actorType: 'mine', side: 'defender' })
+          this.attribute(u, 'mine', 'defender', dmg, killed)
         }
       }
       s.takeDamage(9999)   // mine self-destructs on trigger

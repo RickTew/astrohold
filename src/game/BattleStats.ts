@@ -48,6 +48,26 @@ export interface BattleRecord {
   killsByPieceType?: Record<string, number>
   /** Notable action counts across the whole battle. */
   actionCounts?: Record<string, number>
+
+  // ── S17.4 additions: assist / movement / engagement / value ────────
+
+  /** Assists = damage dealt to a target later killed by someone else. */
+  assistsByPieceType?: Record<string, number>
+  /** Total cells walked per piece type. Engagement proxy — low number
+   *  means the type held / was blocked / never advanced. */
+  cellsWalkedByPieceType?: Record<string, number>
+  /** Direct attacks fired per piece type (fire + slam + throw, NOT hold). */
+  attacksByPieceType?: Record<string, number>
+  /** Credits spent on each piece type per side. Derived from piecesByType
+   *  × Config cost so /stats.html can compute damage-per-credit etc. */
+  creditsSpentByPieceType?: {
+    attacker: Record<string, number>
+    defender: Record<string, number>
+  }
+  /** Turn number on which the OPPOSITE side first reached 0 alive units.
+   *  null = never happened (game ended with both sides still having units).
+   *  Useful for "did the side that won take too long to finish the job?" */
+  enemyEliminatedAtTurn?: number | null
 }
 
 const KEY = 'astrohold:battle-stats:v1'

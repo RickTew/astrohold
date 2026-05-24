@@ -110,6 +110,13 @@ export class Game {
   private damageByPieceType: Record<string, number> = {}
   private killsByPieceType:  Record<string, number> = {}
   private actionCounts:      Record<string, number> = {}
+  // S17.4 additions — assists / movement / attacks / enemy-clear turn.
+  private assistsByPieceType:     Record<string, number> = {}
+  private cellsWalkedByPieceType: Record<string, number> = {}
+  private attacksByPieceType:     Record<string, number> = {}
+  // Turn on which the OPPOSITE side first reached 0 alive units. Set
+  // once in onComplete when the condition is first true; null if never.
+  private enemyEliminatedAtTurn: number | null = null
   // True if recordBattleEnd already fired for this game — prevents a
   // double-record if win/lose handlers ever stack.
   private battleRecorded = false
@@ -759,6 +766,12 @@ private enterBuildPhase() {
         this.killsByPieceType[e.actorType] = (this.killsByPieceType[e.actorType] ?? 0) + 1
       } else if (e.kind === 'action') {
         this.actionCounts[e.action] = (this.actionCounts[e.action] ?? 0) + 1
+      } else if (e.kind === 'assist') {
+        this.assistsByPieceType[e.actorType] = (this.assistsByPieceType[e.actorType] ?? 0) + 1
+      } else if (e.kind === 'move') {
+        this.cellsWalkedByPieceType[e.actorType] = (this.cellsWalkedByPieceType[e.actorType] ?? 0) + 1
+      } else if (e.kind === 'attack') {
+        this.attacksByPieceType[e.actorType] = (this.attacksByPieceType[e.actorType] ?? 0) + 1
       }
     }
     this.revealPhase.onComplete = () => {
@@ -781,6 +794,17 @@ private enterBuildPhase() {
       // Resupply crate scheduling: drop a new crate every N reveals up
       // to a soft cap so the battlefield doesn't fill with boxes.
       this.maybeSpawnAmmoBox()
+      // Track the turn at which the OPPOSITE side first reached 0 alive
+      // units. Player side determines which side counts as "enemy."
+      if (this.enemyEliminatedAtTurn === null) {
+        const enemySide = this.playerSide === 'defender' ? 'attacker' : 'defender'
+        const enemyAlive = enemySide === 'attacker'
+          ? this.attackerUnits.filter(u => !u.isDead).length
+          : this.defenderUnits.filter(u => !u.isDead).length
+            + this.spheres.filter(s => !s.isDead).length
+            + this.structures.filter(s => !s.isDead).length
+        if (enemyAlive === 0) this.enemyEliminatedAtTurn = this.revealTurn
+      }
       if (this.phase !== 'reveal') return   // game ended mid-reveal
       // Defender-wins-by-attrition check: if no cyborg can damage the core
       // anymore (every shooter is out of ammo, no Hulk alive to punch
@@ -855,6 +879,24 @@ private enterBuildPhase() {
     for (const u of this.defenderUnits) piecesByType.defender[u.type] = (piecesByType.defender[u.type] ?? 0) + 1
     for (const s of this.spheres)       piecesByType.defender.sphere = (piecesByType.defender.sphere ?? 0) + 1
     for (const s of this.structures)    piecesByType.defender[s.type] = (piecesByType.defender[s.type] ?? 0) + 1
+    // S17.4 — credits spent per piece type. Derived from piecesByType ×
+    // Config costs so /stats.html can compute damage-per-credit etc.
+    const creditsSpentByPieceType = {
+      attacker: {} as Record<string, number>,
+      defender: {} as Record<string, number>,
+    }
+    for (const [t, n] of Object.entries(piecesByType.attacker)) {
+      const cost = (Config.UNITS as Record<string, { cost: number }>)[t]?.cost ?? 0
+      creditsSpentByPieceType.attacker[t] = cost * n
+    }
+    for (const [t, n] of Object.entries(piecesByType.defender)) {
+      const cost = t === 'sphere'
+        ? Config.SPHERE.cost
+        : (Config.UNITS as Record<string, { cost: number }>)[t]?.cost
+          ?? (Config.STRUCTURES as Record<string, { cost: number }>)[t]?.cost
+          ?? 0
+      creditsSpentByPieceType.defender[t] = cost * n
+    }
     recordBattle({
       endedAt: new Date().toISOString(),
       outcome: playerWon ? 'win' : 'lose',
@@ -870,6 +912,11 @@ private enterBuildPhase() {
       damageByPieceType: { ...this.damageByPieceType },
       killsByPieceType: { ...this.killsByPieceType },
       actionCounts: { ...this.actionCounts },
+      assistsByPieceType: { ...this.assistsByPieceType },
+      cellsWalkedByPieceType: { ...this.cellsWalkedByPieceType },
+      attacksByPieceType: { ...this.attacksByPieceType },
+      creditsSpentByPieceType,
+      enemyEliminatedAtTurn: this.enemyEliminatedAtTurn,
     })
   }
 

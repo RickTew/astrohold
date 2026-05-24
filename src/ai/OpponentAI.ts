@@ -128,17 +128,24 @@ export class OpponentAI {
       }
     }
 
-    // MINE — passive trap. Front-edge cells where cyborgs walk through.
+    // MINE — passive trap. Placed in the MIDDLE no-build zone (between
+    // defender and attacker zones), NOT in defender's own backyard.
+    // Cyborgs walk through middle map en route to the core, so mines
+    // there pay off. cellsInZoneSorted uses local cols + zoneXMin to
+    // compute world coords; middle map starts at DEFENDER_MAX_X with
+    // 8 local cols (cols 8..15 globally).
     {
       const cost = Config.STRUCTURES.mine.cost
       const slots = this.cellsInZoneSorted({
-        zoneXMin: Config.WORLD.LEFT,
-        colMin: 7, colMax: 7,
+        zoneXMin: Config.DEFENDER_MAX_X,
+        colMin: 0, colMax: 7,
         rowPreference: 'shuffle',
       })
+      // Local→global col offset for spawnStructure (which takes global cols).
+      const colOffset = Math.floor((Config.DEFENDER_MAX_X - Config.WORLD.LEFT) / Config.GRID_CELL)
       if (this.api.getCredits() > stopAt && this.api.getCredits() >= cost && slots.length > 0) {
         const slot = slots.shift()!
-        this.api.spawnStructure('mine', slot.col, slot.row)
+        this.api.spawnStructure('mine', slot.col + colOffset, slot.row)
       }
     }
 
@@ -249,10 +256,16 @@ export class OpponentAI {
   // Phase-2 random placement helper. Returns true if a piece was actually
   // placed, false if no slot accepts it (caller drops the type from the pool).
   private placeDefenderPiece(pick: { kind: 'structure' | 'sphere' | 'defender'; type?: StructureType | UnitType }): boolean {
-    // Broad search across the whole defender zone; phase 2 doesn't care
-    // about strategic placement, just filling open cells.
+    // Mines go in the MIDDLE zone (cyborg corridor), everything else stays
+    // in defender backyard. The local→global col offset is applied at the
+    // spawnStructure call for mines (cellsInZoneSorted returns local cols).
+    const isMine = pick.kind === 'structure' && pick.type === 'mine'
+    const zoneXMin = isMine ? Config.DEFENDER_MAX_X : Config.WORLD.LEFT
+    const colOffset = isMine
+      ? Math.floor((Config.DEFENDER_MAX_X - Config.WORLD.LEFT) / Config.GRID_CELL)
+      : 0
     const slots = this.cellsInZoneSorted({
-      zoneXMin: Config.WORLD.LEFT,
+      zoneXMin,
       colMin: 0, colMax: 7,
       rowPreference: 'shuffle',
     })
@@ -262,7 +275,7 @@ export class OpponentAI {
       if (pick.kind === 'sphere') {
         ok = this.api.spawnSphere(slot.x, slot.y)
       } else if (pick.kind === 'structure') {
-        ok = this.api.spawnStructure(pick.type as StructureType, slot.col, slot.row)
+        ok = this.api.spawnStructure(pick.type as StructureType, slot.col + colOffset, slot.row)
       } else {
         ok = this.api.spawnDefenderUnit(pick.type as UnitType, slot.x, slot.y)
       }
