@@ -440,9 +440,15 @@ export class RevealPhase {
       return { kind: 'hold' }
     }
     // Sniper find-a-spot-and-shoot. Loop:
-    //   1. With ammo + target in range → FIRE (anchor in place; the
-    //      sprite drops into the crouched 'aim' pose between shots).
-    //   2. With ammo + no target in range → fall through to walk.
+    //   1. With ammo + target in range:
+    //        a. Not yet crouched → spend this turn settling in (aim pose,
+    //           no fire). Sniper rule: can NOT crouch and shoot the same
+    //           turn — must use a turn to crouch first.
+    //        b. Already crouched → FIRE. Stays crouched after the shot so
+    //           consecutive shots (e.g. after an ammo-crate refill) don't
+    //           re-pay the settle cost; only movement breaks the crouch.
+    //   2. With ammo + no target in range → fall through to walk (walking
+    //      will reset crouched=false via moveTo).
     //   3. NO ammo → retreat to base. The sniper has no melee option,
     //      so he runs back to the cyborg spawn edge (east) rather than
     //      blocking forward units' paths or getting picked off doing
@@ -452,7 +458,15 @@ export class RevealPhase {
       if (unit.ammoRemaining > 0) {
         const target = this.nearestEnemy(unit, Config.UNITS.sniper.range)
         if (target) {
-          return { kind: 'fire', target: { kind: target.kind, id: target.id } }
+          if (unit.crouched) {
+            return { kind: 'fire', target: { kind: target.kind, id: target.id } }
+          }
+          // Spend this turn crouching — fires next turn if still in range.
+          // Face the target first so the E/W aim pose ships (other facings
+          // fall back to static rotation; doesn't read as "settled in").
+          unit.faceTarget(target.x, target.y)
+          unit.crouch()
+          return { kind: 'hold' }
         }
         // No target in current-cell range — fall through to repositioning
       } else {

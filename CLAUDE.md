@@ -88,12 +88,16 @@ Mechanics tuned for D&D-style strategy:
   cluster) → punch (melee 70 range, **unlimited fists** — no ammo cost)
   → otherwise march straight at the Power Core. Doesn't get distracted
   by sighted enemies; the core is the only goal.
-- **Sniper crouch-and-anchor.** Walk into range → fire from crouched
-  pose (`aim` AnimState shows `crouches_and_prepares` final frame for
-  E/W). Stays anchored while in range. On ammo=0: detour to compatible
-  ammo crate if sighted, else retreat east; `standUpFromAim()` swaps to
-  upright static rotation at the retreat edge ("rifle empty"). AI build
-  enforces 3-cell sniper spacing.
+- **Sniper crouch-and-anchor.** Walk into range → spend one turn
+  CROUCHING (no fire; `aim` AnimState shows `crouches_and_prepares`
+  final frame for E/W) → fire on the next turn. **Rule (session 17):
+  can NOT crouch and shoot the same turn — must spend a turn settling
+  in first.** Stays crouched after firing so consecutive shots from
+  the same spot don't re-pay the settle cost; movement breaks the
+  crouch (`SpriteUnit.moveTo` clears the flag). On ammo=0: detour to
+  compatible ammo crate if sighted, else retreat east;
+  `standUpFromAim()` swaps to upright static rotation at the retreat
+  edge ("rifle empty"). AI build enforces 3-cell sniper spacing.
 - **Universal melee fallback.** When a SpriteUnit hits `ammoRemaining=0`
   AND an enemy is within ~1.4 cells, swings for `MELEE_FALLBACK_DAMAGE`
   (10) at no ammo cost. Excludes hulk (already unlimited at 55), sniper

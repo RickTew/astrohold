@@ -318,6 +318,11 @@ export class SpriteUnit {
   private currentFrames: THREE.Texture[] = []
   // Pending state to enter once the current one-shot finishes (shoot/throw).
   private pendingState: AnimState | null = null
+  // Sniper-only: tracks whether the unit has spent a turn settling into the
+  // crouched aim pose. Sniper rule — can NOT crouch and shoot the same turn;
+  // the first turn in range is spent crouching (no fire), the next turn fires.
+  // Reset by moveTo (walking breaks the crouch) and standUpFromAim.
+  private _crouched = false
 
   constructor(
     scene: THREE.Scene,
@@ -447,6 +452,8 @@ export class SpriteUnit {
   get isBomber() { return this.type === 'bomber' }
 
   moveTo(x: number, y: number) {
+    // Walking breaks the sniper crouch — must re-settle before next shot.
+    this._crouched = false
     // Remember where we came from so occupancy checks block the source cell
     // until our mesh visually reaches the new logical position.
     this.prevX = this.logicalX
@@ -610,7 +617,23 @@ export class SpriteUnit {
     if (this.type === 'sniper' && this.currentState === 'aim' && !this.isMoving) {
       this.playState('idle')
     }
+    this._crouched = false
   }
+
+  // Sniper rule: spend a turn settling into the crouched aim pose before
+  // firing. Sets the crouched flag and plays the aim anim (E/W ship the
+  // crouch frame; other facings fall back to static rotation via
+  // refreshDirection). Reveal-phase default action calls this when a target
+  // first comes into range — the same turn returns 'hold' so no shot fires.
+  crouch() {
+    if (this.type !== 'sniper' || this.isDead || this.isMoving) return
+    this._crouched = true
+    if (animSets.get(this.type)?.anims['aim']) {
+      this.playState('aim')
+    }
+  }
+
+  get crouched() { return this._crouched }
 
   faceTarget(x: number, y: number) {
     const dx = x - this.logicalX
@@ -757,6 +780,7 @@ export class SpriteUnit {
             // sniper retreats — clearer than the brief standing pose.
             if (this.type === 'sniper' && this.currentState === 'shoot' && !this.isMoving) {
               this.playState('aim')
+              this._crouched = true
               return
             }
             this.playState(this.isMoving ? 'walking' : 'idle')
