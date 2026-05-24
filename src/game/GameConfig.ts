@@ -85,10 +85,7 @@ export const Config = {
     // dropped to 150 (~2× tower HP at 2× cost) for honest value.
     sentry:  { cost: 60, hp: 150, damage: 25, range: 200, fireInterval: 2, apBudget: 1, aoeRadius: 0,  ammo: 5, label: 'Sentry 60cr' },
     mine:    { cost: 20, hp: 50,  damage: 60, range: 60,  fireInterval: 0, apBudget: 0, aoeRadius: 0,  ammo: 1, label: 'Mine   20cr' },
-    // SHIELD (defense) — passive piece. Mechanic still to wire (proposed:
-    // 30% damage reduction to allies in aura, dies first to focused fire,
-    // one per game). Cost bumped 20→50 to match the proposed mechanic value.
-    defense: { cost: 50, hp: 120, damage: 0,  range: 0,   fireInterval: 0, apBudget: 0, aoeRadius: 0,  ammo: 0, label: 'Shield 50cr' },
+    defense: { cost: 20, hp: 80,  damage: 0,  range: 0,   fireInterval: 0, apBudget: 0, aoeRadius: 0,  ammo: 0, label: 'Defense 20cr (preview)' },
     gun:     { cost: 30, hp: 80,  damage: 15, range: 200, fireInterval: 2, apBudget: 1, aoeRadius: 0,  ammo: 5, label: 'Gun 30cr (preview)' },
     // Laser — twin-laser direct-fire turret. Promoted out of "preview" in
     // S17.2: stats kept (damage 25, range 300 = longest direct-fire on the

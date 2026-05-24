@@ -255,25 +255,6 @@
         radial-gradient(ellipse at center, rgba(255, 122, 154, 0.25) 0%, transparent 65%);
       box-shadow: inset 0 0 12px rgba(255, 122, 154, 0.25);
     }
-    /* Mine HUD icon — yellow disc + orange ring, matches the in-game
-       procedural mine visual (sphere + torus). */
-    .hud-tile .icon-mine {
-      width: 100%; height: 100%;
-      background:
-        radial-gradient(circle at center, #ffd24a 0%, #ffb000 28%, transparent 30%),
-        radial-gradient(circle at center, transparent 36%, #ff6600 42%, #ff6600 52%, transparent 54%),
-        radial-gradient(ellipse at center, rgba(255, 132, 22, 0.25) 0%, transparent 70%);
-      box-shadow: inset 0 0 10px rgba(255, 132, 22, 0.45);
-    }
-    /* Spacer tile — invisible placeholder that holds a grid cell so the
-       4×2 layout stays aligned when fewer than 8 active tiles are present
-       (UPGRADE slots on the right panel). Non-interactive. */
-    .hud-tile.spacer {
-      visibility: hidden;
-      pointer-events: none;
-      background: transparent;
-      border: 0;
-    }
     .hud-tile .tile-label {
       font-size: clamp(10px, 1.2vh, 12px);
       letter-spacing: 1px;

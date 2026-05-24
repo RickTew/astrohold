@@ -66,42 +66,22 @@ export class HUD {
     type Tile = {
       label: string; cost: number; icon: string;
       action?: 'sphere' | 'dog' | 'repair'; dataType?: string; preview?: boolean
-      // iconScale: per-tile transform: scale() override. Default art uses
-      // the global 1.55× CSS scale; some structure-style sprites (gun,
-      // signal, defense, mine art) already render at full HUD size and
-      // need 1.0 to avoid spilling out of the tile.
-      iconScale?: number
-      // spacer: invisible placeholder, used to fill UPGRADE slots so the
-      // grid keeps its 4×2 shape with fewer active tiles.
-      spacer?: boolean
     }
-    // Robot HUD ported from /build-test.html AFTER (approved S17.3).
-    // LEFT panel = 8 unique build pieces. RIGHT panel = 4 active +
-    // 4 upgrade spacers, total 16 unique slots across both panels.
-    // Cannon visual reuses the 'gun' twin-barrel sprite as a stand-in
-    // until dedicated cannon-structure art ships (see Structure.ts
-    // STRUCTURE_SPRITE_FOLDERS). Shield is the geodesic-dome 'defense'
-    // structure; mechanic still to wire — for now it places like any
-    // other passive piece.
-    const robotLeftTiles: Tile[] = [
-      { label: 'CANNON', cost:  60, icon: '/sprites/gun/south.png',     dataType: 'cannon', iconScale: 1.0 },
-      { label: 'TOWER',  cost:  30, icon: '/sprites/tower/south.png',   dataType: 'turret' },
-      { label: 'BOMBER', cost:  70, icon: '/sprites/bomber/south.png',  dataType: 'bomber' },
-      { label: 'LASER',  cost:  40, icon: '/sprites/laser/south.png',   dataType: 'laser'  },
-      { label: 'SPHERE', cost: 100, icon: '/sprites/sphere/south.png',  action: 'sphere'   },
-      { label: 'SENTRY', cost:  60, icon: '/sprites/sentry/south.png',  dataType: 'sentry' },
-      { label: 'DOG',    cost:  40, icon: '/sprites/dog/south.png',     action: 'dog'      },
-      { label: 'REPAIR', cost:  70, icon: '/sprites/repair/south.png',  action: 'repair'   },
-    ]
-    const robotRightTiles: Tile[] = [
-      { label: 'MINE',    cost: 20, icon: '/sprites/robot_mine/south.png', dataType: 'mine', iconScale: 1.0 },
-      { label: 'WALL',    cost: 20, icon: 'wall',                           dataType: 'wall' },
-      { label: 'SIGNAL',  cost: 70, icon: '/sprites/signal/south.png',     dataType: 'signal',  iconScale: 1.0 },
-      { label: 'SHIELD',  cost: 50, icon: '/sprites/defense/south.png',    dataType: 'defense', iconScale: 1.0 },
-      { label: '', cost: 0, icon: '', spacer: true },
-      { label: '', cost: 0, icon: '', spacer: true },
-      { label: '', cost: 0, icon: '', spacer: true },
-      { label: '', cost: 0, icon: '', spacer: true },
+    // 8 robot tiles laid out 4×2. The Cannon / Mine / Laser / Signal pieces
+    // are wired into game code + AI build pool (see OpponentAI), but they
+    // are NOT exposed as player tiles yet — the HUD redesign for those
+    // belongs in public/build-test.html first (per the test-page workflow).
+    // Reverted from a 4×3 / 6×2 experiment that shipped without sandbox
+    // validation and broke the panel proportions.
+    const robotTiles: Tile[] = [
+      { label: 'SPHERE',  cost: 100, icon: '/sprites/sphere/south.png', action: 'sphere' },
+      { label: 'TOWER',   cost:  30, icon: '/sprites/tower/south.png',  dataType: 'turret' },
+      { label: 'BOMBER',  cost:  70, icon: '/sprites/bomber/south.png', dataType: 'bomber' },
+      { label: 'SENTRY',  cost:  60, icon: '/sprites/sentry/south.png', dataType: 'sentry' },
+      { label: 'DOG',     cost:  40, icon: '/sprites/dog/south.png',    action: 'dog' },
+      { label: 'WALL',    cost:  20, icon: 'wall',                       dataType: 'wall' },
+      { label: 'LASER',   cost:  40, icon: '/sprites/laser/south.png',   dataType: 'laser',   preview: true },
+      { label: 'REPAIR',  cost:  70, icon: '/sprites/repair/south.png',  action: 'repair' },
     ]
     // Cyborg roster has only 5 distinct pieces today. We pad with 3 duplicates
     // to fill the 4×2 grid until new cyborg art is generated. (Was 5 duplicates
@@ -117,22 +97,14 @@ export class HUD {
       { label: 'HULK',     cost: 100, icon: '/sprites/hulk/south.png',      dataType: 'hulk' },
     ]
     const tileHtml = (t: Tile, sideTag: 'def' | 'att') => {
-      if (t.spacer) {
-        // Invisible placeholder — keeps the 4×2 grid shape with fewer
-        // active tiles. Not interactive (no data-action, no data-type).
-        return `<div class="hud-tile spacer" aria-hidden="true"></div>`
-      }
       const classes = ['hud-tile', sideTag]
       if (t.preview) classes.push('preview')
       const data = t.action ? `data-action="${t.action}"`
                 : t.dataType ? `data-type="${t.dataType}"`
                 : ''
-      const styleAttr = t.iconScale ? ` style="transform:scale(${t.iconScale});transform-origin:center"` : ''
       const iconEl = t.icon === 'wall'
         ? '<div class="tile-icon icon-wall"></div>'
-        : t.icon === 'mine'
-        ? '<div class="tile-icon icon-mine"></div>'
-        : `<div class="tile-icon"><img src="${t.icon}" alt=""${styleAttr}/></div>`
+        : `<div class="tile-icon"><img src="${t.icon}" alt=""/></div>`
       // title attribute kicks in at narrow widths (≤640px) where the tile
       // label is CSS-hidden — browser shows it on hover, players can still
       // identify pieces.
@@ -192,7 +164,7 @@ export class HUD {
           ${sidePanelSvg('def', false)}
           <div class="panel-content">
             <div class="tile-grid">
-              ${robotLeftTiles.map(t => tileHtml(t, 'def')).join('')}
+              ${robotTiles.map(t => tileHtml(t, 'def')).join('')}
             </div>
           </div>
         </div>
@@ -226,7 +198,7 @@ export class HUD {
           ${sidePanelSvg('def', true)}
           <div class="panel-content">
             <div class="tile-grid">
-              ${robotRightTiles.map(t => tileHtml(t, 'def')).join('')}
+              ${robotTiles.map(t => tileHtml(t, 'def')).join('')}
             </div>
           </div>
         </div>
