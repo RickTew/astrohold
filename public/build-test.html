@@ -670,18 +670,29 @@
       { label: 'GRENADIER', cost:  50, icon: './sprites/grenadier/south.png' },
       { label: 'HULK',      cost: 100, icon: './sprites/hulk/south.png'      },
     ]
-    // Cyborg AFTER: drop Grenadier/Hulk duplicates, leave those slots
-    // empty as visible "upgrade" placeholders for future cyborg art.
-    // No CYBORG_MINE in this list — there's no cyborg-side mine mechanic
-    // yet, so wiring a tile that does nothing would break clicks. Add it
-    // when the mechanic ships.
-    const cyborgAfterTiles = [
+    // Cyborg AFTER LEFT: 6 unique units + 2 empties (drops the old
+    // Grenadier/Hulk duplicates). CYBORG_MINE intentionally NOT here —
+    // no cyborg-side mine mechanic exists, so the tile would break.
+    const cyborgAfterLeft = [
       { label: 'CANNON',    cost:  70, icon: './sprites/cannon/south.png'    },
       { label: 'GRENADIER', cost:  50, icon: './sprites/grenadier/south.png' },
       { label: 'DOUBLEGUN', cost:  90, icon: './sprites/doublegun/south.png' },
       { label: 'HULK',      cost: 100, icon: './sprites/hulk/south.png'      },
       { label: 'SNIPER',    cost:  90, icon: './sprites/sniper/south.png'    },
       { label: 'MEDIC',     cost:  70, icon: './sprites/medic/south.png'     },
+      { empty: true }, { empty: true },
+    ]
+    // Cyborg AFTER RIGHT: per earlier user direction — borrowed robot
+    // tower tiles as visual stand-ins until cyborgs get their own,
+    // plus the two cyborg-native towers we extracted (Gatling/Sentry),
+    // plus 2 upgrade placeholders. Same 8-per-panel rule as Robot AFTER.
+    const cyborgAfterRight = [
+      { label: 'CANNON',  cost:  60, icon: './sprites/gun/south.png',          preview: true },
+      { label: 'TOWER',   cost:  30, icon: './sprites/tower/south.png'       },
+      { label: 'BOMBER',  cost:  70, icon: './sprites/bomber/south.png'      },
+      { label: 'LASER',   cost:  40, icon: './sprites/laser/south.png',        preview: true },
+      { label: 'GATLING', cost:  80, icon: './sprites/cyborg_gatling/south.png' },
+      { label: 'SENTRY',  cost:  60, icon: './sprites/cyborg_sentry/south.png' },
       { empty: true }, { empty: true },
     ]
 
@@ -783,7 +794,7 @@
     renderHud(document.getElementById('hud-robot-before'),  robotBeforeTiles,  robotBeforeTiles,  'def')
     renderHud(document.getElementById('hud-robot-after'),   robotAfterLeft,    robotAfterRight,   'def')
     renderHud(document.getElementById('hud-cyborg-before'), cyborgBeforeTiles, cyborgBeforeTiles, 'att')
-    renderHud(document.getElementById('hud-cyborg-after'),  cyborgAfterTiles,  cyborgAfterTiles,  'att')
+    renderHud(document.getElementById('hud-cyborg-after'),  cyborgAfterLeft,   cyborgAfterRight,  'att')
   </script>
 
 </body>
