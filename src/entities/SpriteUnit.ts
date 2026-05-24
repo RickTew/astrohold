@@ -191,12 +191,14 @@ const MANIFEST: Record<string, AnimManifest> = {
     repair:  { fps: 12, loop: false, presentDirs: ALL_DIRS, frameCount: 9 },
     die:     { fps: 10, loop: false, presentDirs: ALL_DIRS, frameCount: 4 },
   },
-  // Cyborg Stalker — cloaked melee unit. PixelLab export ships:
+  // Cyborg Stalker — cloaked melee unit. MANIFEST is keyed by FOLDER
+  // name (matches preloadSpriteUnit's `folder` arg), so the key here is
+  // 'cyborg_stalker', not 'stalker'. PixelLab export ships:
   //  - walking: 9 frames × all 8 directions.
   //  - shoot (strike): 9 frames × east + west only — other dirs mirror.
   // No idle clip — refreshDirection falls back to static rotation PNGs.
   // No die anim either — defaults to instant-hide on death.
-  stalker: {
+  cyborg_stalker: {
     walking: { fps: 10, loop: true,  presentDirs: ALL_DIRS, frameCount: 9 },
     shoot:   { fps: 14, loop: false, presentDirs: ['east', 'west'], frameCount: 9 },
   },
