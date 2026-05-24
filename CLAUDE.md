@@ -123,6 +123,23 @@ Mechanics tuned for D&D-style strategy:
   destructible (1 HP) — grenades destroy them, defender structures with
   no cyborg target fire on crates to deny enemy reloads. See `AmmoBox.ts`.
 
+## HUD changes — MUST go through the test page first
+
+`public/build-test.html` (live at https://astrohold3.vercel.app/build-test.html)
+is the HUD A/B sandbox. **Every HUD layout / tile / panel change is
+prototyped there first, then ported to production after the user signs
+off.** Skipping this and editing `HUD.ts` + `index.html` directly has
+broken production twice (S17.2 4×3 + 6×2 attempts). The protocol:
+1. Edit `public/build-test.html` first — copy the production HUD markup,
+   add a new EXPERIMENTAL row with the proposed change.
+2. Push + deploy. Tell the user to check the test URL.
+3. ONLY after the user approves, port the change to `HUD.ts` / `index.html`.
+4. Update `build-test.html` so its BASELINE row reflects new production.
+
+See memory `reference_build_test_sandbox` for layout + helper-function
+parity rules. Tile-count, grid dimensions, panel silhouette, font sizes,
+icon-clamp — none of it gets touched in production without a sandbox pass.
+
 ## HUD (session 15)
 Floating top strip with three SVG-silhouetted panels — DO NOT reserve
 canvas space for it (canvas is full window; HUD floats on top with
