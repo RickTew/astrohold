@@ -118,9 +118,18 @@ export class HUD {
     ]
     const tileHtml = (t: Tile, sideTag: 'def' | 'att') => {
       if (t.empty) {
-        // Empty upgrade slot. Same .hud-tile shape so the grid stays
-        // aligned; no content, no click. Inherits default tile styling.
-        return `<div class="hud-tile ${sideTag}" aria-hidden="true"></div>`
+        // Empty upgrade slot. Rendered with the SAME internal structure
+        // as a real tile (tile-icon div + label + cost rows) so the
+        // height matches — without these, the row would collapse to
+        // padding-only height (~8px) and the layout would look broken.
+        // Inner elements are empty (or &nbsp;) so they reserve space
+        // without drawing icons/text. The cyan-bordered .tile-icon
+        // appears as a visible empty box, reading as "unfilled slot".
+        return `<div class="hud-tile ${sideTag}" aria-hidden="true">` +
+          '<div class="tile-icon"></div>' +
+          '<div class="tile-label">&nbsp;</div>' +
+          '<div class="tile-cost">&nbsp;</div>' +
+        '</div>'
       }
       const classes = ['hud-tile', sideTag]
       if (t.preview) classes.push('preview')

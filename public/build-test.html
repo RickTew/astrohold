@@ -687,10 +687,15 @@
 
     function tileHtml(t, sideTag) {
       if (t.empty) {
-        // Empty upgrade slot — same .hud-tile shape so the grid stays
-        // aligned, no content/click. Inherits the default tile styling
-        // (border + bg), reads as an unfilled slot.
-        return `<div class="hud-tile ${sideTag}" aria-hidden="true"></div>`
+        // Empty upgrade slot — same internal structure as a real tile
+        // (icon + label + cost rows) so the height matches and the
+        // bottom row doesn't collapse to thin bars. Inner elements are
+        // empty/&nbsp; so they reserve space without drawing content.
+        return `<div class="hud-tile ${sideTag}" aria-hidden="true">` +
+          '<div class="tile-icon"></div>' +
+          '<div class="tile-label">&nbsp;</div>' +
+          '<div class="tile-cost">&nbsp;</div>' +
+        '</div>'
       }
       const classes = ['hud-tile', sideTag]
       if (t.preview) classes.push('preview')
