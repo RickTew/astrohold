@@ -615,29 +615,31 @@ export class RevealPhase {
         if (cell) return { kind: 'move', cell }
       }
     }
-    const sight: number = Config.UNITS[unit.type].sightRange ?? range
-    const moveTarget = this.nearestEnemy(unit, sight)
-    if (moveTarget) {
-      const cell = this.pickStepTowardPoint(unit, moveTarget.x, moveTarget.y)
-      if (cell) return { kind: 'move', cell }
-      // Sighted but unreachable (blocked by walls, structures, or other
-      // cyborgs). Fall through to the side-specific fallback so the unit
-      // still picks a step — otherwise a wall-of-defenders + cyborg cluster
-      // freezes everyone and ends the round in a confusing stalemate.
-    }
-    // Side-specific fallback for "can't make progress to a sighted enemy".
+    // Movement: cyborgs march the core (single-minded, like the Hulk).
+    // No more "chase the sighted enemy" — that was making cyborgs deviate
+    // north/south to close on out-of-range defenders, which the user read
+    // as "no logic / not heading to core." If they can FIRE, the fire
+    // branch above already returned. If they can't, just keep marching.
+    // Defenders (dog) still chase sighted enemies since they don't have
+    // a "core" objective.
     if (unit.side === 'attacker' && !this.core.isDead) {
-      // Cyborgs grind toward the core — different target than the sighted
-      // enemy, so a step that was blocked west might still be free south.
       const cc = this.core.cellCenters()[0]
       const cell = this.pickStepTowardPoint(unit, cc.x, cc.y)
       if (cell) return { kind: 'move', cell }
-      // Final cyborg fallback: shuffle sideways so the formation can
-      // unstick over multiple turns instead of all units permanently jammed.
+      // Blocked from stepping toward core — wander is now directional
+      // (west-biased for attackers) so the cyborg still makes general
+      // westward progress instead of spinning N/S randomly.
       const wander = this.pickWanderStep(unit)
       if (wander) return { kind: 'move', cell: wander }
     }
     if (unit.side === 'defender') {
+      // Defender mobile units (dog) — chase sighted enemy, then wander.
+      const sight: number = Config.UNITS[unit.type].sightRange ?? range
+      const moveTarget = this.nearestEnemy(unit, sight)
+      if (moveTarget) {
+        const cell = this.pickStepTowardPoint(unit, moveTarget.x, moveTarget.y)
+        if (cell) return { kind: 'move', cell }
+      }
       const cell = this.pickWanderStep(unit)
       if (cell) return { kind: 'move', cell }
     }
@@ -1009,8 +1011,17 @@ export class RevealPhase {
   }
 
   private pickWanderStep(unit: SpriteUnit): CellRef | null {
+    // Directional wander — attackers prefer steps west (toward core),
+    // defenders prefer east (toward incoming cyborgs). Order the cardinal
+    // candidates by how much they reduce distance to the target axis, so
+    // blocked units still make general progress instead of spinning N/S
+    // randomly. Previous behavior was pure random pick which read as "no
+    // logic" — user observation S17.3.
     const cs = Config.GRID_CELL
-    const options: CellRef[] = []
+    // Pick a target X based on side. Attackers march west (core x), defenders
+    // march east (cyborg spawn edge).
+    const targetX = unit.side === 'attacker' ? Config.POWER_CORE.X : Config.WORLD.RIGHT
+    const options: { cell: CellRef; dist: number }[] = []
     for (const [dx, dy] of CARDINAL_STEPS) {
       const x = unit.worldX + dx * cs
       const y = unit.worldY + dy * cs
@@ -1019,10 +1030,15 @@ export class RevealPhase {
       if (this.isCellOccupiedAtBattle(x, y, unit)) continue
       const col = Math.floor((x - Config.WORLD.LEFT) / cs)
       const row = Math.floor((y - Config.WORLD.BOTTOM) / cs)
-      options.push({ col, row })
+      // Distance to target along the march axis only — N/S steps are
+      // neutral (same X), east/west steps strongly bias the score.
+      const dist = Math.abs(x - targetX)
+      options.push({ cell: { col, row }, dist })
     }
     if (options.length === 0) return null
-    return options[Math.floor(Math.random() * options.length)]
+    // Lowest dist wins. Tiebreak randomly (N vs S when both are neutral).
+    options.sort((a, b) => a.dist - b.dist || Math.random() - 0.5)
+    return options[0].cell
   }
 
   // Total planned steps — Game uses this after onComplete to detect a

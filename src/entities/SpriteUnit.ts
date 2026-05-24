@@ -812,17 +812,16 @@ export class SpriteUnit {
   private applySpriteOffset() {
     let dx = 0
     if (this.type === 'sniper' && this.currentState === 'aim') {
-      // Body sits ~30% of sprite width opposite to facing in the
-      // crouched-aim pose. Shift the sprite along the facing direction
-      // (toward the rifle) so the BODY lands on cell center while the
-      // rifle extends past. User reported earlier shifts were going
-      // the OPPOSITE direction — flipped the sign (S17.3+): east-facing
-      // shifts WEST (body on right of texture, rifle on left? — guessing
-      // until we look). If this still reads wrong, the texture body
-      // position is the issue, not the shift sign.
+      // Empirical fix (measured the source PNG): aim/east/frame_000.png
+      // is 104×104 px; non-transparent bbox is x=[36..88], center 62 —
+      // i.e. the visible content sits +10 px east of the canvas center
+      // because the rifle extends past the body. To center the visible
+      // mass on the cell, shift WEST by 10 px × (60/104 world-per-px)
+      // ≈ 5.8 world units = 0.10 × size. Earlier guesses of 0.22 / 0.30
+      // overshot by 2-3× — that's why every adjustment looked worse.
       const size = spriteSizeFor(this.type)
-      if (this.currentDir === 'east') dx = -size * 0.30
-      else if (this.currentDir === 'west') dx = +size * 0.30
+      if (this.currentDir === 'east') dx = -size * 0.10
+      else if (this.currentDir === 'west') dx = +size * 0.10
     }
     this.sprite.position.set(dx, 0, 5)
   }
