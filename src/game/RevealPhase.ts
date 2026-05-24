@@ -1025,7 +1025,8 @@ export class RevealPhase {
         for (const cc of this.core.cellCenters()) consider('core', 'core', cc.x, cc.y)
       }
     } else {
-      for (const u of this.units) if (!u.isDead) consider(u.id, 'unit', u.worldX, u.worldY)
+      // Defender-side targeting: skip cloaked attackers (Stalker invisibility).
+      for (const u of this.units) if (!u.isDead && !u.cloaked) consider(u.id, 'unit', u.worldX, u.worldY)
     }
     return bestId === null ? null : { id: bestId, kind: bestKind, x: bestX, y: bestY, d: bestDist }
   }
@@ -1387,7 +1388,8 @@ export class RevealPhase {
         for (const cc of this.core.cellCenters()) consider(cc.x, cc.y)
       }
     } else {
-      for (const u of this.units) if (!u.isDead) consider(u.worldX, u.worldY)
+      // Defender-side: skip cloaked attackers.
+      for (const u of this.units) if (!u.isDead && !u.cloaked) consider(u.worldX, u.worldY)
     }
     return best
   }
@@ -1418,6 +1420,7 @@ export class RevealPhase {
     let nearestDist: number = struct.range
     for (const u of this.units) {
       if (u.isDead) continue
+      if (u.cloaked) continue   // Stalker invisibility — defender targeting skips
       const dx = u.worldX - struct.worldX
       const dy = u.worldY - struct.worldY
       const d = Math.sqrt(dx * dx + dy * dy)
@@ -1440,6 +1443,7 @@ export class RevealPhase {
     for (const u of this.units) {
       if (u.isDead) continue
       if (u.stunnedTurns > 0) continue
+      if (u.cloaked) continue   // Stalker invisibility — EMP can't pick a cloaked target either
       // Must be inside the middle map (no-build zone). DEFENDER_MAX_X is
       // the right edge of defender zone; ATTACKER_MIN_X is the left edge
       // of attacker zone.
@@ -2125,6 +2129,12 @@ export class RevealPhase {
       actor.playAttackAnim()
       // Sniper one-liner — fires once per battle, on the actual shot.
       if (actor.type === 'sniper') actor.announceOnce('sniper_shot')
+      // Stalker cloak drops on first damage-dealing action — committing
+      // to combat reveals position to defender targeting AI.
+      if (actor.cloaked) {
+        actor.dropCloak()
+        this.log('attacker', `${this.actorLabel(actor)} drops cloak — visible to defenders`)
+      }
     }
     // Omnidirectional structures (Sentry) rotate to face the target each
     // shot. setSingleFacing both updates fireFacings AND swaps the sprite

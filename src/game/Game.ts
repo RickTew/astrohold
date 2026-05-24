@@ -186,6 +186,7 @@ export class Game {
       preloadSpriteUnit('sniper', 'sniper'),
       preloadSpriteUnit('medic', 'medic'),
       preloadSpriteUnit('repair', 'repair'),
+      preloadSpriteUnit('stalker', 'cyborg_stalker'),
       preloadPixelPowerCore(),
       preloadStructureSprites(),
     ])

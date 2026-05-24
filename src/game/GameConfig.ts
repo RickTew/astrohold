@@ -137,6 +137,15 @@ export const Config = {
     // (3 cells); `ammo` is the SHARED heal-charge pool: throw=1, pad-deploy=2,
     // tether tick=1 per turn. `allowDiagonalMove: true` per the spec.
     medic:     { cost: 70, hp: 50,  speed: 70,  damage: 30, range: 150, sightRange: 280, aoeRadius: 0,  apBudget: 3, ammo: 5, allowDiagonalMove: true, label: 'Medic',     color: 0xffffff },
+    // Cyborg Stalker — cloaked melee unit. Spawns invisible (cyborg-side
+    // ghost sprite at 35% opacity; defender targeting AI skips cloaked
+    // units). Cloak drops permanently on Stalker's first damage-dealing
+    // action — at that point the gloves are off, defenders lock on. The
+    // mechanic creates a "stealth approach → commit to combat" decision:
+    // delay swinging to get closer vs swing now and trade as a normal
+    // tanky melee. Counter: AoE/splash still hits cloaked units
+    // (geometry-based, not targeting-based). Unlimited fists like Hulk.
+    stalker:   { cost: 70, hp: 130, speed: 60,  damage: 40, range: 70,  sightRange: 220, aoeRadius: 0,  apBudget: 2, ammo: 99, label: 'Stalker',   color: 0xaaaaaa },
     // Robot Repair — defender-side support unit, the medic's structural twin.
     // Three repair modes: pack-throw, deployable repair-pad, weld-tether.
     // Targets are anything defender-side with HP — towers, walls, mines,

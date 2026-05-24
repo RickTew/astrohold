@@ -191,6 +191,15 @@ const MANIFEST: Record<string, AnimManifest> = {
     repair:  { fps: 12, loop: false, presentDirs: ALL_DIRS, frameCount: 9 },
     die:     { fps: 10, loop: false, presentDirs: ALL_DIRS, frameCount: 4 },
   },
+  // Cyborg Stalker — cloaked melee unit. PixelLab export ships:
+  //  - walking: 9 frames × all 8 directions.
+  //  - shoot (strike): 9 frames × east + west only — other dirs mirror.
+  // No idle clip — refreshDirection falls back to static rotation PNGs.
+  // No die anim either — defaults to instant-hide on death.
+  stalker: {
+    walking: { fps: 10, loop: true,  presentDirs: ALL_DIRS, frameCount: 9 },
+    shoot:   { fps: 14, loop: false, presentDirs: ['east', 'west'], frameCount: 9 },
+  },
 }
 
 function loadTexture(url: string): Promise<THREE.Texture> {
@@ -328,6 +337,14 @@ export class SpriteUnit {
   // through walks/fires since it's a forced inaction — the cyborg's
   // systems are disabled regardless of intent.
   stunnedTurns = 0
+  // Cloak (Stalker mechanic). Starts true for stalker spawn; drops to
+  // false PERMANENTLY on the first damage-dealing action this unit
+  // makes. While cloaked, defender targeting AI skips this unit (see
+  // RevealPhase.pickNearestEnemyOf et al). AoE/splash damage still
+  // hits — geometry-based, not targeting-based. Sprite renders at 35%
+  // opacity while cloaked so the player can still see them but they
+  // read as stealth-mode.
+  cloaked = false
 
   constructor(
     scene: THREE.Scene,
@@ -346,6 +363,8 @@ export class SpriteUnit {
     this.ammoRemaining = Config.UNITS[type].ammo
     this.slamAmmoRemaining = (Config.UNITS[type] as { slamAmmo?: number }).slamAmmo ?? 0
     this.moveSpeedPS = Config.UNITS[type].speed / Config.TURN_INTERVAL
+    // Stalker spawns cloaked — drops on first damage-dealing action.
+    if (type === 'stalker') this.cloaked = true
     // Defenders look east toward the cyborg side; attackers look west toward
     // the core. Drives the initial sprite direction.
     this.facingAngle = side === 'defender' ? 0 : Math.PI
@@ -385,6 +404,8 @@ export class SpriteUnit {
     this.sprite.position.set(0, 0, 5)
     this.sprite.renderOrder = 10
     this.mesh.add(this.sprite)
+    // Stalker spawns visibly ghosted (35% opacity) to telegraph the cloak.
+    if (this.cloaked) this.sprite.material.opacity = 0.35
 
     const { group, fill } = this.buildHpBar()
     this.hpBarGroup = group
@@ -623,6 +644,16 @@ export class SpriteUnit {
       this.playState('idle')
     }
     this._crouched = false
+  }
+
+  // Stalker rule: cloak drops permanently on first damage-dealing
+  // action. RevealPhase calls this from the executeAttack/slam/etc
+  // sites right before applying damage. Idempotent — no-op if already
+  // uncloaked. Restores sprite opacity to full.
+  dropCloak() {
+    if (!this.cloaked) return
+    this.cloaked = false
+    this.sprite.material.opacity = 1
   }
 
   // Sniper rule: spend a turn settling into the crouched aim pose before

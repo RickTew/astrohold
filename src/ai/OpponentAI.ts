@@ -277,7 +277,7 @@ export class OpponentAI {
   // doublegun, hulk, sniper, medic. Bomber/scout/tank/drone exist in Config
   // but are NOT in the buyable cyborg shop, so they're excluded here too.
   private buildAttacker(stopAt: number) {
-    const allTypes: UnitType[] = ['cannon', 'grenadier', 'doublegun', 'hulk', 'sniper', 'medic']
+    const allTypes: UnitType[] = ['cannon', 'grenadier', 'doublegun', 'hulk', 'sniper', 'medic', 'stalker']
 
     // Spawn from the back columns (closest to the cyborg edge of the field).
     // Cyborgs march west toward the core, so back-row spawns get the most
