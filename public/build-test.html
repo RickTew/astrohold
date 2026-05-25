@@ -599,253 +599,147 @@
     <div class="preview-frame"><div id="hud-cyborg-after" class="hud-top"></div></div>
   </div>
 
-  <!-- ═══════════════ MINI CONTROL CENTER — pick a layout ═══════════════
-       Three dial-based clusters. Visual-only (no SLOW/NORMAL/FAST labels).
-       Speed dial is the heart of each; surrounding toggles are example
-       options. All interactive locally — clicking the dial dots sets the
-       speed colour + pointer; clicking a toggle flips on/off. Nothing
-       wired to production yet. -->
-
-  <!-- Ideas pool — what could live in the cluster beyond just speed -->
+  <!-- ═══════════════ MINI CONTROL CENTER — final design ═══════════════
+       Single procedural dial inspired by the user's reference image:
+       - Concentric SVG bevel rings simulate an industrial metal frame
+       - Top arc shows speed (slow/normal/fast via colored ticks, no text
+         labels per project rule "speed controls don't need any text")
+       - 2x2 toggle cluster inside the dial face: Music / SFX / Speech /
+         Combat log. Green glow = on, dim grey + diagonal slash = off
+       - Pill at the bottom is the primary action: BATTLE → PAUSE → PLAY
+         AGAIN (sandbox just cycles between BATTLE and PAUSE on click)
+       - Everything is CSS + inline SVG — no images, no canvas, no
+         external assets. Light, scalable, theme-tintable. -->
   <div class="preview-section">
-    <h2 style="color:#d4ff7a;border-color:rgba(212,255,122,0.35);">
-      MINI CONTROL CENTER — IDEAS POOL
-      <span class="tag after" style="background:rgba(212,255,122,0.12);border-color:rgba(212,255,122,0.5);color:#d4ff7a;">PICK WHICH TOGGLES LIVE IN THE CLUSTER</span>
+    <h2 style="color:#6bd9ff;border-color:rgba(107,217,255,0.4);">
+      MINI CONTROL CENTER
+      <span class="tag after" style="background:rgba(107,217,255,0.12);border-color:rgba(107,217,255,0.5);color:#6bd9ff;">FINAL DESIGN</span>
     </h2>
-    <p style="font-family:'Share Tech Mono',monospace;color:#88a4b8;font-size:11px;letter-spacing:1px;margin:0 4px 14px;max-width:900px;">
-      The dial is the centerpiece in every layout (slow/normal/fast).
-      Around it we have room for 2-6 toggle pips. Here are the candidates
-      grouped by category — tell me which ones you want and which layout
-      (variants below) and I'll wire them up.
+    <p style="font-family:'Share Tech Mono',monospace;color:#88a4b8;font-size:11px;letter-spacing:1px;margin:0 4px 16px;max-width:900px;">
+      Speed dial on the outer arc (click any of the 3 tick dots — amber
+      = slow, cyan = normal, red = fast). 4 toggles inside (Music / SFX /
+      Speech bubbles / Combat log). BATTLE pill at the bottom is the
+      primary action — clicking it toggles to PAUSE. In production this
+      will be context-aware (BATTLE during BUILD, PAUSE during reveal,
+      PLAY AGAIN after game end).
     </p>
-    <div class="preview-frame" style="padding:20px 22px 24px;">
-      <div class="mc-ideas-grid">
-        <div class="mc-idea-group">
-          <div class="mc-idea-group-title">AUDIO</div>
-          <div class="mc-idea-item"><span class="mc-idea-icon"></span><div><strong>Music</strong> on/off — backing track (when one ships)</div></div>
-          <div class="mc-idea-item"><span class="mc-idea-icon"></span><div><strong>SFX</strong> on/off — gunshots / explosions / mine triggers</div></div>
-        </div>
-        <div class="mc-idea-group">
-          <div class="mc-idea-group-title">VISUAL CHATTER</div>
-          <div class="mc-idea-item"><span class="mc-idea-icon"></span><div><strong>Speech bubbles</strong> on/off — unit callouts above pieces</div></div>
-          <div class="mc-idea-item"><span class="mc-idea-icon"></span><div><strong>Heal numbers</strong> on/off — floating +HP feedback</div></div>
-          <div class="mc-idea-item"><span class="mc-idea-icon"></span><div><strong>Combat log</strong> on/off — right-rail D&amp;D action stream</div></div>
-        </div>
-        <div class="mc-idea-group">
-          <div class="mc-idea-group-title">PACING</div>
-          <div class="mc-idea-item"><span class="mc-idea-icon"></span><div><strong>Pause</strong> — freeze the reveal loop mid-turn</div></div>
-          <div class="mc-idea-item"><span class="mc-idea-icon"></span><div><strong>Auto-skip empty turns</strong> — drop empty turns to zero delay</div></div>
-        </div>
-        <div class="mc-idea-group">
-          <div class="mc-idea-group-title">UTILITY</div>
-          <div class="mc-idea-item"><span class="mc-idea-icon"></span><div><strong>HP bars</strong> on/off — bring back the head bars (off in current build)</div></div>
-          <div class="mc-idea-item"><span class="mc-idea-icon"></span><div><strong>Restart</strong> — quick Play Again without scrolling</div></div>
-          <div class="mc-idea-item"><span class="mc-idea-icon"></span><div><strong>Stats</strong> — open /stats.html in a new tab</div></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Variant 1: COMPASS CLUSTER — dial centered, 4 toggles at compass points -->
-  <div class="preview-section">
-    <h2 style="color:#ffb96b;border-color:rgba(255,185,107,0.35);">
-      VARIANT 1 — COMPASS CLUSTER
-      <span class="tag after" style="background:rgba(255,185,107,0.12);border-color:rgba(255,185,107,0.5);color:#ffb96b;">SANDBOX</span>
-    </h2>
-    <p style="font-family:'Share Tech Mono',monospace;color:#88a4b8;font-size:11px;letter-spacing:1px;margin:0 4px 10px;max-width:900px;">
-      Dial in the center. Four toggle pips orbit it at compass points
-      (N / E / S / W). Compact — fits in roughly the size of a single
-      HUD tile. Best when there's limited horizontal real estate.
-    </p>
-    <div class="preview-frame" style="padding:32px 24px;display:flex;justify-content:center;">
-      <div id="mc-variant-1" class="mc-cluster mc-v1"></div>
-    </div>
-  </div>
-
-  <!-- Variant 2: BRIDGE PANEL — chamfered horizontal, dial left + 2x2 right -->
-  <div class="preview-section">
-    <h2 style="color:#ffb96b;border-color:rgba(255,185,107,0.35);">
-      VARIANT 2 — BRIDGE PANEL
-      <span class="tag after" style="background:rgba(255,185,107,0.12);border-color:rgba(255,185,107,0.5);color:#ffb96b;">SANDBOX</span>
-    </h2>
-    <p style="font-family:'Share Tech Mono',monospace;color:#88a4b8;font-size:11px;letter-spacing:1px;margin:0 4px 10px;max-width:900px;">
-      Chamfered horizontal panel. Dial on the left, 2×2 grid of toggle
-      buttons on the right. Reads as a "main console" you'd see on a
-      bridge. Most room for additional toggles if we expand later.
-    </p>
-    <div class="preview-frame" style="padding:32px 24px;display:flex;justify-content:center;">
-      <div id="mc-variant-2" class="mc-cluster mc-v2"></div>
-    </div>
-  </div>
-
-  <!-- Variant 3: COCKPIT STACK — dial on top, row of toggles below -->
-  <div class="preview-section">
-    <h2 style="color:#ffb96b;border-color:rgba(255,185,107,0.35);">
-      VARIANT 3 — COCKPIT STACK
-      <span class="tag after" style="background:rgba(255,185,107,0.12);border-color:rgba(255,185,107,0.5);color:#ffb96b;">SANDBOX</span>
-    </h2>
-    <p style="font-family:'Share Tech Mono',monospace;color:#88a4b8;font-size:11px;letter-spacing:1px;margin:0 4px 10px;max-width:900px;">
-      Vertical chamfered panel. Dial sits on top; a horizontal strip of
-      toggles runs underneath. Cockpit-instrument pattern (gauge over
-      switch panel). Taller than wide — fits a corner of the HUD.
-    </p>
-    <div class="preview-frame" style="padding:32px 24px;display:flex;justify-content:center;">
-      <div id="mc-variant-3" class="mc-cluster mc-v3"></div>
-    </div>
-  </div>
-
-  <!-- ─── "All inside the circle" variants — less is more ─── -->
-  <div class="preview-section">
-    <h2 style="color:#d4ff7a;border-color:rgba(212,255,122,0.35);">
-      ALL-IN-ONE-CIRCLE VARIANTS
-      <span class="tag after" style="background:rgba(212,255,122,0.12);border-color:rgba(212,255,122,0.5);color:#d4ff7a;">EVERYTHING INSIDE THE DIAL</span>
-    </h2>
-    <p style="font-family:'Share Tech Mono',monospace;color:#88a4b8;font-size:11px;letter-spacing:1px;margin:0 4px 4px;max-width:900px;">
-      Three takes on the "one circle does it all" idea. Outer ring = speed
-      (arc + colored ticks). Inside the dial face is where the toggles live.
-      V4 = compact 2×2 grid in the middle. V5 = single big center button
-      (most minimal — less is more taken literally). V6 = concentric inner
-      ring of pips at 12/3/6/9.
-    </p>
-  </div>
-
-  <div class="preview-section">
-    <h2 style="color:#d4ff7a;border-color:rgba(212,255,122,0.35);">
-      VARIANT 4 — UNIFIED DIAL (2×2 INSIDE)
-      <span class="tag after" style="background:rgba(212,255,122,0.12);border-color:rgba(212,255,122,0.5);color:#d4ff7a;">SANDBOX</span>
-    </h2>
-    <div class="preview-frame" style="padding:32px 24px;display:flex;justify-content:center;">
-      <div id="mc-variant-4" class="mc-cluster mc-v4"></div>
-    </div>
-  </div>
-
-  <div class="preview-section">
-    <h2 style="color:#d4ff7a;border-color:rgba(212,255,122,0.35);">
-      VARIANT 5 — MINIMAL CORE (SINGLE CENTER BUTTON)
-      <span class="tag after" style="background:rgba(212,255,122,0.12);border-color:rgba(212,255,122,0.5);color:#d4ff7a;">SANDBOX</span>
-    </h2>
-    <p style="font-family:'Share Tech Mono',monospace;color:#88a4b8;font-size:11px;letter-spacing:1px;margin:0 4px 10px;max-width:900px;">
-      Outer ring sets speed. ONE big button in the middle — the
-      "everything-off" mute (silences music + SFX + speech in one tap).
-      Tap-and-hold (in production) could reveal a sub-menu with individual
-      toggles. Most minimal of all six variants.
-    </p>
-    <div class="preview-frame" style="padding:32px 24px;display:flex;justify-content:center;">
-      <div id="mc-variant-5" class="mc-cluster mc-v5"></div>
-    </div>
-  </div>
-
-  <div class="preview-section">
-    <h2 style="color:#d4ff7a;border-color:rgba(212,255,122,0.35);">
-      VARIANT 6 — INNER PIP RING (4 TOGGLES AT 12/3/6/9)
-      <span class="tag after" style="background:rgba(212,255,122,0.12);border-color:rgba(212,255,122,0.5);color:#d4ff7a;">SANDBOX</span>
-    </h2>
-    <p style="font-family:'Share Tech Mono',monospace;color:#88a4b8;font-size:11px;letter-spacing:1px;margin:0 4px 10px;max-width:900px;">
-      Speed pointer + arc on the outer ring (no inner ticks — toggles
-      replace them visually). 4 toggle pips arranged on a smaller inner
-      ring at clock positions. Heaviest cockpit-instrument feel.
-    </p>
-    <div class="preview-frame" style="padding:32px 24px;display:flex;justify-content:center;">
-      <div id="mc-variant-6" class="mc-cluster mc-v6"></div>
+    <div class="preview-frame" style="padding:36px 24px;display:flex;justify-content:center;align-items:center;">
+      <div id="mcc-root" class="mcc-cluster is-fast"></div>
     </div>
   </div>
 
   <style>
-    /* ═════ Mini-control-center — sandbox-only ═════ */
-    /* Speed palette: amber=slow, cyan=normal, red=fast.
-       The colour itself is the visual cue — no text. */
-    .mc-cluster { --sv-c: #6bd9ff; --sv-c-rgb: 107,217,255; font-family: 'Orbitron', monospace; user-select: none; }
-    .mc-cluster.is-slow   { --sv-c: #ffb96b; --sv-c-rgb: 255,185,107; }
-    .mc-cluster.is-normal { --sv-c: #6bd9ff; --sv-c-rgb: 107,217,255; }
-    .mc-cluster.is-fast   { --sv-c: #ff6b7a; --sv-c-rgb: 255,107,122; }
+    /* ═════ Mini control center — beveled-ring dial ═════
+       Sandbox-only. After user signs off, port to src/ui/HUD.ts. */
 
-    /* ── Speed-dial (shared across all variants) ── */
-    .mc-dial {
+    /* Speed palette — colour IS the visual indicator (no text labels). */
+    .mcc-cluster {
+      --sv-c: #6bd9ff; --sv-c-rgb: 107, 217, 255;       /* normal default */
       position: relative;
-      width: 180px;
-      height: 180px;
-      flex: 0 0 auto;
+      width: 300px;
+      height: 300px;
+      font-family: 'Orbitron', monospace;
+      user-select: none;
+      filter: drop-shadow(0 0 18px rgba(107, 217, 255, 0.18));
     }
-    .mc-dial svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-    .mc-dial .mc-arc-bg {
-      fill: none;
-      stroke: rgba(120, 200, 230, 0.15);
-      stroke-width: 14;
+    .mcc-cluster.is-slow   { --sv-c: #ffb96b; --sv-c-rgb: 255, 185, 107; }
+    .mcc-cluster.is-normal { --sv-c: #6bd9ff; --sv-c-rgb: 107, 217, 255; }
+    .mcc-cluster.is-fast   { --sv-c: #ff6b7a; --sv-c-rgb: 255, 107, 122; }
+
+    /* The SVG fills the whole cluster — bevel rings + arc + ticks + pointer */
+    .mcc-cluster > svg.mcc-dial {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
     }
-    .mc-dial .mc-arc-fill {
+
+    /* Arc colours / pointer — driven by --sv-c on the cluster */
+    .mcc-arc-bg   { fill: none; stroke: rgba(120, 200, 230, 0.16); stroke-width: 8; }
+    .mcc-arc-fill {
       fill: none;
       stroke: var(--sv-c);
-      stroke-width: 14;
+      stroke-width: 8;
       stroke-linecap: round;
       filter: drop-shadow(0 0 6px rgba(var(--sv-c-rgb), 0.85));
-      transition: stroke 200ms ease, stroke-dasharray 250ms ease;
+      transition: stroke 220ms ease, stroke-dasharray 280ms cubic-bezier(0.4, 0, 0.2, 1);
     }
-    .mc-dial .mc-pointer {
+    .mcc-pointer {
       stroke: var(--sv-c);
-      stroke-width: 3;
+      stroke-width: 2.5;
       stroke-linecap: round;
-      filter: drop-shadow(0 0 5px rgba(var(--sv-c-rgb), 0.9));
-      transition: transform 220ms cubic-bezier(0.4, 0, 0.2, 1), stroke 200ms ease;
-      transform-origin: 90px 90px;
+      filter: drop-shadow(0 0 4px rgba(var(--sv-c-rgb), 0.9));
+      transition: transform 240ms cubic-bezier(0.4, 0, 0.2, 1), stroke 220ms ease;
+      transform-origin: 150px 150px;
     }
-    .mc-dial .mc-hub {
-      fill: #0a1828;
-      stroke: rgba(120, 200, 230, 0.5);
-      stroke-width: 1.5;
-    }
-    .mc-dial .mc-tick {
-      cursor: pointer;
-      fill: rgba(120, 200, 230, 0.25);
-      stroke: rgba(120, 200, 230, 0.6);
-      stroke-width: 1.5;
-      transition: fill 150ms ease, stroke 150ms ease, filter 150ms ease;
-    }
-    .mc-dial .mc-tick:hover { fill: rgba(216, 238, 249, 0.5); }
-    .mc-dial .mc-tick.active {
-      fill: var(--tick-c);
-      stroke: var(--tick-c);
-      filter: drop-shadow(0 0 6px var(--tick-c));
-    }
-    /* Per-tick colours so the user can read which tick is which without text */
-    .mc-tick-slow   { --tick-c: #ffb96b; }
-    .mc-tick-normal { --tick-c: #6bd9ff; }
-    .mc-tick-fast   { --tick-c: #ff6b7a; }
+    .mcc-hub { fill: #0a1828; stroke: rgba(120, 200, 230, 0.6); stroke-width: 1; }
 
-    /* ── Toggle pip (round icon-only on/off button) ── */
-    .mc-toggle {
-      width: 46px;
-      height: 46px;
+    /* Speed-tick dots on the arc — colour-coded per position */
+    .mcc-tick {
+      cursor: pointer;
+      stroke-width: 1.5;
+      transition: fill 160ms ease, stroke 160ms ease, filter 160ms ease, r 160ms ease;
+    }
+    .mcc-tick.slow   { --tk: #ffb96b; }
+    .mcc-tick.normal { --tk: #6bd9ff; }
+    .mcc-tick.fast   { --tk: #ff6b7a; }
+    .mcc-tick:not(.active) {
+      fill: rgba(120, 200, 230, 0.25);
+      stroke: rgba(120, 200, 230, 0.55);
+    }
+    .mcc-tick:hover { fill: rgba(216, 238, 249, 0.6); stroke: #d8eef9; }
+    .mcc-tick.active {
+      fill: var(--tk);
+      stroke: var(--tk);
+      filter: drop-shadow(0 0 6px var(--tk));
+    }
+
+    /* ─── Inner toggle cluster — 2x2 grid, absolutely positioned over SVG ─── */
+    .mcc-inner-grid {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, calc(-50% - 6px));   /* lift slightly above center to balance bottom pill */
+      display: grid;
+      grid-template-columns: 38px 38px;
+      grid-template-rows:    38px 38px;
+      gap: 10px;
+      z-index: 2;
+    }
+    .mcc-toggle {
+      width: 38px;
+      height: 38px;
       border-radius: 50%;
-      background: rgba(8, 18, 32, 0.85);
-      border: 1px solid rgba(120, 200, 230, 0.35);
-      color: #5a7a92;
+      background: radial-gradient(circle at 30% 30%, rgba(30, 50, 72, 0.95), rgba(8, 18, 32, 0.95));
+      border: 1px solid rgba(120, 200, 230, 0.4);
+      color: #6f8ea2;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: all 130ms ease;
+      transition: all 140ms ease;
       position: relative;
     }
-    .mc-toggle:hover { border-color: rgba(120, 200, 230, 0.7); color: #b8d8ee; }
-    .mc-toggle svg { width: 22px; height: 22px; display: block; }
-    .mc-toggle svg path,
-    .mc-toggle svg circle,
-    .mc-toggle svg rect,
-    .mc-toggle svg line { stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
-    .mc-toggle svg .mc-fill { fill: currentColor; stroke: none; }
-    .mc-toggle.on {
+    .mcc-toggle:hover { color: #d8eef9; border-color: rgba(216, 238, 249, 0.85); }
+    .mcc-toggle svg { width: 20px; height: 20px; display: block; }
+    .mcc-toggle svg path,
+    .mcc-toggle svg circle,
+    .mcc-toggle svg rect,
+    .mcc-toggle svg line { stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+    .mcc-toggle svg .mc-fill { fill: currentColor; stroke: none; }
+    .mcc-toggle.on {
       color: #84e3a2;
       border-color: #84e3a2;
-      background: rgba(132, 227, 162, 0.12);
-      box-shadow: 0 0 12px rgba(132, 227, 162, 0.45), inset 0 0 8px rgba(132, 227, 162, 0.18);
+      background: radial-gradient(circle at 30% 30%, rgba(132, 227, 162, 0.25), rgba(8, 18, 32, 0.85));
+      box-shadow: 0 0 10px rgba(132, 227, 162, 0.55), inset 0 0 8px rgba(132, 227, 162, 0.22);
     }
-    .mc-toggle.off::before {
+    .mcc-toggle.off::before {
       content: '';
       position: absolute;
       top: 50%;
-      left: 20%;
-      width: 60%;
-      height: 1.5px;
+      left: 18%;
+      width: 64%;
+      height: 1.4px;
       background: currentColor;
       transform: rotate(-30deg);
       transform-origin: center;
@@ -853,446 +747,221 @@
       pointer-events: none;
     }
 
-    /* ─── Variant 1: COMPASS CLUSTER (radial) ─── */
-    .mc-v1 {
-      position: relative;
-      width: 280px;
-      height: 280px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .mc-v1 .mc-dial { width: 180px; height: 180px; }
-    .mc-v1 .mc-toggle {
+    /* ─── Bottom action pill (BATTLE / PAUSE) ─── */
+    .mcc-action {
       position: absolute;
-    }
-    /* Compass positions */
-    .mc-v1 .mc-toggle.pos-n  { top: 0;            left: 50%; transform: translateX(-50%); }
-    .mc-v1 .mc-toggle.pos-e  { right: 0;          top: 50%; transform: translateY(-50%); }
-    .mc-v1 .mc-toggle.pos-s  { bottom: 0;         left: 50%; transform: translateX(-50%); }
-    .mc-v1 .mc-toggle.pos-w  { left: 0;           top: 50%; transform: translateY(-50%); }
-
-    /* ─── Variant 2: BRIDGE PANEL (horizontal, 2x2 toggles) ─── */
-    .mc-v2 {
-      display: flex;
-      align-items: center;
-      gap: 22px;
-      padding: 18px 24px;
-      background: linear-gradient(180deg, rgba(20, 36, 56, 0.7), rgba(8, 18, 32, 0.85));
-      border: 1px solid rgba(120, 200, 230, 0.35);
-      clip-path: polygon(
-        14px 0, calc(100% - 14px) 0, 100% 14px,
-        100% calc(100% - 14px), calc(100% - 14px) 100%,
-        14px 100%, 0 calc(100% - 14px), 0 14px
-      );
-    }
-    .mc-v2 .mc-dial { width: 160px; height: 160px; }
-    .mc-v2 .mc-toggle-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 46px);
-      grid-template-rows:    repeat(2, 46px);
-      gap: 12px;
-    }
-    /* Subtle divider line between dial and grid */
-    .mc-v2 .mc-divider {
-      width: 1px;
-      align-self: stretch;
-      background: linear-gradient(180deg, transparent, rgba(120, 200, 230, 0.45), transparent);
-    }
-
-    /* ─── Variant 3: COCKPIT STACK (vertical) ─── */
-    .mc-v3 {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 14px;
-      padding: 16px 20px 18px;
-      background: linear-gradient(180deg, rgba(20, 36, 56, 0.7), rgba(8, 18, 32, 0.85));
-      border: 1px solid rgba(120, 200, 230, 0.35);
-      clip-path: polygon(
-        14px 0, calc(100% - 14px) 0, 100% 14px,
-        100% calc(100% - 14px), calc(100% - 14px) 100%,
-        14px 100%, 0 calc(100% - 14px), 0 14px
-      );
-    }
-    .mc-v3 .mc-dial { width: 160px; height: 160px; }
-    .mc-v3 .mc-divider-h {
-      width: 80%;
-      height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(120, 200, 230, 0.45), transparent);
-    }
-    .mc-v3 .mc-toggle-row {
-      display: flex;
-      gap: 12px;
-    }
-
-    /* ─── Variant 4: UNIFIED DIAL — 2×2 toggle grid inside the dial face ─── */
-    .mc-v4 {
-      position: relative;
-      width: 200px;
-      height: 200px;
-    }
-    .mc-v4 .mc-dial { width: 200px; height: 200px; }
-    /* Smaller toggles so all four fit inside the dial face */
-    .mc-v4 .mc-inner-grid {
-      position: absolute;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      display: grid;
-      grid-template-columns: 32px 32px;
-      grid-template-rows:    32px 32px;
-      gap: 8px;
-      pointer-events: auto;
-    }
-    .mc-v4 .mc-toggle {
-      width: 32px;
-      height: 32px;
-    }
-    .mc-v4 .mc-toggle svg { width: 16px; height: 16px; }
-
-    /* ─── Variant 5: MINIMAL CORE — single big center button ─── */
-    .mc-v5 {
-      position: relative;
-      width: 200px;
-      height: 200px;
-    }
-    .mc-v5 .mc-dial { width: 200px; height: 200px; }
-    .mc-v5 .mc-center-btn {
-      position: absolute;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      width: 60px;
-      height: 60px;
-      border-radius: 50%;
-      background: linear-gradient(180deg, rgba(20, 36, 56, 0.95), rgba(8, 18, 32, 0.95));
-      border: 1.5px solid rgba(120, 200, 230, 0.55);
-      color: #88c5e0;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 130ms ease;
-      box-shadow: 0 0 12px rgba(0, 0, 0, 0.4), inset 0 0 14px rgba(0, 0, 0, 0.6);
-    }
-    .mc-v5 .mc-center-btn:hover { color: #d8eef9; border-color: rgba(216, 238, 249, 0.75); }
-    .mc-v5 .mc-center-btn:active { transform: translate(-50%, -50%) translateY(1px); }
-    .mc-v5 .mc-center-btn svg { width: 26px; height: 26px; display: block; }
-    .mc-v5 .mc-center-btn svg path,
-    .mc-v5 .mc-center-btn svg circle,
-    .mc-v5 .mc-center-btn svg rect,
-    .mc-v5 .mc-center-btn svg line { stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-    .mc-v5 .mc-center-btn svg .mc-fill { fill: currentColor; stroke: none; }
-    /* "Muted" state — when on, audio is silenced; off = audio enabled. Inverted from other toggles. */
-    .mc-v5 .mc-center-btn.muted {
-      color: #ff6b7a;
-      border-color: #ff6b7a;
-      background: linear-gradient(180deg, rgba(255, 107, 122, 0.22), rgba(255, 107, 122, 0.06));
-      box-shadow: 0 0 16px rgba(255, 107, 122, 0.5), inset 0 0 14px rgba(255, 107, 122, 0.2);
-    }
-    .mc-v5 .mc-center-btn.muted::after {
-      content: '';
-      position: absolute;
-      width: 56%;
-      height: 1.8px;
-      background: currentColor;
-      top: 50%;
-      left: 22%;
-      transform: rotate(-30deg);
-      transform-origin: center;
-      pointer-events: none;
-    }
-
-    /* ─── Variant 6: INNER PIP RING — 4 toggles at clock positions inside ─── */
-    .mc-v6 {
-      position: relative;
-      width: 200px;
-      height: 200px;
-    }
-    .mc-v6 .mc-dial { width: 200px; height: 200px; }
-    /* Dial hides its inner ticks in V6 — toggles take that role visually */
-    .mc-v6 .mc-dial .mc-tick { display: none; }
-    .mc-v6 .mc-toggle {
-      position: absolute;
-      width: 32px;
-      height: 32px;
-    }
-    .mc-v6 .mc-toggle svg { width: 16px; height: 16px; }
-    /* Clock positions inside the dial — inner ring at radius ~40px from center */
-    .mc-v6 .mc-toggle.pos-12 { top: 38px;  left: 50%; transform: translateX(-50%); }
-    .mc-v6 .mc-toggle.pos-3  { right: 38px; top: 50%; transform: translateY(-50%); }
-    .mc-v6 .mc-toggle.pos-6  { bottom: 38px; left: 50%; transform: translateX(-50%); }
-    .mc-v6 .mc-toggle.pos-9  { left: 38px; top: 50%; transform: translateY(-50%); }
-
-    /* ─── Ideas pool styling ─── */
-    .mc-ideas-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 18px;
-      font-family: 'Share Tech Mono', monospace;
-      font-size: 12px;
-      color: #b8d8ee;
-    }
-    .mc-idea-group {
-      border: 1px solid rgba(120, 200, 230, 0.18);
-      background: rgba(8, 18, 32, 0.4);
-      padding: 12px 14px 14px;
-    }
-    .mc-idea-group-title {
+      left: 50%;
+      bottom: 42px;                                  /* sits just above the bottom arc of the inner face */
+      transform: translateX(-50%);
+      padding: 9px 26px 9px 26px;
       font-family: 'Orbitron', monospace;
-      font-size: 10px;
-      letter-spacing: 3px;
-      color: #d4ff7a;
-      margin-bottom: 10px;
+      font-size: 13px;
+      letter-spacing: 5px;
+      font-weight: 700;
+      color: #d8eef9;
+      background: linear-gradient(180deg, rgba(20, 36, 56, 0.95), rgba(8, 18, 32, 0.95));
+      border: 1px solid rgba(120, 200, 230, 0.55);
+      cursor: pointer;
+      transition: all 130ms ease;
+      z-index: 2;
+      clip-path: polygon(
+        8px 0, calc(100% - 8px) 0, 100% 50%,
+        calc(100% - 8px) 100%, 8px 100%, 0 50%
+      );
+      box-shadow: 0 0 10px rgba(120, 200, 230, 0.3), inset 0 0 8px rgba(120, 200, 230, 0.18);
     }
-    .mc-idea-item {
-      display: flex;
-      gap: 8px;
-      align-items: flex-start;
-      margin-bottom: 6px;
-      line-height: 1.4;
+    .mcc-action:hover {
+      color: #ffffff;
+      border-color: #6bd9ff;
+      box-shadow: 0 0 16px rgba(107, 217, 255, 0.7), inset 0 0 10px rgba(107, 217, 255, 0.3);
     }
-    .mc-idea-item strong { color: #b8d8ee; font-weight: 700; }
-    .mc-idea-icon {
-      flex: 0 0 6px;
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: #d4ff7a;
-      margin-top: 6px;
-      box-shadow: 0 0 4px rgba(212, 255, 122, 0.8);
+    .mcc-action:active { transform: translateX(-50%) translateY(1px); }
+    /* "PAUSE" state — turns amber to signal it's active and clickable to resume */
+    .mcc-action.paused {
+      color: #ffb96b;
+      border-color: #ffb96b;
+      background: linear-gradient(180deg, rgba(255, 185, 107, 0.15), rgba(8, 18, 32, 0.95));
+      box-shadow: 0 0 14px rgba(255, 185, 107, 0.55), inset 0 0 10px rgba(255, 185, 107, 0.22);
+    }
+    /* Small diamond glyph below the pill — mirrors the reference image */
+    .mcc-action-diamond {
+      position: absolute;
+      left: 50%;
+      bottom: 28px;
+      transform: translateX(-50%) rotate(45deg);
+      width: 9px;
+      height: 9px;
+      background: rgba(107, 217, 255, 0.55);
+      box-shadow: 0 0 6px rgba(107, 217, 255, 0.7);
+      pointer-events: none;
     }
   </style>
 
   <script>
-    // ═════ Mini-control-center — interactive sandbox ═════
-    // Each variant manages its own state. Clicking a dial dot sets the
-    // speed (changes pointer + arc colour); clicking a toggle flips on/off.
-    // Real wiring (RevealSpeed + audio mutes etc.) waits until user picks.
+    // ═════ Mini control center — interactive sandbox ═════
+    // Clicking a tick dot sets the speed (changes arc + pointer + colour);
+    // clicking a toggle flips on/off; clicking the BATTLE pill toggles
+    // its PAUSE state. Production wiring (RevealSpeed + audio mutes etc.)
+    // happens once the user signs off on the design.
 
-    const MC_SPEEDS = [
-      // angle = pointer rotation in degrees, clockwise from 12 o'clock.
-      // Right side of the dial = faster (intuitive: clockwise = forward).
-      { id: 'slow',   angle: -60, arcPct: 0.20, tickClass: 'mc-tick-slow',   stateClass: 'is-slow'   },
-      { id: 'normal', angle:   0, arcPct: 0.55, tickClass: 'mc-tick-normal', stateClass: 'is-normal' },
-      { id: 'fast',   angle:  60, arcPct: 0.95, tickClass: 'mc-tick-fast',   stateClass: 'is-fast'   },
+    const MCC_SPEEDS = [
+      // Pointer angle in degrees, clockwise from 12 o'clock.
+      // -55 / 0 / +55 keeps ticks well separated on a 200° arc.
+      { id: 'slow',   angle: -55, arcPct: 0.18, tickClass: 'slow'   },
+      { id: 'normal', angle:   0, arcPct: 0.55, tickClass: 'normal' },
+      { id: 'fast',   angle:  55, arcPct: 0.92, tickClass: 'fast'   },
     ]
 
-    // Tick positions on the dial face (SVG coords inside a 180×180 viewBox).
-    // Centre is 90,90 — radius ~62 places the dots just inside the arc.
-    function tickPos(angleDeg) {
-      const rad = (angleDeg - 90) * Math.PI / 180   // 0° == 3 o'clock in SVG; we want 0° == 12 o'clock
-      const r = 62
-      return { x: 90 + r * Math.cos(rad), y: 90 + r * Math.sin(rad) }
+    // SVG icons — 24x24 viewBox. Filled via .mc-fill class; outlines via stroke.
+    const MCC_ICONS = {
+      music:  `<svg viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="7" cy="18" r="2" class="mc-fill"/><circle cx="18" cy="16" r="2" class="mc-fill"/></svg>`,
+      sfx:    `<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z" class="mc-fill"/><path d="M16 8c1.5 1.5 1.5 6.5 0 8"/><path d="M19 5c3 3 3 11 0 14"/></svg>`,
+      speech: `<svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4V5z"/><circle cx="9" cy="10.5" r="1" class="mc-fill"/><circle cx="13" cy="10.5" r="1" class="mc-fill"/><circle cx="17" cy="10.5" r="1" class="mc-fill"/></svg>`,
+      log:    `<svg viewBox="0 0 24 24"><line x1="5" y1="7"  x2="19" y2="7"/><line x1="5" y1="12" x2="19" y2="12"/><line x1="5" y1="17" x2="14" y2="17"/></svg>`,
     }
 
-    // SVG icons for the toggle buttons (24×24 viewBox).
-    // Filled wedges use the .mc-fill class to inherit currentColor; outlines
-    // use stroke only. These are the EXAMPLES — swap freely.
-    const ICON = {
-      music: `<svg viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="7" cy="18" r="2" class="mc-fill"/><circle cx="18" cy="16" r="2" class="mc-fill"/></svg>`,
-      sfx:   `<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z" class="mc-fill"/><path d="M16 8c1.5 1.5 1.5 6.5 0 8"/><path d="M19 5c3 3 3 11 0 14"/></svg>`,
-      speech:`<svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4V5z"/><circle cx="9" cy="10.5" r="1" class="mc-fill"/><circle cx="13" cy="10.5" r="1" class="mc-fill"/><circle cx="17" cy="10.5" r="1" class="mc-fill"/></svg>`,
-      pause: `<svg viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" class="mc-fill"/><rect x="14" y="5" width="4" height="14" class="mc-fill"/></svg>`,
+    const MCC_TOGGLES = [
+      { id: 'music',  icon: 'music',  label: 'Music',           defaultOn: true  },
+      { id: 'sfx',    icon: 'sfx',    label: 'Sound effects',   defaultOn: true  },
+      { id: 'speech', icon: 'speech', label: 'Speech bubbles',  defaultOn: true  },
+      { id: 'log',    icon: 'log',    label: 'Combat log',      defaultOn: true  },
+    ]
+
+    // Convert a polar angle (degrees, 0° = 12 o'clock, clockwise) to a
+    // point on the dial arc (radius from centre). Used for tick positions.
+    function mccTickPos(angleDeg, radius) {
+      const rad = (angleDeg - 90) * Math.PI / 180
+      return { x: 150 + radius * Math.cos(rad), y: 150 + radius * Math.sin(rad) }
     }
 
-    // Generic dial renderer — returns the HTML string for an inline SVG
-    // dial scaled to fit any parent (parent sets explicit width/height).
-    function dialHtml(currentSpeed) {
-      const arcCircum = 2 * Math.PI * 70 * (240 / 360)   // r=70, 240° arc
-      const speed = MC_SPEEDS.find(s => s.id === currentSpeed)
+    // Render the SVG bevel rings + arc + ticks + pointer + hub. The bevel
+    // is faked with concentric circles at decreasing radii, each with a
+    // slightly different fill — gives an embossed industrial-metal look
+    // without external textures.
+    function dialSvg(currentSpeed) {
+      const speed = MCC_SPEEDS.find(s => s.id === currentSpeed)
+      // Arc geometry — 200° opening at the bottom, radius 112
+      const arcR = 112
+      const arcStart = mccTickPos(-100, arcR)   // 10 o'clock-ish
+      const arcEnd   = mccTickPos( 100, arcR)   // 2 o'clock mirrored = bottom-right area
+      const arcCircum = 2 * Math.PI * arcR * (200 / 360)
       const liveLen = arcCircum * speed.arcPct
-      const ticks = MC_SPEEDS.map(s => {
-        const p = tickPos(s.angle)
-        return `<circle class="mc-tick ${s.tickClass}${s.id === currentSpeed ? ' active' : ''}"
-                        data-id="${s.id}" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="7" />`
+      const arcD = `M ${arcStart.x.toFixed(1)} ${arcStart.y.toFixed(1)} A ${arcR} ${arcR} 0 1 1 ${arcEnd.x.toFixed(1)} ${arcEnd.y.toFixed(1)}`
+      // Tick positions on the arc
+      const ticks = MCC_SPEEDS.map(s => {
+        const p = mccTickPos(s.angle, arcR)
+        const active = s.id === currentSpeed
+        return `<circle class="mcc-tick ${s.tickClass}${active ? ' active' : ''}"
+                        data-id="${s.id}" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${active ? 6 : 5}" />`
       }).join('')
+      // Side indicator notches (purely decorative — mirrors the
+      // anchor-plates in the reference image at 9/3/6 o'clock).
+      const sideNotch = (cx, cy, w, h) =>
+        `<rect x="${cx - w / 2}" y="${cy - h / 2}" width="${w}" height="${h}" rx="1.5"
+               fill="rgba(8,18,32,0.9)" stroke="rgba(120,200,230,0.45)" stroke-width="1" />`
       return `
-        <svg viewBox="0 0 180 180">
-          <!-- 240° arc — opens downward (8 o'clock → 4 o'clock through 12) -->
-          <path class="mc-arc-bg"  d="M 30 138 A 70 70 0 1 1 150 138" />
-          <path class="mc-arc-fill" d="M 30 138 A 70 70 0 1 1 150 138"
+        <svg class="mcc-dial" viewBox="0 0 300 300">
+          <defs>
+            <!-- Outer ring: deep navy with a brighter inner highlight (fake top-light bevel) -->
+            <radialGradient id="mcc-outer" cx="50%" cy="40%" r="60%">
+              <stop offset="0%"   stop-color="#0c1e34"/>
+              <stop offset="85%"  stop-color="#08152a"/>
+              <stop offset="100%" stop-color="#152a45"/>
+            </radialGradient>
+            <radialGradient id="mcc-mid" cx="50%" cy="40%" r="50%">
+              <stop offset="0%"   stop-color="#0a1828"/>
+              <stop offset="100%" stop-color="#04101e"/>
+            </radialGradient>
+            <radialGradient id="mcc-inner-face" cx="50%" cy="38%" r="60%">
+              <stop offset="0%"   stop-color="#0d2238"/>
+              <stop offset="100%" stop-color="#04101e"/>
+            </radialGradient>
+            <!-- Cyan rim glow halo behind everything -->
+            <radialGradient id="mcc-glow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%"   stop-color="rgba(107,217,255,0.18)"/>
+              <stop offset="70%"  stop-color="rgba(107,217,255,0.03)"/>
+              <stop offset="100%" stop-color="rgba(107,217,255,0)"/>
+            </radialGradient>
+          </defs>
+
+          <!-- Halo behind the rings -->
+          <circle cx="150" cy="150" r="148" fill="url(#mcc-glow)"/>
+
+          <!-- BEVEL RINGS: 3 concentric circles, each thinner, with bright stroke at the boundaries -->
+          <!-- Outer ring -->
+          <circle cx="150" cy="150" r="142" fill="url(#mcc-outer)"
+                  stroke="rgba(107,217,255,0.85)" stroke-width="1.5"/>
+          <circle cx="150" cy="150" r="139" fill="none"
+                  stroke="rgba(255,255,255,0.06)" stroke-width="1"/>   <!-- top highlight -->
+          <!-- Mid ring -->
+          <circle cx="150" cy="150" r="125" fill="url(#mcc-mid)"
+                  stroke="rgba(107,217,255,0.45)" stroke-width="1"/>
+          <!-- Inner face -->
+          <circle cx="150" cy="150" r="108" fill="url(#mcc-inner-face)"
+                  stroke="rgba(107,217,255,0.55)" stroke-width="1"/>
+
+          <!-- Side decorative notches (3 o'clock / 9 o'clock / 6 o'clock) -->
+          ${sideNotch(150, 282, 16, 8)}   <!-- bottom -->
+          ${sideNotch( 12, 150,  8, 22)}  <!-- left -->
+          ${sideNotch(288, 150,  8, 22)}  <!-- right -->
+
+          <!-- SPEED ARC: 200° opening at bottom, painted at radius 112 (inside the inner ring) -->
+          <path class="mcc-arc-bg"   d="${arcD}"/>
+          <path class="mcc-arc-fill" d="${arcD}"
                 stroke-dasharray="${liveLen} ${arcCircum * 2}" />
-          <!-- Pointer rotates from -60 (slow) to +60 (fast) -->
-          <line class="mc-pointer" x1="90" y1="90" x2="90" y2="34"
-                style="transform: rotate(${speed.angle}deg)" />
-          <circle class="mc-hub" cx="90" cy="90" r="11" />
+
+          <!-- Speed-tick dots -->
           ${ticks}
+
+          <!-- Pointer line from centre to the active tick direction -->
+          <line class="mcc-pointer" x1="150" y1="150" x2="150" y2="60"
+                style="transform: rotate(${speed.angle}deg)"/>
+          <circle class="mcc-hub" cx="150" cy="150" r="6"/>
         </svg>`
     }
 
-    // Render a list of toggle buttons. Each toggle has its own on/off state.
-    function toggleHtml(t, on) {
-      return `<button class="mc-toggle ${on ? 'on' : 'off'}" data-toggle="${t.id}" title="${t.label}">
-        ${ICON[t.icon]}
-      </button>`
-    }
-
-    // The 4 example toggles in every variant. Swap freely from the ideas pool.
-    const DEFAULT_TOGGLES = [
-      { id: 'music',  icon: 'music',  label: 'Music' },
-      { id: 'sfx',    icon: 'sfx',    label: 'Sound Effects' },
-      { id: 'speech', icon: 'speech', label: 'Speech Bubbles' },
-      { id: 'pause',  icon: 'pause',  label: 'Pause' },
-    ]
-
-    // Wire dial dots + toggle pips for any rendered cluster. Re-paints the
-    // dial when speed changes, flips the on/off class when toggles fire.
-    function attachClusterHandlers(host, repaintDial) {
-      // Dial dots
-      host.querySelectorAll('.mc-tick').forEach(el => {
-        el.addEventListener('click', () => {
-          host.dataset.speed = el.dataset.id
-          host.className = host.className.replace(/\bis-(slow|normal|fast)\b/, '')
-          host.classList.add('is-' + el.dataset.id)
-          repaintDial(el.dataset.id)
-        })
-      })
-      // Toggle pips
-      host.querySelectorAll('.mc-toggle').forEach(el => {
-        el.addEventListener('click', () => {
-          el.classList.toggle('on')
-          el.classList.toggle('off')
-        })
-      })
-    }
-
-    // ─── Variant 1: COMPASS CLUSTER ───
-    function renderV1() {
-      const host = document.getElementById('mc-variant-1')
+    function renderControlCenter() {
+      const host = document.getElementById('mcc-root')
       let speed = 'fast'
-      function paint() {
-        host.className = `mc-cluster mc-v1 is-${speed}`
-        host.dataset.speed = speed
-        const t = DEFAULT_TOGGLES
-        host.innerHTML = `
-          <div class="mc-dial">${dialHtml(speed)}</div>
-          <div class="mc-toggle pos-n on" data-toggle="${t[0].id}" title="${t[0].label}">${ICON[t[0].icon]}</div>
-          <div class="mc-toggle pos-e on" data-toggle="${t[1].id}" title="${t[1].label}">${ICON[t[1].icon]}</div>
-          <div class="mc-toggle pos-s on" data-toggle="${t[2].id}" title="${t[2].label}">${ICON[t[2].icon]}</div>
-          <div class="mc-toggle pos-w off" data-toggle="${t[3].id}" title="${t[3].label}">${ICON[t[3].icon]}</div>
-        `
-        attachClusterHandlers(host, s => { speed = s; paint() })
-      }
-      paint()
-    }
+      let paused = false
+      let toggleState = Object.fromEntries(MCC_TOGGLES.map(t => [t.id, t.defaultOn]))
 
-    // ─── Variant 2: BRIDGE PANEL ───
-    function renderV2() {
-      const host = document.getElementById('mc-variant-2')
-      let speed = 'fast'
       function paint() {
-        host.className = `mc-cluster mc-v2 is-${speed}`
-        const t = DEFAULT_TOGGLES
-        host.innerHTML = `
-          <div class="mc-dial">${dialHtml(speed)}</div>
-          <div class="mc-divider"></div>
-          <div class="mc-toggle-grid">
-            ${toggleHtml(t[0], true)}
-            ${toggleHtml(t[1], true)}
-            ${toggleHtml(t[2], true)}
-            ${toggleHtml(t[3], false)}
-          </div>
-        `
-        attachClusterHandlers(host, s => { speed = s; paint() })
-      }
-      paint()
-    }
-
-    // ─── Variant 3: COCKPIT STACK ───
-    function renderV3() {
-      const host = document.getElementById('mc-variant-3')
-      let speed = 'fast'
-      function paint() {
-        host.className = `mc-cluster mc-v3 is-${speed}`
-        const t = DEFAULT_TOGGLES
-        host.innerHTML = `
-          <div class="mc-dial">${dialHtml(speed)}</div>
-          <div class="mc-divider-h"></div>
-          <div class="mc-toggle-row">
-            ${toggleHtml(t[0], true)}
-            ${toggleHtml(t[1], true)}
-            ${toggleHtml(t[2], true)}
-            ${toggleHtml(t[3], false)}
-          </div>
-        `
-        attachClusterHandlers(host, s => { speed = s; paint() })
-      }
-      paint()
-    }
-
-    // ─── Variant 4: UNIFIED DIAL (2×2 toggle grid inside the dial) ───
-    function renderV4() {
-      const host = document.getElementById('mc-variant-4')
-      let speed = 'fast'
-      function paint() {
-        host.className = `mc-cluster mc-v4 is-${speed}`
-        const t = DEFAULT_TOGGLES
-        host.innerHTML = `
-          <div class="mc-dial">${dialHtml(speed)}</div>
-          <div class="mc-inner-grid">
-            ${toggleHtml(t[0], true)}
-            ${toggleHtml(t[1], true)}
-            ${toggleHtml(t[2], true)}
-            ${toggleHtml(t[3], false)}
-          </div>
-        `
-        attachClusterHandlers(host, s => { speed = s; paint() })
-      }
-      paint()
-    }
-
-    // ─── Variant 5: MINIMAL CORE (single big center button) ───
-    // The center button is an "everything-off" mute — silences audio in
-    // one tap. In production, tap-and-hold could expand a sub-menu.
-    const MUTE_ICON = `<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z" class="mc-fill"/><path d="M16 8c1.5 1.5 1.5 6.5 0 8"/><path d="M19 5c3 3 3 11 0 14"/></svg>`
-    function renderV5() {
-      const host = document.getElementById('mc-variant-5')
-      let speed = 'fast'
-      let muted = false
-      function paint() {
-        host.className = `mc-cluster mc-v5 is-${speed}`
-        host.innerHTML = `
-          <div class="mc-dial">${dialHtml(speed)}</div>
-          <button class="mc-center-btn ${muted ? 'muted' : ''}" title="${muted ? 'Audio muted (tap to enable)' : 'Audio enabled (tap to mute)'}">
-            ${MUTE_ICON}
+        host.className = `mcc-cluster is-${speed}`
+        const toggles = MCC_TOGGLES.map(t => `
+          <button class="mcc-toggle ${toggleState[t.id] ? 'on' : 'off'}"
+                  data-toggle="${t.id}" title="${t.label}">
+            ${MCC_ICONS[t.icon]}
           </button>
-        `
-        // Wire dial dots through the shared helper
-        attachClusterHandlers(host, s => { speed = s; paint() })
-        // Center button toggles its own muted state
-        const btn = host.querySelector('.mc-center-btn')
-        btn.addEventListener('click', () => { muted = !muted; paint() })
-      }
-      paint()
-    }
-
-    // ─── Variant 6: INNER PIP RING (4 toggles at 12/3/6/9 inside the dial) ───
-    function renderV6() {
-      const host = document.getElementById('mc-variant-6')
-      let speed = 'fast'
-      function paint() {
-        host.className = `mc-cluster mc-v6 is-${speed}`
-        const t = DEFAULT_TOGGLES
-        const positionedToggle = (toggle, on, pos) =>
-          `<button class="mc-toggle ${pos} ${on ? 'on' : 'off'}" title="${toggle.label}">${ICON[toggle.icon]}</button>`
+        `).join('')
         host.innerHTML = `
-          <div class="mc-dial">${dialHtml(speed)}</div>
-          ${positionedToggle(t[0], true,  'pos-12')}
-          ${positionedToggle(t[1], true,  'pos-3' )}
-          ${positionedToggle(t[2], true,  'pos-6' )}
-          ${positionedToggle(t[3], false, 'pos-9' )}
+          ${dialSvg(speed)}
+          <div class="mcc-inner-grid">${toggles}</div>
+          <button class="mcc-action ${paused ? 'paused' : ''}">${paused ? 'PAUSE' : 'BATTLE'}</button>
+          <div class="mcc-action-diamond"></div>
         `
-        attachClusterHandlers(host, s => { speed = s; paint() })
+        // Wire tick dots → set speed
+        host.querySelectorAll('.mcc-tick').forEach(el => {
+          el.addEventListener('click', () => { speed = el.dataset.id; paint() })
+        })
+        // Wire toggles → flip on/off
+        host.querySelectorAll('.mcc-toggle').forEach(el => {
+          el.addEventListener('click', () => {
+            const id = el.dataset.toggle
+            toggleState[id] = !toggleState[id]
+            paint()
+          })
+        })
+        // Wire action pill → toggle pause
+        host.querySelector('.mcc-action').addEventListener('click', () => {
+          paused = !paused
+          paint()
+        })
       }
       paint()
     }
 
-    renderV1()
-    renderV2()
-    renderV3()
-    renderV4()
-    renderV5()
-    renderV6()
+    renderControlCenter()
   </script>
 
   <!-- ═══════════════ CALLOUT MATRIX ═══════════════
