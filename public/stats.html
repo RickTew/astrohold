@@ -229,6 +229,55 @@
   </div>
 
   <div class="panel">
+    <h2 style="margin-top:0">ERROR-HUNTING TELEMETRY</h2>
+    <p class="hint" style="margin:0 0 12px">
+      Aggregated across all recorded games. Look for unexpected entries.
+      Per-side resupply mismatches mean an AI advantage. Friendly fire
+      counts mean AoE targeting bugs. One-shot victims that are NOT
+      Sniper kills mean a damage bug. Damage reconciliation gaps mean
+      a code path bypassing attribute().
+    </p>
+    <div id="telemetry-grid"></div>
+    <div id="oneshot-detail" style="margin-top:18px"></div>
+    <div id="resupply-detail" style="margin-top:18px"></div>
+    <div id="reconciliation-detail" style="margin-top:18px"></div>
+  </div>
+
+  <div class="panel">
+    <h2 style="margin-top:0">PER-PIECE DETAIL</h2>
+    <p class="hint" style="margin:0 0 12px">
+      Pick a piece type to see every metric for it across all games.
+      Catches per-piece outliers the headline summary misses.
+    </p>
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
+      <label for="piece-select" style="font-family:Orbitron,monospace;font-size:11px;letter-spacing:3px;color:#88c5e0">PIECE</label>
+      <select id="piece-select" style="background:rgba(8,18,32,0.7);color:#d4ff7a;border:1px solid rgba(120,200,230,0.4);padding:6px 10px;font-family:'Share Tech Mono',monospace;font-size:13px;letter-spacing:1px"></select>
+    </div>
+    <div id="piece-detail"></div>
+  </div>
+
+  <div class="panel">
+    <h2 style="margin-top:0">GRENADIER + BOMBER THROW LANDINGS</h2>
+    <p class="hint" style="margin:0 0 12px">
+      Every recorded throw. distFromEnemy is the world-units distance
+      from the landing cell to the nearest enemy at throw time. Low
+      values mean throws are landing near enemies (good). High values
+      mean throws are flying off into dead air (broken targeting).
+    </p>
+    <div id="throws-detail"></div>
+  </div>
+
+  <div class="panel">
+    <h2 style="margin-top:0">HULK CORE PROGRESS</h2>
+    <p class="hint" style="margin:0 0 12px">
+      Per Hulk: starting X (east edge) and ending X. Negative delta
+      means the Hulk moved west toward the defender core (intended).
+      Near-zero delta means the Hulk got stuck or never moved.
+    </p>
+    <div id="hulk-detail"></div>
+  </div>
+
+  <div class="panel">
     <h2 style="margin-top:0">RECENT BATTLES</h2>
     <div id="recent"></div>
   </div>
@@ -314,6 +363,18 @@
       const creditsByPiece = { attacker: {}, defender: {} }
       const enemyClearTurns = []   // turn numbers where enemy was eliminated
       const enemyClearGamesByOutcome = { win: 0, lose: 0, neverCleared: 0 }
+      // S17.10 telemetry accumulators
+      const hitsByPiece = {}
+      const missesByPiece = {}
+      const ffEventsByPiece = {}
+      const ffHitsByPiece = {}
+      const weakeningByPiece = {}
+      const oneShotsByPiece = {}
+      const oneShotVictimsByType = {}
+      const resupplyTotals = { attackerCratePickups: 0, defenderCoreRecharges: 0 }
+      const grenadeThrows = []
+      const hulkProgressAll = []
+      const reconciliations = []
       for (const r of records) {
         if (r.piecesByType) {
           for (const [t, n] of Object.entries(r.piecesByType.attacker || {})) piecesBuilt.attacker[t] = (piecesBuilt.attacker[t] || 0) + n
@@ -325,6 +386,21 @@
         if (r.assistsByPieceType)     for (const [t, n] of Object.entries(r.assistsByPieceType))     assistsByPiece[t]     = (assistsByPiece[t] || 0) + n
         if (r.cellsWalkedByPieceType) for (const [t, n] of Object.entries(r.cellsWalkedByPieceType)) cellsWalkedByPiece[t] = (cellsWalkedByPiece[t] || 0) + n
         if (r.attacksByPieceType)     for (const [t, n] of Object.entries(r.attacksByPieceType))     attacksByPiece[t]     = (attacksByPiece[t] || 0) + n
+        // S17.10 telemetry roll-up. All counters bucket by piece type.
+        if (r.hitsByPieceType)          for (const [t, n] of Object.entries(r.hitsByPieceType))          hitsByPiece[t] = (hitsByPiece[t] || 0) + n
+        if (r.missesByPieceType)        for (const [t, n] of Object.entries(r.missesByPieceType))        missesByPiece[t] = (missesByPiece[t] || 0) + n
+        if (r.friendlyFireByPieceType)  for (const [t, n] of Object.entries(r.friendlyFireByPieceType))  ffEventsByPiece[t] = (ffEventsByPiece[t] || 0) + n
+        if (r.friendlyFireHits)         for (const [t, n] of Object.entries(r.friendlyFireHits))         ffHitsByPiece[t] = (ffHitsByPiece[t] || 0) + n
+        if (r.weakeningByPieceType)     for (const [t, n] of Object.entries(r.weakeningByPieceType))     weakeningByPiece[t] = (weakeningByPiece[t] || 0) + n
+        if (r.oneShotsByPieceType)      for (const [t, n] of Object.entries(r.oneShotsByPieceType))      oneShotsByPiece[t] = (oneShotsByPiece[t] || 0) + n
+        if (r.oneShotVictimsByType)     for (const [t, n] of Object.entries(r.oneShotVictimsByType))     oneShotVictimsByType[t] = (oneShotVictimsByType[t] || 0) + n
+        if (r.resupply) {
+          resupplyTotals.attackerCratePickups += r.resupply.attackerCratePickups || 0
+          resupplyTotals.defenderCoreRecharges += r.resupply.defenderCoreRecharges || 0
+        }
+        if (r.grenadeThrows) for (const t of r.grenadeThrows) grenadeThrows.push(t)
+        if (r.hulkProgress)  for (const h of r.hulkProgress)  hulkProgressAll.push(h)
+        if (r.damageReconciliation) reconciliations.push(r.damageReconciliation)
         if (r.creditsSpentByPieceType) {
           for (const [t, n] of Object.entries(r.creditsSpentByPieceType.attacker || {})) creditsByPiece.attacker[t] = (creditsByPiece.attacker[t] || 0) + n
           for (const [t, n] of Object.entries(r.creditsSpentByPieceType.defender || {})) creditsByPiece.defender[t] = (creditsByPiece.defender[t] || 0) + n
@@ -364,6 +440,12 @@
         assistsByPiece, cellsWalkedByPiece, attacksByPiece,
         damagePerCredit, killsPerCredit,
         enemyClearTurns, enemyClearGamesByOutcome,
+        // S17.10 telemetry roll-up exposed for the new panels
+        hitsByPiece, missesByPiece, ffEventsByPiece, ffHitsByPiece,
+        weakeningByPiece, oneShotsByPiece, oneShotVictimsByType,
+        resupplyTotals, grenadeThrows, hulkProgressAll, reconciliations,
+        // Raw credits-by-piece (used for per-piece detail dmg/cr math)
+        creditsByPiece,
       }
     }
 
@@ -383,6 +465,15 @@
         document.getElementById('cost-effectiveness').innerHTML = ''
         document.getElementById('enemy-clear').innerHTML = ''
         document.getElementById('recent').innerHTML = ''
+        // S17.10 telemetry panels also clear on empty state.
+        const tg = document.getElementById('telemetry-grid'); if (tg) tg.innerHTML = ''
+        const od = document.getElementById('oneshot-detail'); if (od) od.innerHTML = ''
+        const rd = document.getElementById('resupply-detail'); if (rd) rd.innerHTML = ''
+        const rec = document.getElementById('reconciliation-detail'); if (rec) rec.innerHTML = ''
+        const pd = document.getElementById('piece-detail'); if (pd) pd.innerHTML = ''
+        const td = document.getElementById('throws-detail'); if (td) td.innerHTML = ''
+        const hd = document.getElementById('hulk-detail'); if (hd) hd.innerHTML = ''
+        const ps = document.getElementById('piece-select'); if (ps) ps.innerHTML = ''
         return
       }
       const a = aggregate(records)
@@ -514,6 +605,221 @@
         </tr></thead>
         <tbody>${recentRows}</tbody>
       </table>`
+
+      // ═════ S17.10 telemetry panels ═════
+
+      // Headline grid. Hits/Attacks accuracy, friendly-fire events,
+      // weakening events, one-shots dealt. Sorted by accuracy desc so
+      // top-of-table is the highest-accuracy piece.
+      const allPieceTypes = new Set([
+        ...Object.keys(a.attacksByPiece),
+        ...Object.keys(a.hitsByPiece),
+        ...Object.keys(a.missesByPiece),
+        ...Object.keys(a.ffEventsByPiece),
+        ...Object.keys(a.weakeningByPiece),
+        ...Object.keys(a.oneShotsByPiece),
+        ...Object.keys(a.dmgByPiece),
+      ])
+      const telemetryRows = [...allPieceTypes].map(t => {
+        const att = a.attacksByPiece[t] || 0
+        const hits = a.hitsByPiece[t] || 0
+        const miss = a.missesByPiece[t] || 0
+        const acc = (hits + miss) > 0 ? (hits / (hits + miss) * 100).toFixed(0) + '%' : '—'
+        const ffEv = a.ffEventsByPiece[t] || 0
+        const ffHits = a.ffHitsByPiece[t] || 0
+        const wk = a.weakeningByPiece[t] || 0
+        const os = a.oneShotsByPiece[t] || 0
+        return { type: t, att, hits, miss, acc, accNum: hits + miss > 0 ? hits / (hits + miss) : -1, ffEv, ffHits, wk, os }
+      }).sort((x, y) => y.accNum - x.accNum)
+      const telemetryHtml = telemetryRows.length === 0
+        ? '<div class="empty">No telemetry data yet. Play a new game with the S17.10 build to populate.</div>'
+        : `<table><thead><tr>
+            <th>PIECE</th>
+            <th style="text-align:right">ATTACKS</th>
+            <th style="text-align:right">HITS</th>
+            <th style="text-align:right">MISSES</th>
+            <th style="text-align:right">ACCURACY</th>
+            <th style="text-align:right">FF EVENTS</th>
+            <th style="text-align:right">FF HITS</th>
+            <th style="text-align:right">WEAKENING</th>
+            <th style="text-align:right">ONE-SHOTS</th>
+          </tr></thead><tbody>${telemetryRows.map(r => `
+            <tr>
+              <td>${r.type}</td>
+              <td class="num">${r.att}</td>
+              <td class="num">${r.hits}</td>
+              <td class="num">${r.miss}</td>
+              <td class="num" style="color:${r.accNum < 0 ? '#5a7a92' : (r.accNum < 0.3 ? '#ff7a9a' : (r.accNum < 0.7 ? '#ffb96b' : '#d4ff7a'))}">${r.acc}</td>
+              <td class="num" style="color:${r.ffEv > 0 ? '#ff7a9a' : '#88a4b8'}">${r.ffEv}</td>
+              <td class="num">${r.ffHits}</td>
+              <td class="num">${r.wk}</td>
+              <td class="num" style="color:${r.os > 0 ? '#ffb96b' : '#88a4b8'}">${r.os}</td>
+            </tr>`).join('')}</tbody></table>`
+      document.getElementById('telemetry-grid').innerHTML = telemetryHtml
+
+      // One-shot victims breakdown. If anything other than what Sniper
+      // legitimately one-shots shows up, flag it.
+      const osVictims = Object.entries(a.oneShotVictimsByType).sort((x, y) => y[1] - x[1])
+      const osHtml = osVictims.length === 0
+        ? '<div class="empty">No one-shot kills recorded.</div>'
+        : `<div style="font-family:Orbitron,monospace;font-size:11px;letter-spacing:3px;color:#88c5e0;margin-bottom:8px">ONE-SHOT VICTIMS (full HP kills, by victim piece type)</div>
+           <table><thead><tr><th>VICTIM</th><th style="text-align:right">TIMES ONE-SHOTTED</th></tr></thead><tbody>${
+             osVictims.map(([t, n]) => `<tr><td>${t}</td><td class="num">${n}</td></tr>`).join('')
+           }</tbody></table>`
+      document.getElementById('oneshot-detail').innerHTML = osHtml
+
+      // Resupply parity. Should be roughly comparable per game if the
+      // economy is balanced. Big gaps hint at AI advantage.
+      const rs = a.resupplyTotals
+      const totalResupply = rs.attackerCratePickups + rs.defenderCoreRecharges
+      const parityHtml = `
+        <div style="font-family:Orbitron,monospace;font-size:11px;letter-spacing:3px;color:#88c5e0;margin-bottom:8px">RESUPPLY PARITY (per side, summed across games)</div>
+        <table><thead><tr>
+          <th>SIDE</th><th>SOURCE</th><th style="text-align:right">EVENTS</th><th style="text-align:right">PER GAME</th>
+        </tr></thead><tbody>
+          <tr><td style="color:#ff7a9a">ATTACKER</td><td>Crate pickups</td><td class="num">${rs.attackerCratePickups}</td><td class="num">${(rs.attackerCratePickups / a.total).toFixed(1)}</td></tr>
+          <tr><td style="color:#88c8ff">DEFENDER</td><td>Power Core docks</td><td class="num">${rs.defenderCoreRecharges}</td><td class="num">${(rs.defenderCoreRecharges / a.total).toFixed(1)}</td></tr>
+        </tbody></table>
+        ${totalResupply === 0 ? '<div class="empty" style="margin-top:8px">No resupply events recorded yet.</div>' : ''}`
+      document.getElementById('resupply-detail').innerHTML = parityHtml
+
+      // Damage reconciliation. List per-game divergences. Anything > 5%
+      // is flagged amber. Game number is 1-indexed for readability.
+      const reconHtml = a.reconciliations.length === 0
+        ? '<div class="empty">No reconciliation data yet.</div>'
+        : `<div style="font-family:Orbitron,monospace;font-size:11px;letter-spacing:3px;color:#88c5e0;margin-bottom:8px">DAMAGE RECONCILIATION (per-piece sum vs side-total)</div>
+           <table><thead><tr>
+             <th>GAME</th>
+             <th style="text-align:right">ATT SUM</th>
+             <th style="text-align:right">ATT REPORTED</th>
+             <th style="text-align:right">ATT DIVERGE</th>
+             <th style="text-align:right">DEF SUM</th>
+             <th style="text-align:right">DEF REPORTED</th>
+             <th style="text-align:right">DEF DIVERGE</th>
+           </tr></thead><tbody>${
+             a.reconciliations.map((r, i) => {
+               const aFlag = r.attackerDivergencePct > 5
+               const dFlag = r.defenderDivergencePct > 5
+               return `<tr>
+                 <td class="num">${i + 1}</td>
+                 <td class="num">${r.attackerSum}</td>
+                 <td class="num">${r.attackerReported}</td>
+                 <td class="num" style="color:${aFlag ? '#ff7a9a' : '#88a4b8'}">${r.attackerDivergencePct}%</td>
+                 <td class="num">${r.defenderSum}</td>
+                 <td class="num">${r.defenderReported}</td>
+                 <td class="num" style="color:${dFlag ? '#ff7a9a' : '#88a4b8'}">${r.defenderDivergencePct}%</td>
+               </tr>`
+             }).join('')
+           }</tbody></table>`
+      document.getElementById('reconciliation-detail').innerHTML = reconHtml
+
+      // Per-piece detail panel. Dropdown lets the user pick one piece
+      // and see every metric for it across all games.
+      const select = document.getElementById('piece-select')
+      const allCreditsForPiece = { ...a.creditsByPiece.attacker, ...a.creditsByPiece.defender }
+      const pieceOpts = [...allPieceTypes].sort()
+      select.innerHTML = pieceOpts.map(t => `<option value="${t}">${t}</option>`).join('')
+      function renderPieceDetail() {
+        const t = select.value
+        if (!t) { document.getElementById('piece-detail').innerHTML = '<div class="empty">No piece data yet.</div>'; return }
+        const dmg = a.dmgByPiece[t] || 0
+        const cost = allCreditsForPiece[t] || 0
+        const att = a.attacksByPiece[t] || 0
+        const hits = a.hitsByPiece[t] || 0
+        const miss = a.missesByPiece[t] || 0
+        const kills = a.killsByPiece[t] || 0
+        const assists = a.assistsByPiece[t] || 0
+        const wk = a.weakeningByPiece[t] || 0
+        const os = a.oneShotsByPiece[t] || 0
+        const ffEv = a.ffEventsByPiece[t] || 0
+        const ffHits = a.ffHitsByPiece[t] || 0
+        const walked = a.cellsWalkedByPiece[t] || 0
+        const acc = (hits + miss) > 0 ? (hits / (hits + miss) * 100).toFixed(0) + '%' : '—'
+        const dmgPerCr = cost > 0 ? (dmg / cost).toFixed(2) : '—'
+        const card = (lbl, val, sub = '') => `<div class="stat-card"><div class="lbl">${lbl}</div><div class="val">${val}</div>${sub ? `<div class="sub">${sub}</div>` : ''}</div>`
+        document.getElementById('piece-detail').innerHTML = `
+          <div class="summary-grid">
+            ${card('TOTAL DAMAGE', dmg)}
+            ${card('CREDITS SPENT', cost)}
+            ${card('DMG / CREDIT', dmgPerCr)}
+            ${card('ATTACKS', att)}
+            ${card('HITS', hits)}
+            ${card('MISSES', miss)}
+            ${card('ACCURACY', acc)}
+            ${card('KILLS', kills)}
+            ${card('ASSISTS', assists)}
+            ${card('WEAKENING', wk, 'targets dropped below 50% HP')}
+            ${card('ONE-SHOTS DEALT', os, 'killed full-HP targets')}
+            ${card('FRIENDLY-FIRE EVENTS', ffEv)}
+            ${card('FRIENDLY-FIRE HITS', ffHits, 'ally targets hit, summed')}
+            ${card('CELLS WALKED', walked)}
+          </div>`
+      }
+      select.addEventListener('change', renderPieceDetail)
+      renderPieceDetail()
+
+      // Grenade throw scatter table.
+      const throwsHtml = a.grenadeThrows.length === 0
+        ? '<div class="empty">No throws recorded.</div>'
+        : (() => {
+            const sorted = [...a.grenadeThrows].sort((x, y) => (y.distFromEnemy ?? 0) - (x.distFromEnemy ?? 0))
+            const top = sorted.slice(0, 30)
+            const distances = a.grenadeThrows.map(t => t.distFromEnemy).filter(d => d !== null)
+            const avgDist = distances.length ? (distances.reduce((s, d) => s + d, 0) / distances.length).toFixed(0) : 'n/a'
+            const noEnemyCount = a.grenadeThrows.filter(t => t.distFromEnemy === null).length
+            return `<div style="margin-bottom:8px">
+              Total throws: <strong>${a.grenadeThrows.length}</strong> &middot;
+              Avg dist from nearest enemy: <strong>${avgDist}</strong> world units &middot;
+              No-enemy throws (no live enemy on map): <strong>${noEnemyCount}</strong>
+            </div>
+            <table><thead><tr>
+              <th>THROWER</th><th>SIDE</th>
+              <th style="text-align:right">FROM X,Y</th>
+              <th style="text-align:right">LAND X,Y</th>
+              <th style="text-align:right">NEAREST ENEMY X,Y</th>
+              <th style="text-align:right">DIST FROM ENEMY</th>
+            </tr></thead><tbody>${
+              top.map(t => `<tr>
+                <td>${t.throwerType}</td>
+                <td>${t.side}</td>
+                <td class="num">${Math.round(t.throwerX)},${Math.round(t.throwerY)}</td>
+                <td class="num">${Math.round(t.landX)},${Math.round(t.landY)}</td>
+                <td class="num">${t.nearestEnemyX !== null ? Math.round(t.nearestEnemyX) + ',' + Math.round(t.nearestEnemyY) : '—'}</td>
+                <td class="num" style="color:${t.distFromEnemy === null ? '#5a7a92' : (t.distFromEnemy > 150 ? '#ff7a9a' : (t.distFromEnemy > 75 ? '#ffb96b' : '#d4ff7a'))}">${t.distFromEnemy === null ? '—' : Math.round(t.distFromEnemy)}</td>
+              </tr>`).join('')
+            }</tbody></table>
+            <div class="hint" style="margin-top:8px">Showing 30 worst-distance throws. Red = >150 units from nearest enemy (dead-air throw).</div>`
+          })()
+      document.getElementById('throws-detail').innerHTML = throwsHtml
+
+      // Hulk progress table. Negative delta means Hulk moved west toward
+      // the core (intended behaviour). Near-zero means stuck or never moved.
+      const hulkHtml = a.hulkProgressAll.length === 0
+        ? '<div class="empty">No Hulk progress recorded yet.</div>'
+        : (() => {
+            const rows = a.hulkProgressAll.map(h => {
+              const delta = h.endX - h.startX
+              const dir = delta < -25 ? 'WEST (toward core)' : (delta > 25 ? 'EAST' : 'NO PROGRESS')
+              const color = delta < -100 ? '#d4ff7a' : (delta < -25 ? '#88c5e0' : (Math.abs(delta) <= 25 ? '#ff7a9a' : '#ffb96b'))
+              return `<tr>
+                <td>${h.id.slice(0, 8)}…</td>
+                <td class="num">${Math.round(h.startX)}</td>
+                <td class="num">${Math.round(h.endX)}</td>
+                <td class="num" style="color:${color}">${Math.round(delta)}</td>
+                <td style="color:${color}">${dir}</td>
+                <td>${h.alive ? 'alive' : 'dead'}</td>
+              </tr>`
+            }).join('')
+            return `<table><thead><tr>
+              <th>HULK ID</th>
+              <th style="text-align:right">START X</th>
+              <th style="text-align:right">END X</th>
+              <th style="text-align:right">DELTA</th>
+              <th>DIRECTION</th>
+              <th>STATUS</th>
+            </tr></thead><tbody>${rows}</tbody></table>`
+          })()
+      document.getElementById('hulk-detail').innerHTML = hulkHtml
     }
 
     document.getElementById('refresh').addEventListener('click', render)

@@ -79,6 +79,78 @@ export interface BattleRecord {
    *  Stamped here so a duration delta across records can be attributed to
    *  player-side speed choice vs actual game-pace changes. */
   speed?: 'slow' | 'normal' | 'fast'
+
+  // ── S17.10 additions: error-hunting telemetry ──────────────────────
+
+  /** Per-piece hits. An attack counts as a hit if any damage was applied
+   *  to any target. Direct fire = the projectile landed on a live
+   *  target. AoE = at least one target was in radius. Hulk slam =
+   *  at least one wedge cell had a target. Pair with attacksByPieceType
+   *  for accuracy (hits / attacks). */
+  hitsByPieceType?: Record<string, number>
+  /** Per-piece misses. Counts attacks where no damage was applied
+   *  (target died first, AoE landed in empty space, etc.). */
+  missesByPieceType?: Record<string, number>
+  /** Friendly-fire detonations per piece type (one event per AoE that
+   *  damaged at least one same-side ally). */
+  friendlyFireByPieceType?: Record<string, number>
+  /** Ally targets hit, summed across all friendly-fire detonations,
+   *  per piece type. Catches a piece that consistently catches its
+   *  own cluster. */
+  friendlyFireHits?: Record<string, number>
+  /** Weakening events. A target crossing below 50 percent maxHp for
+   *  the first time triggers one event credited to the piece that
+   *  dealt the crossing-damage. Credits setup damage (Grenadier,
+   *  Bomber) that would otherwise be under-recognized. */
+  weakeningByPieceType?: Record<string, number>
+  /** Attacker kills where the target was at full HP. Sniper kills
+   *  are the expected source; any other piece hitting one-shots is
+   *  almost certainly a bug to investigate. */
+  oneShotsByPieceType?: Record<string, number>
+  /** Same data sliced by VICTIM type (what got one-shotted). If Dog
+   *  shows up here, that is the bug the user flagged. */
+  oneShotVictimsByType?: Record<string, number>
+  /** Per-side resupply counts. attacker count from crate pickups,
+   *  defender count from Power Core docking. Equivalents for
+   *  parity comparison. */
+  resupply?: {
+    attackerCratePickups: number
+    defenderCoreRecharges: number
+  }
+  /** Per-throw record for grenadiers and bombers. Lets the analyst
+   *  see if throws cluster on enemies (good) or fly off into dead
+   *  air (broken targeting). */
+  grenadeThrows?: Array<{
+    throwerType: string
+    side: 'attacker' | 'defender'
+    throwerX: number
+    throwerY: number
+    landX: number
+    landY: number
+    nearestEnemyX: number | null
+    nearestEnemyY: number | null
+    distFromEnemy: number | null
+  }>
+  /** Per-Hulk core-progress trace. (id, startX, endX). Negative delta
+   *  means the Hulk moved west, toward the defender core. A near-zero
+   *  delta means the Hulk got stuck or never moved. */
+  hulkProgress?: Array<{
+    id: string
+    startX: number
+    endX: number
+    alive: boolean
+  }>
+  /** Damage reconciliation. attackerDamageByPieceTypeSum vs damageDealt
+   *  attacker; same for defender. Flagged when divergence > 5 percent
+   *  (likely indicates a damage code path that bypasses attribute()). */
+  damageReconciliation?: {
+    attackerSum: number
+    attackerReported: number
+    attackerDivergencePct: number
+    defenderSum: number
+    defenderReported: number
+    defenderDivergencePct: number
+  }
 }
 
 const KEY = 'astrohold:battle-stats:v1'

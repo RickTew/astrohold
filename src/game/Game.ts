@@ -119,6 +119,28 @@ export class Game {
   private assistsByPieceType:     Record<string, number> = {}
   private cellsWalkedByPieceType: Record<string, number> = {}
   private attacksByPieceType:     Record<string, number> = {}
+  // S17.10 telemetry expansion. Catches bugs the headline counters miss.
+  private hitsByPieceType:          Record<string, number> = {}
+  private missesByPieceType:        Record<string, number> = {}
+  private friendlyFireByPieceType:  Record<string, number> = {}
+  private friendlyFireHits:         Record<string, number> = {}  // ally targets hit, summed
+  private weakeningByPieceType:     Record<string, number> = {}
+  private oneShotsByPieceType:      Record<string, number> = {}  // attacks that one-shot a full HP target
+  private oneShotVictimsByType:     Record<string, number> = {}  // counted by victim's piece type
+  private resupplyCounts = { attackerCratePickups: 0, defenderCoreRecharges: 0 }
+  private grenadeThrows: Array<{
+    throwerType: string
+    side: 'attacker' | 'defender'
+    throwerX: number; throwerY: number
+    landX: number; landY: number
+    nearestEnemyX: number | null
+    nearestEnemyY: number | null
+    distFromEnemy: number | null
+  }> = []
+  // Hulk position telemetry. Captures starting X for every Hulk at the
+  // start of the FIRST reveal so we can compare to their final X at
+  // game end and surface "Hulks that never moved toward the core."
+  private hulkStartByX: Record<string, number> = {}
   // Turn on which the OPPOSITE side first reached 0 alive units. Set
   // once in onComplete when the condition is first true; null if never.
   private enemyEliminatedAtTurn: number | null = null
@@ -759,7 +781,16 @@ private enterBuildPhase() {
     this.setAiPiecesVisible(true)
     // First reveal of this game → stamp the wall-clock start. Auto-chain
     // re-entries (every turn) leave it alone.
-    if (this.battleStartMs == null) this.battleStartMs = Date.now()
+    if (this.battleStartMs == null) {
+      this.battleStartMs = Date.now()
+      // Snapshot Hulk starting positions ONCE per game so we can compare
+      // to their final positions at recordBattleEnd. Catches a Hulk that
+      // is supposed to march straight at the core but ends the game at
+      // the same X it spawned.
+      for (const u of this.attackerUnits) {
+        if (u.type === 'hulk') this.hulkStartByX[u.id] = u.worldX
+      }
+    }
 
     this.revealPhase = new RevealPhase(
       this.scene, this.powerCore, this.attackerUnits, this.structures, this.spheres, this.defenderUnits,
@@ -784,18 +815,58 @@ private enterBuildPhase() {
     // structured events; we accumulate into BattleStats fields that
     // get flushed in recordBattleEnd.
     this.revealPhase.onPieceEvent = e => {
-      if (e.kind === 'damage') {
-        this.damageByPieceType[e.actorType] = (this.damageByPieceType[e.actorType] ?? 0) + e.amount
-      } else if (e.kind === 'kill') {
-        this.killsByPieceType[e.actorType] = (this.killsByPieceType[e.actorType] ?? 0) + 1
-      } else if (e.kind === 'action') {
-        this.actionCounts[e.action] = (this.actionCounts[e.action] ?? 0) + 1
-      } else if (e.kind === 'assist') {
-        this.assistsByPieceType[e.actorType] = (this.assistsByPieceType[e.actorType] ?? 0) + 1
-      } else if (e.kind === 'move') {
-        this.cellsWalkedByPieceType[e.actorType] = (this.cellsWalkedByPieceType[e.actorType] ?? 0) + 1
-      } else if (e.kind === 'attack') {
-        this.attacksByPieceType[e.actorType] = (this.attacksByPieceType[e.actorType] ?? 0) + 1
+      switch (e.kind) {
+        case 'damage':
+          this.damageByPieceType[e.actorType] = (this.damageByPieceType[e.actorType] ?? 0) + e.amount
+          break
+        case 'kill':
+          this.killsByPieceType[e.actorType] = (this.killsByPieceType[e.actorType] ?? 0) + 1
+          break
+        case 'action':
+          this.actionCounts[e.action] = (this.actionCounts[e.action] ?? 0) + 1
+          break
+        case 'assist':
+          this.assistsByPieceType[e.actorType] = (this.assistsByPieceType[e.actorType] ?? 0) + 1
+          break
+        case 'move':
+          this.cellsWalkedByPieceType[e.actorType] = (this.cellsWalkedByPieceType[e.actorType] ?? 0) + 1
+          break
+        case 'attack':
+          this.attacksByPieceType[e.actorType] = (this.attacksByPieceType[e.actorType] ?? 0) + 1
+          break
+        // S17.10 additions
+        case 'hit':
+          this.hitsByPieceType[e.actorType] = (this.hitsByPieceType[e.actorType] ?? 0) + 1
+          break
+        case 'miss':
+          this.missesByPieceType[e.actorType] = (this.missesByPieceType[e.actorType] ?? 0) + 1
+          break
+        case 'friendly_fire':
+          this.friendlyFireByPieceType[e.actorType] = (this.friendlyFireByPieceType[e.actorType] ?? 0) + 1
+          this.friendlyFireHits[e.actorType] = (this.friendlyFireHits[e.actorType] ?? 0) + e.count
+          break
+        case 'weakening':
+          this.weakeningByPieceType[e.actorType] = (this.weakeningByPieceType[e.actorType] ?? 0) + 1
+          break
+        case 'one_shot':
+          this.oneShotsByPieceType[e.actorType] = (this.oneShotsByPieceType[e.actorType] ?? 0) + 1
+          this.oneShotVictimsByType[e.targetType] = (this.oneShotVictimsByType[e.targetType] ?? 0) + 1
+          break
+        case 'crate_pickup':
+          if (e.side === 'attacker') this.resupplyCounts.attackerCratePickups++
+          break
+        case 'core_recharge':
+          this.resupplyCounts.defenderCoreRecharges++
+          break
+        case 'grenade_throw':
+          this.grenadeThrows.push({
+            throwerType: e.throwerType, side: e.side,
+            throwerX: e.throwerX, throwerY: e.throwerY,
+            landX: e.landX, landY: e.landY,
+            nearestEnemyX: e.nearestEnemyX, nearestEnemyY: e.nearestEnemyY,
+            distFromEnemy: e.distFromEnemy,
+          })
+          break
       }
     }
     this.revealPhase.onComplete = () => {
@@ -922,6 +993,42 @@ private enterBuildPhase() {
           ?? 0
       creditsSpentByPieceType.defender[t] = cost * n
     }
+    // S17.10 Hulk progress capture. For every Hulk that was tracked at
+    // first reveal (or built and tracked late), record startX and endX.
+    // Negative delta = moved west toward the core (the intended march).
+    const hulkProgress: BattleRecord['hulkProgress'] = []
+    for (const u of this.attackerUnits) {
+      if (u.type !== 'hulk') continue
+      const startX = this.hulkStartByX[u.id]
+      if (startX === undefined) continue
+      hulkProgress.push({ id: u.id, startX, endX: u.worldX, alive: !u.isDead })
+    }
+    // S17.10 damage reconciliation. Sum damageByPieceType per side and
+    // compare to the side totals collected via statsDamage. If the gap
+    // is over 5 percent, a damage path is bypassing attribute() and we
+    // want to know about it.
+    const attackerSides = new Set<string>(Object.keys(Config.UNITS))
+    let attackerSum = 0
+    let defenderSum = 0
+    for (const [type, dmg] of Object.entries(this.damageByPieceType)) {
+      if (attackerSides.has(type)) attackerSum += dmg
+      else defenderSum += dmg
+    }
+    const attackerReported = this.statsDamage.attacker
+    const defenderReported = this.statsDamage.defender
+    const pct = (a: number, b: number) => b === 0 ? (a === 0 ? 0 : 100) : Math.abs(a - b) / b * 100
+    const reconciliation = {
+      attackerSum,
+      attackerReported,
+      attackerDivergencePct: +pct(attackerSum, attackerReported).toFixed(1),
+      defenderSum,
+      defenderReported,
+      defenderDivergencePct: +pct(defenderSum, defenderReported).toFixed(1),
+    }
+    if (reconciliation.attackerDivergencePct > 5 || reconciliation.defenderDivergencePct > 5) {
+      // eslint-disable-next-line no-console
+      console.warn('[astrohold] damage reconciliation gap', reconciliation)
+    }
     recordBattle({
       endedAt: new Date().toISOString(),
       outcome: playerWon ? 'win' : 'lose',
@@ -944,6 +1051,18 @@ private enterBuildPhase() {
       enemyEliminatedAtTurn: this.enemyEliminatedAtTurn,
       durationMs: this.battleStartMs != null ? Date.now() - this.battleStartMs : undefined,
       speed: getRevealSpeed(),
+      // S17.10 telemetry expansion fields:
+      hitsByPieceType:         { ...this.hitsByPieceType },
+      missesByPieceType:       { ...this.missesByPieceType },
+      friendlyFireByPieceType: { ...this.friendlyFireByPieceType },
+      friendlyFireHits:        { ...this.friendlyFireHits },
+      weakeningByPieceType:    { ...this.weakeningByPieceType },
+      oneShotsByPieceType:     { ...this.oneShotsByPieceType },
+      oneShotVictimsByType:    { ...this.oneShotVictimsByType },
+      resupply:                { ...this.resupplyCounts },
+      grenadeThrows:           [...this.grenadeThrows],
+      hulkProgress,
+      damageReconciliation:    reconciliation,
     })
   }
 

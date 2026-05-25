@@ -55,6 +55,18 @@ export type PieceEvent =
   | { kind: 'assist'; actorType: string; side: 'attacker' | 'defender' }
   | { kind: 'move';   actorType: string; side: 'attacker' | 'defender' }
   | { kind: 'attack'; actorType: string; side: 'attacker' | 'defender' }
+  // S17.10 telemetry expansion. Each event below feeds a per-piece-type
+  // counter on the BattleRecord so /stats.html can surface bugs the
+  // headline counters miss (accuracy issues, AoE targeting bugs,
+  // resupply parity, setup-damage credit, one-shot detection).
+  | { kind: 'hit';    actorType: string; side: 'attacker' | 'defender' }
+  | { kind: 'miss';   actorType: string; side: 'attacker' | 'defender' }
+  | { kind: 'friendly_fire'; actorType: string; side: 'attacker' | 'defender'; count: number }
+  | { kind: 'weakening'; actorType: string; side: 'attacker' | 'defender' }
+  | { kind: 'one_shot'; actorType: string; side: 'attacker' | 'defender'; targetType: string }
+  | { kind: 'crate_pickup'; side: 'attacker' | 'defender' }
+  | { kind: 'core_recharge'; side: 'defender' }
+  | { kind: 'grenade_throw'; throwerType: string; side: 'attacker' | 'defender'; throwerX: number; throwerY: number; landX: number; landY: number; nearestEnemyX: number | null; nearestEnemyY: number | null; distFromEnemy: number | null }
 
 interface AoeSummary { hits: number; damageDealt: number; kills: number }
 
@@ -181,6 +193,11 @@ export class RevealPhase {
   // Centralized damage attribution. Emits damage, kill, and assist events
   // and updates damageHistory. Call this whenever takeDamage is applied
   // by a known attacker (skip for unattributed sources like wall self-damage).
+  // Targets we've already credited a 'weakening' event for. One-shot per
+  // target: a piece only counts as weakened the first time it drops
+  // below 50 percent. Resets implicitly per RevealPhase instance.
+  private weakenedTargets = new Set<string>()
+
   private attribute(
     target: { id?: string; isDead: boolean } | PixelPowerCore,
     attackerType: string,
@@ -190,8 +207,17 @@ export class RevealPhase {
   ) {
     this.emit({ kind: 'damage', actorType: attackerType, side, amount })
     const id = this.targetId(target)
+    const wasInHistory = this.damageHistory.has(id)
     if (killed) {
       this.emit({ kind: 'kill', actorType: attackerType, side })
+      // ONE-SHOT detection. If target had no prior damageHistory entries
+      // and this single damage event killed it, the target was at full
+      // HP when struck. Flags Sniper kills (expected) and anything else
+      // that one-shots a full-HP piece (likely a bug we want to find).
+      if (!wasInHistory) {
+        const targetType = this.targetTypeKey(target)
+        this.emit({ kind: 'one_shot', actorType: attackerType, side, targetType })
+      }
       // Fire assist credit for any prior damager that wasn't the killer.
       const damagers = this.damageHistory.get(id)
       if (damagers) {
@@ -217,7 +243,39 @@ export class RevealPhase {
       this.damageHistory.get(id)!.add(attackerType)
       // Non-killing core hits get a reaction bubble from both factions.
       if (target instanceof PixelPowerCore) this.announceCoreHit()
+      // WEAKENING detection. Target survived the hit but crossed below
+      // 50 percent HP for the first time. Credits Grenadier and Bomber
+      // for setup damage that enables an ally's kill, which raw kill
+      // counts under-credit. Only fires once per target.
+      if (!this.weakenedTargets.has(id)) {
+        const hpInfo = this.targetHpInfo(target)
+        if (hpInfo && hpInfo.hp > 0 && hpInfo.hp < hpInfo.maxHp * 0.5) {
+          this.weakenedTargets.add(id)
+          this.emit({ kind: 'weakening', actorType: attackerType, side })
+        }
+      }
     }
+  }
+
+  // Resolve a target's current HP + maxHp for weakening detection.
+  // Returns null for targets where the concept doesn't apply (e.g.
+  // future target types that haven't been wired in).
+  private targetHpInfo(target: { isDead: boolean } | PixelPowerCore): { hp: number; maxHp: number } | null {
+    if (target instanceof PixelPowerCore) return { hp: target.hp, maxHp: target.maxHp }
+    if (target instanceof SpriteUnit) return { hp: target.hp, maxHp: target.maxHp }
+    if (target instanceof Structure) return { hp: target.hp, maxHp: target.maxHp }
+    if (target instanceof SphereDefender) return { hp: target.hp, maxHp: target.maxHp }
+    return null
+  }
+  // Resolve a target's piece type for one_shot telemetry. Returns 'core'
+  // for the Power Core, the piece type for other targets, or 'unknown'
+  // as a fallback.
+  private targetTypeKey(target: { isDead: boolean } | PixelPowerCore): string {
+    if (target instanceof PixelPowerCore) return 'core'
+    if (target instanceof SpriteUnit) return target.type
+    if (target instanceof Structure) return target.type
+    if (target instanceof SphereDefender) return 'sphere'
+    return 'unknown'
   }
 
   // Resolve the dying target's position + side, spawn an on_death
@@ -2366,6 +2424,11 @@ export class RevealPhase {
       }
     }
     playExplosion()
+    // Hit/miss telemetry for the slam. Tracked as one outcome per slam,
+    // not per target hit, so /stats.html accuracy reads as "% of slams
+    // that landed on at least one target."
+    if (hits > 0) this.emit({ kind: 'hit',  actorType: 'hulk', side: actor.side })
+    else          this.emit({ kind: 'miss', actorType: 'hulk', side: actor.side })
     this.log(actor.side, hits === 0
       ? `${this.actorLabel(actor)} slams the ground (no targets)`
       : `${this.actorLabel(actor)} slams ${hits} target${hits === 1 ? '' : 's'} (−${hits * damage}${kills > 0 ? `, ${kills} killed` : ''})`)
@@ -2420,6 +2483,11 @@ export class RevealPhase {
   // combat panel shows it; counts as a combat event so the auto-loop
   // doesn't stalemate while units are resupplying.
   private checkAmmoBoxPickup(unit: SpriteUnit, x: number, y: number) {
+    // Robots do NOT pick up crates. They resupply by docking at the Power
+    // Core (see checkPowerCoreRecharge). A defender mobile unit walking
+    // over a crate just walks over it; the crate stays on the field for
+    // the cyborg side to grab. Rule enforced here at the entry guard.
+    if (unit.side !== 'attacker') return
     const E = 1
     for (const box of this.ammoBoxes) {
       if (box.isDead) continue
@@ -2437,6 +2505,8 @@ export class RevealPhase {
         : 'ammo box'
       this.log(unit.side, `${this.actorLabel(unit)} grabs a ${kitLabel} (+${gained})`)
       unit.announce('rearmed')
+      // Parity telemetry. Cyborg-only counter since defender side has no crate path.
+      this.emit({ kind: 'crate_pickup', side: 'attacker' })
       return  // only one pickup per move
     }
   }
@@ -2477,6 +2547,8 @@ export class RevealPhase {
     this.combatThisReveal = true
     this.log('defender', `${this.actorLabel(unit)} docks at the Power Core (+${gained})`)
     unit.announce('rearmed')
+    // Defender-side resupply parity counter (mirror of crate_pickup for attackers).
+    this.emit({ kind: 'core_recharge', side: 'defender' })
   }
 
   private executeAttack(actor: Actor, action: QueuedAction) {
@@ -2587,8 +2659,9 @@ export class RevealPhase {
         }
         this.log(actor.side, `${this.actorLabel(actor)} shoots at an armed bomb`)
       } else {
-        // Direct fire — resolve target entity NOW (at fire time) and damage on
-        // hit. If the target died before the projectile lands, no damage.
+        // Direct fire. Resolve target entity NOW (at fire time) and
+        // damage on hit. If the target died before the projectile
+        // lands, no damage.
         const targetEntity = this.resolveTargetEntity(ref)
         const targetLabel = targetEntity ? this.targetLabel(targetEntity) : 'target'
         if (targetEntity) {
@@ -2597,15 +2670,23 @@ export class RevealPhase {
           proj.onHit = () => {
             if (targetEntity.isDead) {
               this.log(attackerSide, `${this.actorLabel(actor)}'s shot at ${targetLabel} finds the target already down`)
+              // Accuracy telemetry. Target died before our projectile
+              // arrived: count as a miss so the shot is not lost from
+              // the attack tally.
+              this.emit({ kind: 'miss', actorType: attackerType, side: attackerSide })
               return
             }
             targetEntity.takeDamage(damage)
             const killed = targetEntity.isDead
             this.log(attackerSide, `${this.actorLabel(actor)} hits ${targetLabel} (−${damage}${killed ? `, killed` : ''})`)
             this.attribute(targetEntity, attackerType, attackerSide, damage, killed)
+            this.emit({ kind: 'hit', actorType: attackerType, side: attackerSide })
           }
         } else {
           this.log(actor.side, `${this.actorLabel(actor)} fires (target lost)`)
+          // No resolvable target entity at fire-resolution time. Still
+          // counts as a miss against this attack's accuracy.
+          this.emit({ kind: 'miss', actorType: this.actorTypeKey(actor), side: actor.side })
         }
       }
     } else if (isLobbed && action.kind === 'throw') {
@@ -2632,17 +2713,51 @@ export class RevealPhase {
       const what = isGrenadier ? 'a grenade' : 'a bomb'
       this.log(actor.side, `${ownerLabel} throws ${what} to (${cell.col}, ${cell.row})`)
       this.emit({ kind: 'action', actorType: ownerType, side, action: 'throw' })
+      // Landing-location telemetry. Records throw target + nearest
+      // enemy so /stats.html can visualise whether throws cluster on
+      // enemies or fly off into dead air. Enemy pool depends on the
+      // throwing side.
+      const enemyPool = actor.side === 'attacker'
+        ? [...this.defenderUnits, ...this.spheres, ...this.structures]
+        : [...this.units]
+      let nearestEnemyX: number | null = null
+      let nearestEnemyY: number | null = null
+      let distFromEnemy: number | null = null
+      for (const e of enemyPool) {
+        if (e.isDead) continue
+        const d = Math.hypot(e.worldX - aim.x, e.worldY - aim.y)
+        if (distFromEnemy === null || d < distFromEnemy) {
+          distFromEnemy = d
+          nearestEnemyX = e.worldX
+          nearestEnemyY = e.worldY
+        }
+      }
+      this.emit({
+        kind: 'grenade_throw',
+        throwerType: ownerType,
+        side: actor.side,
+        throwerX: actor.worldX,
+        throwerY: actor.worldY,
+        landX: aim.x,
+        landY: aim.y,
+        nearestEnemyX, nearestEnemyY, distFromEnemy,
+      })
     } else {
-      // Direct-fire AoE — splash everything in range of the impact point
-      // immediately. Defender AoE hits cyborgs only; attacker AoE hits
-      // defender pieces + dogs + core.
+      // Direct-fire AoE. Splashes everything in range of the impact
+      // point immediately. Defender AoE hits cyborgs and friendly
+      // defender pieces (friendly-fire). Attacker AoE hits defender
+      // pieces plus core plus friendly cyborgs.
       const sourceLabel = this.actorLabel(actor)
       const sourceSide = actor.side
+      const sourceType = this.actorTypeKey(actor)
       proj.onHit = () => {
         const summary = this.applyAoe(aim.x, aim.y, aoeRadius, damage, actor)
         this.log(sourceSide, summary.hits === 0
           ? `${sourceLabel} AoE bursts harmlessly`
           : `${sourceLabel} AoE — ${summary.hits} hit (−${summary.damageDealt}${summary.kills > 0 ? `, ${summary.kills} killed` : ''})`)
+        // Accuracy. Hit if ANY target took damage from the burst.
+        if (summary.hits > 0) this.emit({ kind: 'hit',  actorType: sourceType, side: sourceSide })
+        else                  this.emit({ kind: 'miss', actorType: sourceType, side: sourceSide })
       }
     }
 
@@ -2662,15 +2777,23 @@ export class RevealPhase {
   // count for the post-action summary.
   private applyAoeForSide(cx: number, cy: number, radius: number, damage: number, side: 'attacker' | 'defender', attackerType?: string): AoeSummary {
     let hits = 0, kills = 0
-    const hit = (target: { id?: string; isDead: boolean; takeDamage(n: number): void } | PixelPowerCore, dmg = damage) => {
+    // Friendly-fire telemetry. Counts ally targets damaged by this AoE.
+    // Helps surface AoE-targeting bugs where a grenadier consistently
+    // hits its own cluster, or a defender bomb chains through allied
+    // structures. Emitted once at the end of the detonation.
+    let allyHits = 0
+    const hit = (target: { id?: string; isDead: boolean; takeDamage(n: number): void } | PixelPowerCore, dmg: number, isAlly: boolean) => {
       if (target.isDead) return
       target.takeDamage(dmg)
       hits++
+      if (isAlly) allyHits++
       const killed = target.isDead
       if (killed) kills++
       if (attackerType) this.attribute(target, attackerType, side, dmg, killed)
     }
-    // Cyborgs (attacker units). Grenadiers wear extra explosive shielding —
+    // Cyborgs are ALLIES if the AoE source side was attacker.
+    const cyborgsAreAllies = side === 'attacker'
+    // Cyborgs (attacker units). Grenadiers wear extra explosive shielding:
     // AoE damage halved. Models heavier blast plating around the bomb-vest
     // role so they survive nearby detonations (own grenades + bomber AoE).
     for (const u of this.units) {
@@ -2680,32 +2803,34 @@ export class RevealPhase {
         const shielded = Math.max(1, Math.round(damage * 0.5))
         u.takeDamage(shielded)
         hits++
+        if (cyborgsAreAllies) allyHits++
         const killed = u.isDead
         if (killed) kills++
         if (attackerType) this.attribute(u, attackerType, side, shielded, killed)
       } else {
-        hit(u)
+        hit(u, damage, cyborgsAreAllies)
       }
     }
-    // Defender pieces (spheres + structures + dog/repair + core)
+    // Defender pieces. Allies if the AoE source side was defender.
+    const defendersAreAllies = side === 'defender'
     for (const s of this.spheres) {
       if (s.isDead) continue
-      if (this.inRadius(s.worldX, s.worldY, cx, cy, radius)) hit(s)
+      if (this.inRadius(s.worldX, s.worldY, cx, cy, radius)) hit(s, damage, defendersAreAllies)
     }
     for (const s of this.structures) {
       if (s.isDead) continue
-      if (this.inRadius(s.worldX, s.worldY, cx, cy, radius)) hit(s)
+      if (this.inRadius(s.worldX, s.worldY, cx, cy, radius)) hit(s, damage, defendersAreAllies)
     }
     for (const u of this.defenderUnits) {
       if (u.isDead) continue
-      if (this.inRadius(u.worldX, u.worldY, cx, cy, radius)) hit(u)
+      if (this.inRadius(u.worldX, u.worldY, cx, cy, radius)) hit(u, damage, defendersAreAllies)
     }
     if (!this.core.isDead) {
       const cc = this.core.cellCenters()
       const inside = cc.some(p => this.inRadius(p.x, p.y, cx, cy, radius))
-      if (inside) hit(this.core)
+      if (inside) hit(this.core, damage, defendersAreAllies)
     }
-    // Ammo crates caught in the blast vaporize — user observed a grenade
+    // Ammo crates caught in the blast vaporize. User observed a grenade
     // landing on a crate, expects the crate to be destroyed. Boxes count
     // as kills in the summary (objects destroyed) but their damage is
     // tracked separately since they have 1 HP.
@@ -2716,6 +2841,12 @@ export class RevealPhase {
         hits++
         if (box.isDead) kills++
       }
+    }
+    // Single friendly-fire event per detonation, carrying the ally hit
+    // count. Skipped when the AoE source is a 'self_destruct' chain so
+    // we don't pollute the counter with mandatory chain hits.
+    if (attackerType && attackerType !== 'self_destruct' && allyHits > 0) {
+      this.emit({ kind: 'friendly_fire', actorType: attackerType, side, count: allyHits })
     }
     return { hits, damageDealt: hits * damage, kills }
   }
