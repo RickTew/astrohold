@@ -537,6 +537,12 @@ export class SpriteUnit {
   checkSpeechTriggers() {
     if (this.isDead) return
     if (this.hp / this.maxHp <= 0.25) this.maybeSpeak('low_hp')
+    // Melee-only units (hulk, stalker) skip the ammo callouts. Their
+    // ammo field is ignored at the engine level (RevealPhase treats
+    // them as meleeUnlimited), so "out of ammo" / "low ammo" would
+    // be a lie. Stalker's "bonus" is stealth, not a finite weapon
+    // pool. Hulk's slamAmmo is tracked separately.
+    if (this.type === 'hulk' || this.type === 'stalker') return
     // Medic + Repair: ammo represents heal charges. Different callout
     // ("X packs left" instead of "X rounds left") to match the mechanic.
     if (this.type === 'medic' || this.type === 'repair') {
@@ -545,7 +551,7 @@ export class SpriteUnit {
       else if (this.ammoRemaining === 0) this.maybeSpeak('out_of_ammo')
       return
     }
-    // Offensive units — show actual round count in the low-ammo bubble.
+    // Offensive units. Show actual round count in the low-ammo bubble.
     if (this.ammoRemaining > 0 && this.ammoRemaining <= 2) {
       this.maybeSpeak('low_ammo', { n: this.ammoRemaining })
     } else if (this.ammoRemaining === 0) {

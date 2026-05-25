@@ -181,7 +181,12 @@ export const Config = {
     // delay swinging to get closer vs swing now and trade as a normal
     // tanky melee. Counter: AoE/splash still hits cloaked units
     // (geometry-based, not targeting-based). Unlimited fists like Hulk.
-    stalker:   { cost: 70, hp: 130, speed: 60,  damage: 40, range: 70,  sightRange: 220, aoeRadius: 0,  apBudget: 2, ammo: 5, label: 'Stalker',   color: 0xaaaaaa },
+    // Stalker: melee-only, no ammo. Cloak is the bonus, not a finite
+    // weapon pool. ammo:0 here is intentional; RevealPhase.executeAttack
+    // treats stalker as meleeUnlimited (same as Hulk fists) so hits
+    // never decrement and the ammo field stays at zero forever.
+    // Compare to Hulk who DOES have meaningful ammo via slamAmmo (3).
+    stalker:   { cost: 70, hp: 130, speed: 60,  damage: 40, range: 70,  sightRange: 220, aoeRadius: 0,  apBudget: 2, ammo: 0, label: 'Stalker',   color: 0xaaaaaa },
     // Robot Repair — defender-side support unit, the medic's structural twin.
     // Three repair modes: pack-throw, deployable repair-pad, weld-tether.
     // Targets are anything defender-side with HP — towers, walls, mines,
