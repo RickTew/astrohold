@@ -694,6 +694,62 @@
     </div>
   </div>
 
+  <!-- ─── "All inside the circle" variants — less is more ─── -->
+  <div class="preview-section">
+    <h2 style="color:#d4ff7a;border-color:rgba(212,255,122,0.35);">
+      ALL-IN-ONE-CIRCLE VARIANTS
+      <span class="tag after" style="background:rgba(212,255,122,0.12);border-color:rgba(212,255,122,0.5);color:#d4ff7a;">EVERYTHING INSIDE THE DIAL</span>
+    </h2>
+    <p style="font-family:'Share Tech Mono',monospace;color:#88a4b8;font-size:11px;letter-spacing:1px;margin:0 4px 4px;max-width:900px;">
+      Three takes on the "one circle does it all" idea. Outer ring = speed
+      (arc + colored ticks). Inside the dial face is where the toggles live.
+      V4 = compact 2×2 grid in the middle. V5 = single big center button
+      (most minimal — less is more taken literally). V6 = concentric inner
+      ring of pips at 12/3/6/9.
+    </p>
+  </div>
+
+  <div class="preview-section">
+    <h2 style="color:#d4ff7a;border-color:rgba(212,255,122,0.35);">
+      VARIANT 4 — UNIFIED DIAL (2×2 INSIDE)
+      <span class="tag after" style="background:rgba(212,255,122,0.12);border-color:rgba(212,255,122,0.5);color:#d4ff7a;">SANDBOX</span>
+    </h2>
+    <div class="preview-frame" style="padding:32px 24px;display:flex;justify-content:center;">
+      <div id="mc-variant-4" class="mc-cluster mc-v4"></div>
+    </div>
+  </div>
+
+  <div class="preview-section">
+    <h2 style="color:#d4ff7a;border-color:rgba(212,255,122,0.35);">
+      VARIANT 5 — MINIMAL CORE (SINGLE CENTER BUTTON)
+      <span class="tag after" style="background:rgba(212,255,122,0.12);border-color:rgba(212,255,122,0.5);color:#d4ff7a;">SANDBOX</span>
+    </h2>
+    <p style="font-family:'Share Tech Mono',monospace;color:#88a4b8;font-size:11px;letter-spacing:1px;margin:0 4px 10px;max-width:900px;">
+      Outer ring sets speed. ONE big button in the middle — the
+      "everything-off" mute (silences music + SFX + speech in one tap).
+      Tap-and-hold (in production) could reveal a sub-menu with individual
+      toggles. Most minimal of all six variants.
+    </p>
+    <div class="preview-frame" style="padding:32px 24px;display:flex;justify-content:center;">
+      <div id="mc-variant-5" class="mc-cluster mc-v5"></div>
+    </div>
+  </div>
+
+  <div class="preview-section">
+    <h2 style="color:#d4ff7a;border-color:rgba(212,255,122,0.35);">
+      VARIANT 6 — INNER PIP RING (4 TOGGLES AT 12/3/6/9)
+      <span class="tag after" style="background:rgba(212,255,122,0.12);border-color:rgba(212,255,122,0.5);color:#d4ff7a;">SANDBOX</span>
+    </h2>
+    <p style="font-family:'Share Tech Mono',monospace;color:#88a4b8;font-size:11px;letter-spacing:1px;margin:0 4px 10px;max-width:900px;">
+      Speed pointer + arc on the outer ring (no inner ticks — toggles
+      replace them visually). 4 toggle pips arranged on a smaller inner
+      ring at clock positions. Heaviest cockpit-instrument feel.
+    </p>
+    <div class="preview-frame" style="padding:32px 24px;display:flex;justify-content:center;">
+      <div id="mc-variant-6" class="mc-cluster mc-v6"></div>
+    </div>
+  </div>
+
   <style>
     /* ═════ Mini-control-center — sandbox-only ═════ */
     /* Speed palette: amber=slow, cyan=normal, red=fast.
@@ -869,6 +925,103 @@
       display: flex;
       gap: 12px;
     }
+
+    /* ─── Variant 4: UNIFIED DIAL — 2×2 toggle grid inside the dial face ─── */
+    .mc-v4 {
+      position: relative;
+      width: 200px;
+      height: 200px;
+    }
+    .mc-v4 .mc-dial { width: 200px; height: 200px; }
+    /* Smaller toggles so all four fit inside the dial face */
+    .mc-v4 .mc-inner-grid {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      display: grid;
+      grid-template-columns: 32px 32px;
+      grid-template-rows:    32px 32px;
+      gap: 8px;
+      pointer-events: auto;
+    }
+    .mc-v4 .mc-toggle {
+      width: 32px;
+      height: 32px;
+    }
+    .mc-v4 .mc-toggle svg { width: 16px; height: 16px; }
+
+    /* ─── Variant 5: MINIMAL CORE — single big center button ─── */
+    .mc-v5 {
+      position: relative;
+      width: 200px;
+      height: 200px;
+    }
+    .mc-v5 .mc-dial { width: 200px; height: 200px; }
+    .mc-v5 .mc-center-btn {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: linear-gradient(180deg, rgba(20, 36, 56, 0.95), rgba(8, 18, 32, 0.95));
+      border: 1.5px solid rgba(120, 200, 230, 0.55);
+      color: #88c5e0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 130ms ease;
+      box-shadow: 0 0 12px rgba(0, 0, 0, 0.4), inset 0 0 14px rgba(0, 0, 0, 0.6);
+    }
+    .mc-v5 .mc-center-btn:hover { color: #d8eef9; border-color: rgba(216, 238, 249, 0.75); }
+    .mc-v5 .mc-center-btn:active { transform: translate(-50%, -50%) translateY(1px); }
+    .mc-v5 .mc-center-btn svg { width: 26px; height: 26px; display: block; }
+    .mc-v5 .mc-center-btn svg path,
+    .mc-v5 .mc-center-btn svg circle,
+    .mc-v5 .mc-center-btn svg rect,
+    .mc-v5 .mc-center-btn svg line { stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+    .mc-v5 .mc-center-btn svg .mc-fill { fill: currentColor; stroke: none; }
+    /* "Muted" state — when on, audio is silenced; off = audio enabled. Inverted from other toggles. */
+    .mc-v5 .mc-center-btn.muted {
+      color: #ff6b7a;
+      border-color: #ff6b7a;
+      background: linear-gradient(180deg, rgba(255, 107, 122, 0.22), rgba(255, 107, 122, 0.06));
+      box-shadow: 0 0 16px rgba(255, 107, 122, 0.5), inset 0 0 14px rgba(255, 107, 122, 0.2);
+    }
+    .mc-v5 .mc-center-btn.muted::after {
+      content: '';
+      position: absolute;
+      width: 56%;
+      height: 1.8px;
+      background: currentColor;
+      top: 50%;
+      left: 22%;
+      transform: rotate(-30deg);
+      transform-origin: center;
+      pointer-events: none;
+    }
+
+    /* ─── Variant 6: INNER PIP RING — 4 toggles at clock positions inside ─── */
+    .mc-v6 {
+      position: relative;
+      width: 200px;
+      height: 200px;
+    }
+    .mc-v6 .mc-dial { width: 200px; height: 200px; }
+    /* Dial hides its inner ticks in V6 — toggles take that role visually */
+    .mc-v6 .mc-dial .mc-tick { display: none; }
+    .mc-v6 .mc-toggle {
+      position: absolute;
+      width: 32px;
+      height: 32px;
+    }
+    .mc-v6 .mc-toggle svg { width: 16px; height: 16px; }
+    /* Clock positions inside the dial — inner ring at radius ~40px from center */
+    .mc-v6 .mc-toggle.pos-12 { top: 38px;  left: 50%; transform: translateX(-50%); }
+    .mc-v6 .mc-toggle.pos-3  { right: 38px; top: 50%; transform: translateY(-50%); }
+    .mc-v6 .mc-toggle.pos-6  { bottom: 38px; left: 50%; transform: translateX(-50%); }
+    .mc-v6 .mc-toggle.pos-9  { left: 38px; top: 50%; transform: translateY(-50%); }
 
     /* ─── Ideas pool styling ─── */
     .mc-ideas-grid {
@@ -1067,9 +1220,79 @@
       paint()
     }
 
+    // ─── Variant 4: UNIFIED DIAL (2×2 toggle grid inside the dial) ───
+    function renderV4() {
+      const host = document.getElementById('mc-variant-4')
+      let speed = 'fast'
+      function paint() {
+        host.className = `mc-cluster mc-v4 is-${speed}`
+        const t = DEFAULT_TOGGLES
+        host.innerHTML = `
+          <div class="mc-dial">${dialHtml(speed)}</div>
+          <div class="mc-inner-grid">
+            ${toggleHtml(t[0], true)}
+            ${toggleHtml(t[1], true)}
+            ${toggleHtml(t[2], true)}
+            ${toggleHtml(t[3], false)}
+          </div>
+        `
+        attachClusterHandlers(host, s => { speed = s; paint() })
+      }
+      paint()
+    }
+
+    // ─── Variant 5: MINIMAL CORE (single big center button) ───
+    // The center button is an "everything-off" mute — silences audio in
+    // one tap. In production, tap-and-hold could expand a sub-menu.
+    const MUTE_ICON = `<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z" class="mc-fill"/><path d="M16 8c1.5 1.5 1.5 6.5 0 8"/><path d="M19 5c3 3 3 11 0 14"/></svg>`
+    function renderV5() {
+      const host = document.getElementById('mc-variant-5')
+      let speed = 'fast'
+      let muted = false
+      function paint() {
+        host.className = `mc-cluster mc-v5 is-${speed}`
+        host.innerHTML = `
+          <div class="mc-dial">${dialHtml(speed)}</div>
+          <button class="mc-center-btn ${muted ? 'muted' : ''}" title="${muted ? 'Audio muted (tap to enable)' : 'Audio enabled (tap to mute)'}">
+            ${MUTE_ICON}
+          </button>
+        `
+        // Wire dial dots through the shared helper
+        attachClusterHandlers(host, s => { speed = s; paint() })
+        // Center button toggles its own muted state
+        const btn = host.querySelector('.mc-center-btn')
+        btn.addEventListener('click', () => { muted = !muted; paint() })
+      }
+      paint()
+    }
+
+    // ─── Variant 6: INNER PIP RING (4 toggles at 12/3/6/9 inside the dial) ───
+    function renderV6() {
+      const host = document.getElementById('mc-variant-6')
+      let speed = 'fast'
+      function paint() {
+        host.className = `mc-cluster mc-v6 is-${speed}`
+        const t = DEFAULT_TOGGLES
+        const positionedToggle = (toggle, on, pos) =>
+          `<button class="mc-toggle ${pos} ${on ? 'on' : 'off'}" title="${toggle.label}">${ICON[toggle.icon]}</button>`
+        host.innerHTML = `
+          <div class="mc-dial">${dialHtml(speed)}</div>
+          ${positionedToggle(t[0], true,  'pos-12')}
+          ${positionedToggle(t[1], true,  'pos-3' )}
+          ${positionedToggle(t[2], true,  'pos-6' )}
+          ${positionedToggle(t[3], false, 'pos-9' )}
+        `
+        attachClusterHandlers(host, s => { speed = s; paint() })
+      }
+      paint()
+    }
+
     renderV1()
     renderV2()
     renderV3()
+    renderV4()
+    renderV5()
+    renderV6()
   </script>
 
   <!-- ═══════════════ CALLOUT MATRIX ═══════════════
@@ -1190,6 +1413,20 @@
       font-style: italic;
       font-size: 11px;
     }
+    .callout-matrix .cm-pending {
+      display: inline-block;
+      margin-left: 8px;
+      padding: 1px 6px;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 1.5px;
+      color: #ffb96b;
+      background: rgba(255, 185, 107, 0.08);
+      border: 1px solid rgba(255, 185, 107, 0.4);
+      border-radius: 2px;
+      vertical-align: middle;
+    }
+    .callout-matrix tr.cm-row-pending td { background: rgba(255, 185, 107, 0.025); }
     .cm-sample-wrap {
       margin: 24px auto 0;
       text-align: center;
@@ -1215,24 +1452,36 @@
     // Keep in sync. Field shape: SPEECH_LINES[voice][trigger] = string[].
     const SPEECH_LINES = {
       cyborg: {
-        low_hp:           ["MEDIC!!", "Where's the medic?", "I'm hit — cover me!", "Need a patch!", "Bleeding out!"],
+        low_hp: [
+          "MEDIC!!", "Where's the medic?", "I'm hit — cover me!", "Need a patch!", "Bleeding out!",
+          "Still alive… barely.", "I'm melting!", "Patch me up!", "Rebooting brain…", "That hurt!",
+        ],
         low_ammo:         ["{n} shot{s} left!", "Down to {n}!", "Almost dry!", "Last few rounds!"],
-        out_of_ammo:      ["I'm out!", "Down to fists!", "Need ammo, now!", "Pistol's dry!"],
-        sniper_shot:      ["One shot, one kill.", "Target down.", "Headshot.", "Eagle eye."],
+        out_of_ammo:      ["I'm out!", "Down to fists!", "Need ammo, now!", "Pistol's dry!", "Need juice!"],
+        sniper_shot:      ["One shot, one kill.", "Target down.", "Headshot.", "Eagle eye.", "Take the shot!"],
         medic_low_packs:  ["{n} pack{s} left!", "Running low on supplies!", "Down to {n} kit{s}!", "Save the rest!"],
-        crate_spotted:    ["Crate spotted!", "Resupply incoming!", "Ammo drop — on me!", "Mine!"],
-        rearmed:          ["Reloaded!", "Locked and loaded!", "Fresh clip!", "Back in the fight!"],
+        crate_spotted:    ["Crate spotted!", "Resupply incoming!", "Ammo drop — on me!", "Mine!!"],
+        rearmed:          ["Reloaded!", "Locked and loaded!", "Fresh clip!", "Back in the fight!", "Going in!"],
         no_repairs_needed: [],
+        on_kill:          ["Who's next?", "Got one!", "Take that!", "Down!"],
+        on_death:         ["They're cheating!", "I hate Mondays.", "Aaargh!", "Tell my mom…"],
+        core_hit:         ["Core's ours!", "Crack that thing!", "Almost there!"],
       },
       robot: {
-        low_hp:           ["SYSTEMS CRITICAL", "INTEGRITY: LOW", "DAMAGE: SEVERE", "ARMOR FAILING"],
-        low_ammo:         ["{n} ROUND{S} LEFT", "AMMUNITION: {n}", "RESERVES LOW", "MAGAZINE NEAR EMPTY"],
+        low_hp: [
+          "SYSTEMS CRITICAL", "INTEGRITY: LOW", "DAMAGE: SEVERE", "ARMOR FAILING",
+          "SYSTEM BREACH", "OVERHEAT", "ERROR DETECTED", "REBOOTING",
+        ],
+        low_ammo:         ["{n} ROUND{S} LEFT", "AMMUNITION: {n}", "RESERVES LOW", "MAGAZINE NEAR EMPTY", "RECALIBRATING"],
         out_of_ammo:      ["AMMUNITION DEPLETED", "WEAPON OFFLINE", "RELOAD UNAVAILABLE", "RESUPPLY REQUIRED"],
-        sniper_shot:      ["TARGET ELIMINATED", "PRECISION SHOT CONFIRMED", "MARK STRUCK", "SINGLE-ROUND KILL"],
+        sniper_shot:      ["TARGET ELIMINATED", "PRECISION SHOT CONFIRMED", "MARK STRUCK", "SINGLE-ROUND KILL", "TARGET LOCKED", "EXECUTING STRIKE"],
         medic_low_packs:  ["REPAIR CHARGES: {n}", "{n} CHARGE{S} LEFT", "WELD MATERIAL LOW", "SUPPLIES DEPLETING"],
-        crate_spotted:    ["RESUPPLY DETECTED", "CRATE ON MAP", "TARGETING SUPPLY", "CACHE LOCKED"],
-        rearmed:          ["AMMUNITION RESTORED", "RELOAD COMPLETE", "RESUPPLIED", "MAGAZINE RELOADED"],
+        crate_spotted:    ["RESUPPLY DETECTED", "CRATE ON MAP", "TARGETING SUPPLY", "CACHE LOCKED", "DATA CONFIRMED"],
+        rearmed:          ["AMMUNITION RESTORED", "RELOAD COMPLETE", "RESUPPLIED", "MAGAZINE RELOADED", "POWER SURGE"],
         no_repairs_needed: ["ALL SYSTEMS NOMINAL", "NO REPAIRS REQUIRED", "STANDING BY", "AWAITING DAMAGE REPORT"],
+        on_kill:          ["TARGET NEUTRALIZED", "KILL CONFIRMED", "MARK DOWN", "ENEMY TERMINATED"],
+        on_death:         ["UNIT OFFLINE", "SIGNAL LOST", "TERMINATING", "FATAL ERROR"],
+        core_hit:         ["CORE HIT", "CORE BREACH", "CRITICAL TARGET STRUCK"],
       },
     }
 
@@ -1245,6 +1494,10 @@
       { id: 'sniper_shot',       label: 'SNIPER SHOT',       when: 'sniper or precision shot lands a kill' },
       { id: 'medic_low_packs',   label: 'MEDIC LOW',         when: 'medic / repair bot down to last 1-2 charges; <code>{n}</code> = charges left' },
       { id: 'no_repairs_needed', label: 'NO REPAIRS NEEDED', when: 'repair-bot has full reserves and nothing damaged in sight (robot voice only — cyborgs have no repair role)' },
+      // S17.6 additions — defined but not yet wired in RevealPhase. Flagged in the matrix UI.
+      { id: 'on_kill',           label: 'ON KILL',           when: 'piece scores a non-sniper kill', pending: true },
+      { id: 'on_death',          label: 'ON DEATH',          when: 'piece dies — dramatic / comic final line', pending: true },
+      { id: 'core_hit',          label: 'CORE HIT',          when: "Power Core takes damage. Robot side reports the breach; cyborg side celebrates approaching the objective", pending: true },
     ]
 
     function expand(template, n) {
@@ -1267,9 +1520,15 @@
               const text = preview(l)
               return `<span class="cm-line ${cls}" data-voice="${cls.includes('cyborg') ? 'cyborg' : 'robot'}" data-text="${text.replace(/"/g, '&quot;')}">${text}</span>`
             }).join('')
+        // Pending triggers (declared but not yet fired by RevealPhase) get
+        // a tag so reviewers don't expect to hear them in a current build.
+        const pendingTag = t.pending
+          ? '<span class="cm-pending">PENDING WIRING</span>'
+          : ''
+        const rowClass = t.pending ? 'cm-row-pending' : ''
         return `
-          <tr>
-            <td class="cm-trigger">${t.label}</td>
+          <tr class="${rowClass}">
+            <td class="cm-trigger">${t.label}${pendingTag}</td>
             <td class="cm-when">${t.when}</td>
             <td class="cm-lines">${renderLines(cy, 'cm-line-cyborg')}</td>
             <td class="cm-lines">${renderLines(rb, 'cm-line-robot')}</td>

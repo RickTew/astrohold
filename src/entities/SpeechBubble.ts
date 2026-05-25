@@ -15,6 +15,11 @@ export type SpeechTrigger =
   | 'sniper_shot' | 'medic_low_packs'
   | 'crate_spotted' | 'rearmed'
   | 'no_repairs_needed'
+  // ── S17.6 additions — not yet wired in RevealPhase ──
+  // These triggers are documented in the line table and can be fired
+  // from RevealPhase once we decide the timing/rate-limit story. Until
+  // then the lines exist for design review on /build-test.html only.
+  | 'on_kill' | 'on_death' | 'core_hit'
 
 // Lines may include {n} (count) and {s} (auto-pluralizer: '' if n==1
 // else 's') so "{n} shot{s} left!" renders "1 shot left!" / "3 shots left!"
@@ -31,6 +36,11 @@ export const SPEECH_LINES: Record<SpeechVoice, Record<SpeechTrigger, string[]>> 
       "I'm hit — cover me!",
       "Need a patch!",
       "Bleeding out!",
+      "Still alive… barely.",
+      "I'm melting!",
+      "Patch me up!",
+      "Rebooting brain…",
+      "That hurt!",
     ],
     low_ammo: [
       "{n} shot{s} left!",
@@ -43,12 +53,14 @@ export const SPEECH_LINES: Record<SpeechVoice, Record<SpeechTrigger, string[]>> 
       "Down to fists!",
       "Need ammo, now!",
       "Pistol's dry!",
+      "Need juice!",
     ],
     sniper_shot: [
       "One shot, one kill.",
       "Target down.",
       "Headshot.",
       "Eagle eye.",
+      "Take the shot!",
     ],
     medic_low_packs: [
       "{n} pack{s} left!",
@@ -60,15 +72,33 @@ export const SPEECH_LINES: Record<SpeechVoice, Record<SpeechTrigger, string[]>> 
       "Crate spotted!",
       "Resupply incoming!",
       "Ammo drop — on me!",
-      "Mine!",
+      "Mine!!",
     ],
     rearmed: [
       "Reloaded!",
       "Locked and loaded!",
       "Fresh clip!",
       "Back in the fight!",
+      "Going in!",
     ],
     no_repairs_needed: [],  // cyborg-side has no repair role
+    on_kill: [
+      "Who's next?",
+      "Got one!",
+      "Take that!",
+      "Down!",
+    ],
+    on_death: [
+      "They're cheating!",
+      "I hate Mondays.",
+      "Aaargh!",
+      "Tell my mom…",
+    ],
+    core_hit: [
+      "Core's ours!",
+      "Crack that thing!",
+      "Almost there!",
+    ],
   },
   robot: {
     low_hp: [
@@ -76,12 +106,17 @@ export const SPEECH_LINES: Record<SpeechVoice, Record<SpeechTrigger, string[]>> 
       "INTEGRITY: LOW",
       "DAMAGE: SEVERE",
       "ARMOR FAILING",
+      "SYSTEM BREACH",
+      "OVERHEAT",
+      "ERROR DETECTED",
+      "REBOOTING",
     ],
     low_ammo: [
       "{n} ROUND{S} LEFT",
       "AMMUNITION: {n}",
       "RESERVES LOW",
       "MAGAZINE NEAR EMPTY",
+      "RECALIBRATING",
     ],
     out_of_ammo: [
       "AMMUNITION DEPLETED",
@@ -94,6 +129,8 @@ export const SPEECH_LINES: Record<SpeechVoice, Record<SpeechTrigger, string[]>> 
       "PRECISION SHOT CONFIRMED",
       "MARK STRUCK",
       "SINGLE-ROUND KILL",
+      "TARGET LOCKED",
+      "EXECUTING STRIKE",
     ],
     medic_low_packs: [
       "REPAIR CHARGES: {n}",
@@ -106,18 +143,37 @@ export const SPEECH_LINES: Record<SpeechVoice, Record<SpeechTrigger, string[]>> 
       "CRATE ON MAP",
       "TARGETING SUPPLY",
       "CACHE LOCKED",
+      "DATA CONFIRMED",
     ],
     rearmed: [
       "AMMUNITION RESTORED",
       "RELOAD COMPLETE",
       "RESUPPLIED",
       "MAGAZINE RELOADED",
+      "POWER SURGE",
     ],
     no_repairs_needed: [
       "ALL SYSTEMS NOMINAL",
       "NO REPAIRS REQUIRED",
       "STANDING BY",
       "AWAITING DAMAGE REPORT",
+    ],
+    on_kill: [
+      "TARGET NEUTRALIZED",
+      "KILL CONFIRMED",
+      "MARK DOWN",
+      "ENEMY TERMINATED",
+    ],
+    on_death: [
+      "UNIT OFFLINE",
+      "SIGNAL LOST",
+      "TERMINATING",
+      "FATAL ERROR",
+    ],
+    core_hit: [
+      "CORE HIT",
+      "CORE BREACH",
+      "CRITICAL TARGET STRUCK",
     ],
   },
 }
