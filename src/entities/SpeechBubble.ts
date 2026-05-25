@@ -28,6 +28,17 @@ export type SpeechTrigger =
 // ⚠ KEEP IN SYNC: public/build-test.html has a CALLOUT MATRIX section that
 // mirrors this table for design review. Update both when adding/changing
 // lines so the sandbox reflects production.
+//
+// ── Weapon vocabulary policy (S17.7) ──────────────────────────────────
+//   Robots  — synthetic, energy weapons ONLY. Vocabulary: charge, cell,
+//             battery, pulse, beam, recharge, capacitor. NO "rounds",
+//             NO "magazine", NO "reload" (those are kinetic concepts).
+//   Cyborgs — augmented humans, MIX of kinetic and energy. Most lines
+//             stay kinetic (shot, clip, pistol) since the cyborg art
+//             carries gunpowder weapons, but a few energy-flavored
+//             variants give the mix flavor.
+//   Humans  — (future faction, not in game yet) kinetic ONLY.
+// When adding new lines, keep robot voice strictly energy-flavored.
 export const SPEECH_LINES: Record<SpeechVoice, Record<SpeechTrigger, string[]>> = {
   cyborg: {
     low_hp: [
@@ -47,6 +58,7 @@ export const SPEECH_LINES: Record<SpeechVoice, Record<SpeechTrigger, string[]>> 
       "Down to {n}!",
       "Almost dry!",
       "Last few rounds!",
+      "Charge low!",
     ],
     out_of_ammo: [
       "I'm out!",
@@ -54,6 +66,7 @@ export const SPEECH_LINES: Record<SpeechVoice, Record<SpeechTrigger, string[]>> 
       "Need ammo, now!",
       "Pistol's dry!",
       "Need juice!",
+      "Cell's tapped!",
     ],
     sniper_shot: [
       "One shot, one kill.",
@@ -80,6 +93,7 @@ export const SPEECH_LINES: Record<SpeechVoice, Record<SpeechTrigger, string[]>> 
       "Fresh clip!",
       "Back in the fight!",
       "Going in!",
+      "Recharged!",
     ],
     no_repairs_needed: [],  // cyborg-side has no repair role
     on_kill: [
@@ -112,23 +126,24 @@ export const SPEECH_LINES: Record<SpeechVoice, Record<SpeechTrigger, string[]>> 
       "REBOOTING",
     ],
     low_ammo: [
-      "{n} ROUND{S} LEFT",
-      "AMMUNITION: {n}",
+      "{n} CHARGE{S} LEFT",
+      "POWER CELLS: {n}",
       "RESERVES LOW",
-      "MAGAZINE NEAR EMPTY",
+      "BATTERY DEPLETING",
       "RECALIBRATING",
     ],
     out_of_ammo: [
-      "AMMUNITION DEPLETED",
+      "POWER CELL DEPLETED",
       "WEAPON OFFLINE",
-      "RELOAD UNAVAILABLE",
-      "RESUPPLY REQUIRED",
+      "RECHARGE REQUIRED",
+      "CAPACITOR EMPTY",
+      "ENERGY EXHAUSTED",
     ],
     sniper_shot: [
       "TARGET ELIMINATED",
       "PRECISION SHOT CONFIRMED",
       "MARK STRUCK",
-      "SINGLE-ROUND KILL",
+      "SINGLE-PULSE KILL",
       "TARGET LOCKED",
       "EXECUTING STRIKE",
     ],
@@ -146,10 +161,10 @@ export const SPEECH_LINES: Record<SpeechVoice, Record<SpeechTrigger, string[]>> 
       "DATA CONFIRMED",
     ],
     rearmed: [
-      "AMMUNITION RESTORED",
-      "RELOAD COMPLETE",
-      "RESUPPLIED",
-      "MAGAZINE RELOADED",
+      "POWER RESTORED",
+      "RECHARGE COMPLETE",
+      "ENERGY REPLENISHED",
+      "CELL CYCLED",
       "POWER SURGE",
     ],
     no_repairs_needed: [

@@ -964,53 +964,97 @@
     renderControlCenter()
   </script>
 
-  <!-- ═══════════════ CALLOUT MATRIX ═══════════════
+  <!-- ═══════════════ CALLOUT LISTS — split per faction ═══════════════
        Mirror of src/entities/SpeechBubble.ts SPEECH_LINES. Update both
-       when adding/changing lines. Cyborg lines render in the in-game
-       red bubble (italic peach text); robot lines render in the blue
-       bubble (cyan monospace). {n} = count; {s}/{S} = auto-pluralizer. -->
+       when adding/changing lines.
+         Cyborg = red bubble, italic peach text. Augmented humans.
+                  Uses MIX of kinetic + energy weapon terminology.
+         Robot  = blue bubble, monospace cyan text. Synthetic.
+                  Uses ENERGY weapon terminology ONLY (charges, cells,
+                  pulses, capacitors — no rounds / magazines / reload).
+       Each section is its own scannable list. Click any line to fire
+       the bubble preview at the bottom. -->
+
+  <!-- ─── Cyborg list ─── -->
   <div class="preview-section">
     <h2 style="color:#dd8888;border-color:rgba(221,136,136,0.35);">
-      CALLOUT MATRIX — UNIT VOICE LINES
-      <span class="tag after" style="background:rgba(221,136,136,0.12);border-color:rgba(221,136,136,0.5);color:#dd8888;">DESIGN REVIEW</span>
+      CYBORG CALLOUTS
+      <span class="tag after" style="background:rgba(221,136,136,0.12);border-color:rgba(221,136,136,0.5);color:#dd8888;">ATTACKER VOICE</span>
     </h2>
     <p style="font-family:'Share Tech Mono',monospace;color:#88a4b8;font-size:11px;letter-spacing:1px;margin:0 4px 14px;max-width:900px;">
-      Every situational callout in the game, grouped by trigger. Each
-      cell shows the 3-4 random options a unit can say. <code style="color:#d4ff7a">{n}</code>
-      substitutes the current count; <code style="color:#d4ff7a">{s}/{S}</code> auto-pluralizes
-      ("" if n=1, else "s"/"S"). Click any line to pop a sample bubble
-      on the canvas so you can read it at battle scale.
+      Augmented humans. Casual, panicked, dark-comedy. Uses a
+      <strong style="color:#ffe0d0">mix of kinetic and energy weapons</strong> —
+      most lines say "shot / clip / pistol" but a few "charge / cell"
+      variants appear. Italic peach text on the red bubble. Click any
+      line to preview the rendered bubble. <code style="color:#d4ff7a">{n}</code>
+      shows the live count; <code style="color:#d4ff7a">{s}</code>
+      auto-pluralizes (empty when n=1, else "s").
     </p>
-    <div class="preview-frame" style="padding:18px 18px 24px;">
-      <table class="callout-matrix">
+    <div class="preview-frame" style="padding:18px 18px 18px;">
+      <table class="callout-list cl-cyborg">
         <thead>
           <tr>
-            <th style="width:14%">TRIGGER</th>
-            <th style="width:30%">WHEN IT FIRES</th>
-            <th style="width:28%" class="cm-cyborg-h">CYBORG VOICE</th>
-            <th style="width:28%" class="cm-robot-h">ROBOT VOICE</th>
+            <th style="width:16%">TRIGGER</th>
+            <th style="width:34%">WHEN IT FIRES</th>
+            <th style="width:50%">LINES (full list — click to preview)</th>
           </tr>
         </thead>
-        <tbody id="callout-matrix-body"></tbody>
+        <tbody id="callout-list-cyborg"></tbody>
       </table>
-      <!-- Live sample bubble preview rendered on click -->
+    </div>
+  </div>
+
+  <!-- ─── Robot list ─── -->
+  <div class="preview-section">
+    <h2 style="color:#88c8ff;border-color:rgba(136,200,255,0.35);">
+      ROBOT CALLOUTS
+      <span class="tag after" style="background:rgba(136,200,255,0.12);border-color:rgba(136,200,255,0.5);color:#88c8ff;">DEFENDER VOICE</span>
+    </h2>
+    <p style="font-family:'Share Tech Mono',monospace;color:#88a4b8;font-size:11px;letter-spacing:1px;margin:0 4px 14px;max-width:900px;">
+      Synthetic. Technical and precise. Uses
+      <strong style="color:#d8f0ff">energy weapons only</strong> — vocabulary
+      is charge / cell / capacitor / pulse / recharge. No "rounds", no
+      "magazine", no "reload" (those are kinetic concepts reserved for
+      the future Humans faction). Bold monospace cyan on the blue bubble.
+    </p>
+    <div class="preview-frame" style="padding:18px 18px 18px;">
+      <table class="callout-list cl-robot">
+        <thead>
+          <tr>
+            <th style="width:16%">TRIGGER</th>
+            <th style="width:34%">WHEN IT FIRES</th>
+            <th style="width:50%">LINES (full list — click to preview)</th>
+          </tr>
+        </thead>
+        <tbody id="callout-list-robot"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ─── Shared live-preview bubble (sticks to viewport while scrolling lists) ─── -->
+  <div class="preview-section">
+    <h2 style="color:#d4ff7a;border-color:rgba(212,255,122,0.35);">
+      LIVE BUBBLE PREVIEW
+      <span class="tag after" style="background:rgba(212,255,122,0.12);border-color:rgba(212,255,122,0.5);color:#d4ff7a;">CLICK A LINE TO RENDER</span>
+    </h2>
+    <div class="preview-frame" style="padding:24px;">
       <div class="cm-sample-wrap">
         <canvas id="cm-sample-canvas" width="320" height="80"></canvas>
-        <div id="cm-sample-caption" class="cm-sample-caption">Click any line above to preview the rendered bubble.</div>
+        <div id="cm-sample-caption" class="cm-sample-caption">Click any cyborg or robot line above to preview the rendered bubble at battle scale.</div>
       </div>
     </div>
   </div>
 
   <style>
-    /* ═════ Callout matrix table ═════ */
-    .callout-matrix {
+    /* ═════ Callout list tables (per faction) ═════ */
+    .callout-list {
       width: 100%;
       border-collapse: collapse;
       font-family: 'Share Tech Mono', monospace;
       font-size: 12px;
       color: #b8d8ee;
     }
-    .callout-matrix thead th {
+    .callout-list thead th {
       text-align: left;
       padding: 8px 12px;
       background: rgba(8, 18, 32, 0.7);
@@ -1018,71 +1062,79 @@
       font-family: 'Orbitron', monospace;
       font-size: 10px;
       letter-spacing: 3px;
-      color: #88c5e0;
       font-weight: 700;
     }
-    .callout-matrix thead th.cm-cyborg-h { color: #dd8888; }
-    .callout-matrix thead th.cm-robot-h  { color: #88c8ff; }
-    .callout-matrix tbody td {
-      padding: 12px;
+    /* Per-faction accent on the header bar */
+    .callout-list.cl-cyborg thead th { color: #dd8888; }
+    .callout-list.cl-robot  thead th { color: #88c8ff; }
+    .callout-list tbody td {
+      padding: 14px 12px;
       border-bottom: 1px solid rgba(120, 200, 230, 0.12);
       vertical-align: top;
     }
-    .callout-matrix tbody tr:hover td { background: rgba(120, 200, 230, 0.04); }
-    .callout-matrix .cm-trigger {
+    .callout-list tbody tr:hover td { background: rgba(120, 200, 230, 0.04); }
+    .callout-list .cm-trigger {
       font-family: 'Orbitron', monospace;
       font-size: 11px;
       letter-spacing: 2px;
       color: #d4ff7a;
     }
-    .callout-matrix .cm-when {
+    .callout-list .cm-when {
       color: #88a4b8;
       font-size: 11px;
-      line-height: 1.5;
+      line-height: 1.55;
     }
-    .callout-matrix .cm-when code {
+    .callout-list .cm-when code {
       color: #d4ff7a;
       font-family: 'Share Tech Mono', monospace;
     }
-    .callout-matrix .cm-lines { line-height: 1.75; }
-    .callout-matrix .cm-line {
-      display: inline-block;
-      padding: 2px 8px;
-      margin: 2px 4px 2px 0;
-      border-radius: 2px;
-      cursor: pointer;
-      transition: background 100ms ease, transform 80ms ease;
+    /* "Lines" column is a vertical STACK now — one line per row, not chips. */
+    .callout-list .cm-lines {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
     }
-    .callout-matrix .cm-line:active { transform: translateY(1px); }
-    .callout-matrix .cm-line-cyborg {
+    .callout-list .cm-line {
+      display: block;
+      padding: 5px 12px;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: background 100ms ease, border-color 100ms ease, transform 80ms ease;
+      width: fit-content;
+      max-width: 100%;
+    }
+    .callout-list .cm-line:active { transform: translateY(1px); }
+    .callout-list .cm-line-cyborg {
       background: rgba(45, 18, 22, 0.7);
       border: 1px solid rgba(221, 136, 136, 0.45);
       color: #ffe0d0;
       font-family: 'Helvetica Neue', sans-serif;
       font-style: italic;
       font-weight: 700;
+      font-size: 14px;
     }
-    .callout-matrix .cm-line-cyborg:hover {
+    .callout-list .cm-line-cyborg:hover {
       background: rgba(60, 24, 30, 0.95);
       border-color: #dd8888;
     }
-    .callout-matrix .cm-line-robot {
+    .callout-list .cm-line-robot {
       background: rgba(14, 28, 44, 0.7);
       border: 1px solid rgba(136, 200, 255, 0.45);
       color: #d8f0ff;
       font-family: 'Courier New', monospace;
       font-weight: 700;
+      font-size: 14px;
     }
-    .callout-matrix .cm-line-robot:hover {
+    .callout-list .cm-line-robot:hover {
       background: rgba(20, 40, 60, 0.95);
       border-color: #88c8ff;
     }
-    .callout-matrix .cm-empty {
+    .callout-list .cm-empty {
       color: #5a7a92;
       font-style: italic;
       font-size: 11px;
     }
-    .callout-matrix .cm-pending {
+    .callout-list .cm-pending {
       display: inline-block;
       margin-left: 8px;
       padding: 1px 6px;
@@ -1095,9 +1147,9 @@
       border-radius: 2px;
       vertical-align: middle;
     }
-    .callout-matrix tr.cm-row-pending td { background: rgba(255, 185, 107, 0.025); }
+    .callout-list tr.cm-row-pending td { background: rgba(255, 185, 107, 0.025); }
     .cm-sample-wrap {
-      margin: 24px auto 0;
+      margin: 0 auto;
       text-align: center;
     }
     #cm-sample-canvas {
@@ -1119,18 +1171,22 @@
   <script>
     // ═════ Callout matrix data — MIRROR of src/entities/SpeechBubble.ts ═════
     // Keep in sync. Field shape: SPEECH_LINES[voice][trigger] = string[].
+    // Weapon-vocabulary policy:
+    //   Robots  — ENERGY ONLY (charge / cell / capacitor / pulse / recharge).
+    //   Cyborgs — MIX (most kinetic + a few energy lines).
+    //   Humans  — kinetic ONLY (future faction).
     const SPEECH_LINES = {
       cyborg: {
         low_hp: [
           "MEDIC!!", "Where's the medic?", "I'm hit — cover me!", "Need a patch!", "Bleeding out!",
           "Still alive… barely.", "I'm melting!", "Patch me up!", "Rebooting brain…", "That hurt!",
         ],
-        low_ammo:         ["{n} shot{s} left!", "Down to {n}!", "Almost dry!", "Last few rounds!"],
-        out_of_ammo:      ["I'm out!", "Down to fists!", "Need ammo, now!", "Pistol's dry!", "Need juice!"],
+        low_ammo:         ["{n} shot{s} left!", "Down to {n}!", "Almost dry!", "Last few rounds!", "Charge low!"],
+        out_of_ammo:      ["I'm out!", "Down to fists!", "Need ammo, now!", "Pistol's dry!", "Need juice!", "Cell's tapped!"],
         sniper_shot:      ["One shot, one kill.", "Target down.", "Headshot.", "Eagle eye.", "Take the shot!"],
         medic_low_packs:  ["{n} pack{s} left!", "Running low on supplies!", "Down to {n} kit{s}!", "Save the rest!"],
         crate_spotted:    ["Crate spotted!", "Resupply incoming!", "Ammo drop — on me!", "Mine!!"],
-        rearmed:          ["Reloaded!", "Locked and loaded!", "Fresh clip!", "Back in the fight!", "Going in!"],
+        rearmed:          ["Reloaded!", "Locked and loaded!", "Fresh clip!", "Back in the fight!", "Going in!", "Recharged!"],
         no_repairs_needed: [],
         on_kill:          ["Who's next?", "Got one!", "Take that!", "Down!"],
         on_death:         ["They're cheating!", "I hate Mondays.", "Aaargh!", "Tell my mom…"],
@@ -1141,12 +1197,12 @@
           "SYSTEMS CRITICAL", "INTEGRITY: LOW", "DAMAGE: SEVERE", "ARMOR FAILING",
           "SYSTEM BREACH", "OVERHEAT", "ERROR DETECTED", "REBOOTING",
         ],
-        low_ammo:         ["{n} ROUND{S} LEFT", "AMMUNITION: {n}", "RESERVES LOW", "MAGAZINE NEAR EMPTY", "RECALIBRATING"],
-        out_of_ammo:      ["AMMUNITION DEPLETED", "WEAPON OFFLINE", "RELOAD UNAVAILABLE", "RESUPPLY REQUIRED"],
-        sniper_shot:      ["TARGET ELIMINATED", "PRECISION SHOT CONFIRMED", "MARK STRUCK", "SINGLE-ROUND KILL", "TARGET LOCKED", "EXECUTING STRIKE"],
+        low_ammo:         ["{n} CHARGE{S} LEFT", "POWER CELLS: {n}", "RESERVES LOW", "BATTERY DEPLETING", "RECALIBRATING"],
+        out_of_ammo:      ["POWER CELL DEPLETED", "WEAPON OFFLINE", "RECHARGE REQUIRED", "CAPACITOR EMPTY", "ENERGY EXHAUSTED"],
+        sniper_shot:      ["TARGET ELIMINATED", "PRECISION SHOT CONFIRMED", "MARK STRUCK", "SINGLE-PULSE KILL", "TARGET LOCKED", "EXECUTING STRIKE"],
         medic_low_packs:  ["REPAIR CHARGES: {n}", "{n} CHARGE{S} LEFT", "WELD MATERIAL LOW", "SUPPLIES DEPLETING"],
         crate_spotted:    ["RESUPPLY DETECTED", "CRATE ON MAP", "TARGETING SUPPLY", "CACHE LOCKED", "DATA CONFIRMED"],
-        rearmed:          ["AMMUNITION RESTORED", "RELOAD COMPLETE", "RESUPPLIED", "MAGAZINE RELOADED", "POWER SURGE"],
+        rearmed:          ["POWER RESTORED", "RECHARGE COMPLETE", "ENERGY REPLENISHED", "CELL CYCLED", "POWER SURGE"],
         no_repairs_needed: ["ALL SYSTEMS NOMINAL", "NO REPAIRS REQUIRED", "STANDING BY", "AWAITING DAMAGE REPORT"],
         on_kill:          ["TARGET NEUTRALIZED", "KILL CONFIRMED", "MARK DOWN", "ENEMY TERMINATED"],
         on_death:         ["UNIT OFFLINE", "SIGNAL LOST", "TERMINATING", "FATAL ERROR"],
@@ -1177,32 +1233,34 @@
     // Use 2 as the demo count — exercises {s}/{S} pluralizer; 1 would hide it.
     function preview(template) { return expand(template, /\{n\}/.test(template) ? 2 : null) }
 
-    // Render the matrix table
+    // Render one tbody per faction. Same trigger order in both so the
+    // user can scroll either list and compare equivalents at the same
+    // vertical position.
     {
-      const body = document.getElementById('callout-matrix-body')
-      body.innerHTML = CALLOUT_TRIGGERS.map(t => {
-        const cy = SPEECH_LINES.cyborg[t.id] || []
-        const rb = SPEECH_LINES.robot[t.id]  || []
-        const renderLines = (lines, cls) => lines.length === 0
-          ? '<span class="cm-empty">— not used —</span>'
-          : lines.map(l => {
-              const text = preview(l)
-              return `<span class="cm-line ${cls}" data-voice="${cls.includes('cyborg') ? 'cyborg' : 'robot'}" data-text="${text.replace(/"/g, '&quot;')}">${text}</span>`
-            }).join('')
-        // Pending triggers (declared but not yet fired by RevealPhase) get
-        // a tag so reviewers don't expect to hear them in a current build.
-        const pendingTag = t.pending
-          ? '<span class="cm-pending">PENDING WIRING</span>'
-          : ''
-        const rowClass = t.pending ? 'cm-row-pending' : ''
-        return `
-          <tr class="${rowClass}">
-            <td class="cm-trigger">${t.label}${pendingTag}</td>
-            <td class="cm-when">${t.when}</td>
-            <td class="cm-lines">${renderLines(cy, 'cm-line-cyborg')}</td>
-            <td class="cm-lines">${renderLines(rb, 'cm-line-robot')}</td>
-          </tr>`
-      }).join('')
+      const renderFactionTable = (tbodyId, voice, cls) => {
+        const tbody = document.getElementById(tbodyId)
+        tbody.innerHTML = CALLOUT_TRIGGERS.map(t => {
+          const lines = SPEECH_LINES[voice][t.id] || []
+          const linesHtml = lines.length === 0
+            ? '<span class="cm-empty">— not used by this faction —</span>'
+            : lines.map(l => {
+                const text = preview(l)
+                return `<span class="cm-line ${cls}" data-voice="${voice}" data-text="${text.replace(/"/g, '&quot;')}">${text}</span>`
+              }).join('')
+          const pendingTag = t.pending
+            ? '<span class="cm-pending">PENDING WIRING</span>'
+            : ''
+          const rowClass = t.pending ? 'cm-row-pending' : ''
+          return `
+            <tr class="${rowClass}">
+              <td class="cm-trigger">${t.label}${pendingTag}</td>
+              <td class="cm-when">${t.when}</td>
+              <td class="cm-lines">${linesHtml}</td>
+            </tr>`
+        }).join('')
+      }
+      renderFactionTable('callout-list-cyborg', 'cyborg', 'cm-line-cyborg')
+      renderFactionTable('callout-list-robot',  'robot',  'cm-line-robot')
 
       // Live bubble preview — uses the same canvas dimensions + colors
       // as SpeechBubble.makeTexture so the sandbox matches in-game.
@@ -1244,7 +1302,10 @@
         ctx.textBaseline = 'middle'
         ctx.fillText(text, W / 2, (bodyTop + bodyBottom) / 2)
       }
-      body.addEventListener('click', e => {
+      // Delegate clicks from BOTH faction tables to the shared canvas
+      // preview. Listening on document keeps the wiring simple regardless
+      // of which tbody the click originated in.
+      document.addEventListener('click', e => {
         const el = e.target.closest('.cm-line')
         if (!el) return
         drawBubble(el.dataset.text, el.dataset.voice)
