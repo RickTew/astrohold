@@ -25,17 +25,20 @@ export const Config = {
   ATTACKER_MIN_X: 200,
   GRID_CELL: 50,
   START_CREDITS: 1000,  // testing budget — production should be lower (suggest 200-300)
-  // The AI side gets START_CREDITS × (1 + AI_CREDIT_BONUS) to compensate
-  // for not having a human's positional judgement. Cyborgs especially get
-  // shredded by entrenched defender Sphere + Laser arrays, so the AI needs
-  // bodies. 0.5 = +50% (1500 cr). Tune up if AI still loses too easily.
-  AI_CREDIT_BONUS: 0.5,
-  // Attacker (cyborg) side gets MORE base credits than defenders. Defenders
-  // have stationary high-HP structures + repair-bot healing, so attackers
-  // need extra bodies to compensate. Applied on top of any AI bonus —
-  // player-attacker base = 1000 × 1.3 = 1300; AI-attacker = 1300 × 1.5 = 1950.
-  // Adjusted from a balance pass where defender consistently won by attrition.
-  ATTACKER_CREDIT_BONUS: 0.3,
+  // ─── S17.15 credit economy ─────────────────────────────────────────
+  // Both teams now start with the SAME base credit budget. Earlier
+  // sessions stacked ATTACKER_CREDIT_BONUS (×1.3) on top of an
+  // AI_CREDIT_BONUS (×1.5) which gave the AI cyborg ~1950cr against
+  // a player-defender's 1000cr (nearly 2x). Telemetry confirmed
+  // that gap was the structural imbalance behind the 0% defender
+  // win rate. Both bonuses now zero. The AI credit multiplier is
+  // driven by the user-selected Difficulty (see src/game/Difficulty.ts):
+  //   easy   AI × 0.75 (smaller AI army)
+  //   normal AI × 1.00 (parity)
+  //   hard   AI × 1.25 (harder fight)
+  // Player credits are unaffected by difficulty.
+  AI_CREDIT_BONUS: 0,
+  ATTACKER_CREDIT_BONUS: 0,
   TURN_INTERVAL: 0.65,   // seconds per battle turn — also drives unit move speed
   // Cost to add an extra fire-arc facing to a directional structure (turret /
   // bomber / cannon / gun / laser). Player opens the compass-rose popup by

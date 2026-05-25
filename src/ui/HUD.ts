@@ -1,6 +1,7 @@
 import { Config, StructureType, UnitType } from '../game/GameConfig'
 import type { PlanningSelectionInfo } from '../game/PlanningPhase'
 import type { CombatLogEntry } from '../game/RevealPhase'
+import { Difficulty, getDifficulty, setDifficulty } from '../game/Difficulty'
 
 const SPHERE_COST = 100   // mirrors Game.SPHERE_COST
 
@@ -308,6 +309,23 @@ export class HUD {
               <div class="sp-cta">PLAY</div>
             </button>
           </div>
+          <div class="sp-difficulty" id="sp-difficulty">
+            <div class="sp-diff-label">AI DIFFICULTY</div>
+            <div class="sp-diff-buttons">
+              <button class="sp-diff-btn" data-difficulty="easy">
+                <div class="sp-diff-name">EASY</div>
+                <div class="sp-diff-sub">AI gets 25% fewer credits</div>
+              </button>
+              <button class="sp-diff-btn" data-difficulty="normal">
+                <div class="sp-diff-name">NORMAL</div>
+                <div class="sp-diff-sub">Equal credits</div>
+              </button>
+              <button class="sp-diff-btn" data-difficulty="hard">
+                <div class="sp-diff-name">HARD</div>
+                <div class="sp-diff-sub">AI gets 25% more credits</div>
+              </button>
+            </div>
+          </div>
           <details class="sp-howto">
             <summary>How to play</summary>
             <div class="sp-howto-body">
@@ -315,6 +333,7 @@ export class HUD {
               <p><strong>PLAN:</strong> Click any of your pieces, then click a cell to queue a move, or right-click an enemy to queue a shot. Right-click empty space to clear.</p>
               <p><strong>BATTLE:</strong> Both sides reveal their planned actions in initiative order. Watch the round play out. Repeat until the Power Core falls or every attacker is gone.</p>
               <p>The AI plays the opposite role. Pick DEFENDER and the AI attacks. Pick ATTACKER and the AI defends.</p>
+              <p><strong>DIFFICULTY:</strong> EASY shrinks the AI army by 25 percent. HARD grows it by 25 percent. Your credits are unchanged either way.</p>
             </div>
           </details>
         </div>
@@ -379,6 +398,22 @@ export class HUD {
         const role = card.dataset.role as 'defender' | 'attacker'
         this.onPickSide?.(faction, role)
       })
+    })
+    // Difficulty selector. Persists immediately on click; the active
+    // value is read by Game during BUILD when allocating AI credits.
+    this.applyDifficultySelection(getDifficulty())
+    this.container.querySelectorAll<HTMLElement>('#sp-difficulty .sp-diff-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const d = btn.dataset.difficulty as Difficulty
+        setDifficulty(d)
+        this.applyDifficultySelection(d)
+      })
+    })
+  }
+
+  private applyDifficultySelection(d: Difficulty) {
+    this.container.querySelectorAll<HTMLElement>('#sp-difficulty .sp-diff-btn').forEach(btn => {
+      btn.classList.toggle('selected', btn.dataset.difficulty === d)
     })
   }
 

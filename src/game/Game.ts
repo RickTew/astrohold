@@ -19,6 +19,7 @@ import { FireArcPreview } from '../entities/FireArcPreview'
 import { OpponentAI, OpponentSide } from '../ai/OpponentAI'
 import { recordBattle, BattleRecord, PerPieceCounters } from './BattleStats'
 import { getRevealSpeed } from './RevealSpeed'
+import { aiCreditMultiplier } from './Difficulty'
 import { MiniControlCenter } from '../ui/MiniControlCenter'
 import type { CombatLogEntry } from './RevealPhase'
 
@@ -438,21 +439,19 @@ private enterBuildPhase() {
     this.phase = 'build'
     this.attackerUnits = []
     this.defenderUnits = []
-    // Per-side credit calculation. Two bonuses stack:
-    //   ATTACKER_CREDIT_BONUS — cyborgs always get more base credits than
-    //     defenders because defender pieces are stationary, tanky, and
-    //     healable. Without this attackers consistently lose by attrition.
-    //   AI_CREDIT_BONUS — the AI on either side gets an extra multiplier
-    //     to compensate for not having a human's positional judgement.
-    // Defender base = START_CREDITS (1000). Attacker base = ×1.3 = 1300.
-    // AI-side either base × 1.5 on top — so player-attacker is 1300, AI-
-    // attacker is 1950, player-defender is 1000, AI-defender is 1500.
+    // S17.15 credit economy. Both sides get the SAME base budget
+    // (Config.START_CREDITS, 1000). The AI side gets multiplied by
+    // the user-selected Difficulty:
+    //   easy   AI × 0.75 (smaller AI army)
+    //   normal AI × 1.00 (parity)
+    //   hard   AI × 1.25 (harder fight)
+    // Player credits are unaffected by difficulty.
+    const aiMul         = aiCreditMultiplier()
     const aiIsAttacker  = this.playerSide === 'defender'
     const aiIsDefender  = this.playerSide === 'attacker'
-    const attackerBase  = Math.floor(Config.START_CREDITS * (1 + Config.ATTACKER_CREDIT_BONUS))
-    const defenderBase  = Config.START_CREDITS
-    const attackerCr    = aiIsAttacker ? Math.floor(attackerBase * (1 + Config.AI_CREDIT_BONUS)) : attackerBase
-    const defenderCr    = aiIsDefender ? Math.floor(defenderBase * (1 + Config.AI_CREDIT_BONUS)) : defenderBase
+    const base          = Config.START_CREDITS
+    const attackerCr    = aiIsAttacker ? Math.floor(base * aiMul) : base
+    const defenderCr    = aiIsDefender ? Math.floor(base * aiMul) : base
     this.attCredits = attackerCr
     this.hud.setPhase('build')
     this.mcc?.setPhase('build')
