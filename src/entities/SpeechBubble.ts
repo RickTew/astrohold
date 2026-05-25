@@ -273,9 +273,28 @@ function makeTexture(text: string, voice: SpeechVoice): THREE.Texture {
   return tex
 }
 
-// Drop a speech bubble at (x, y) — bubble's TAIL TIP anchors at that
+// Global on/off flag controlled by the Mini Control Center. Persisted
+// in localStorage so the player choice survives Play Again. Default ON.
+const SPEECH_KEY = 'astrohold:speech-bubbles-on:v1'
+let speechEnabled: boolean | null = null
+export function isSpeechBubblesOn(): boolean {
+  if (speechEnabled === null) {
+    try {
+      const raw = localStorage.getItem(SPEECH_KEY)
+      speechEnabled = raw === null ? true : (raw === '1' || raw === 'true')
+    } catch { speechEnabled = true }
+  }
+  return speechEnabled
+}
+export function setSpeechBubblesOn(value: boolean) {
+  speechEnabled = value
+  try { localStorage.setItem(SPEECH_KEY, value ? '1' : '0') } catch { /* non-fatal */ }
+}
+
+// Drop a speech bubble at (x, y). The bubble TAIL TIP anchors at that
 // position, so callers pass the speaker's head position. Picks a random
 // line from the voice/trigger table. Self-disposes after ~1.8 seconds.
+// When the Mini Control Center speech-bubbles toggle is off, this is a no-op.
 export function spawnSpeechBubble(
   scene: THREE.Scene,
   x: number, y: number,
@@ -283,6 +302,7 @@ export function spawnSpeechBubble(
   trigger: SpeechTrigger,
   context: SpeechContext = {},
 ) {
+  if (!isSpeechBubblesOn()) return
   const lines = LINES[voice][trigger]
   // Some voices don't have lines for a given trigger (e.g. cyborg has no
   // 'no_repairs_needed' lines — it's a repair-bot-only callout). Skip

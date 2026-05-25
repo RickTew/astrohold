@@ -1,9 +1,15 @@
-// Synthesized sound effects via Web Audio. No sample files — every sound is
-// generated on the fly from oscillators + filters so the bundle stays small.
+// Synthesized sound effects via Web Audio. No sample files: every sound is
+// generated on the fly from oscillators plus filters so the bundle stays small.
 //
 // AudioContext is created lazily (browsers block construction until the user
 // interacts with the page anyway). Each call spawns a new oscillator chain
 // per sound; the chain is short-lived and self-cleans via .stop().
+//
+// SFX can be muted globally via the Mini Control Center. Both play* exits
+// early if isSfxOn() is false. We still consult the throttler first so the
+// mute does not accidentally bypass rate limiting if the toggle flips back on.
+
+import { isSfxOn } from './AudioSettings'
 
 let ctx: AudioContext | null = null
 function getCtx(): AudioContext | null {
@@ -36,6 +42,7 @@ function shouldThrottle(key: string, minSpacingMs: number): boolean {
 
 export function playGunshot() {
   if (shouldThrottle('gun', 35)) return
+  if (!isSfxOn()) return
   const c = getCtx(); if (!c) return
   const t = c.currentTime
   const osc = c.createOscillator()
@@ -52,6 +59,7 @@ export function playGunshot() {
 
 export function playExplosion() {
   if (shouldThrottle('boom', 60)) return
+  if (!isSfxOn()) return
   const c = getCtx(); if (!c) return
   const t = c.currentTime
   const osc = c.createOscillator()

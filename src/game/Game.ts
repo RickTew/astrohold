@@ -19,6 +19,7 @@ import { FireArcPreview } from '../entities/FireArcPreview'
 import { OpponentAI, OpponentSide } from '../ai/OpponentAI'
 import { recordBattle, BattleRecord } from './BattleStats'
 import { getRevealSpeed } from './RevealSpeed'
+import { MiniControlCenter } from '../ui/MiniControlCenter'
 import type { CombatLogEntry } from './RevealPhase'
 
 type Phase = 'loading' | 'pick-side' | 'build' | 'planning' | 'reveal' | 'win' | 'lose'
@@ -55,6 +56,9 @@ export class Game {
   private background!: Background
   private powerCore!: PixelPowerCore
   private hud!: HUD
+  // Floating bottom-right widget. Owns speed dial, audio + speech +
+  // log toggles, and the BATTLE / PAUSE primary action pill.
+  private mcc!: MiniControlCenter
   private buildPhase: BuildPhase | null = null
   private planningPhase: PlanningPhase | null = null
   private revealPhase: RevealPhase | null = null
@@ -185,6 +189,15 @@ export class Game {
   async init() {
     this.background = new Background(this.scene)
     this.hud = new HUD()
+    // Mini Control Center floats over the canvas at bottom-right.
+    // BATTLE handler delegates to the existing HUD.onBattle chain so
+    // both the legacy center-panel button and the new dial pill go
+    // through the same code path. PAUSE forwards to the active
+    // RevealPhase.paused flag.
+    this.mcc = new MiniControlCenter({
+      onBattle: () => this.hud.onBattle?.(),
+      onPauseChange: paused => { if (this.revealPhase) this.revealPhase.paused = paused },
+    })
 
     // Block UI until all sprite atlases are ready so placements never show the
     // swap from fallback geometry to final sprite.
@@ -413,6 +426,7 @@ private enterBuildPhase() {
     const defenderCr    = aiIsDefender ? Math.floor(defenderBase * (1 + Config.AI_CREDIT_BONUS)) : defenderBase
     this.attCredits = attackerCr
     this.hud.setPhase('build')
+    this.mcc?.setPhase('build')
     this.hud.setAttCredits(this.attCredits)
     const buildPhaseCredits = defenderCr
     this.buildPhase = new BuildPhase(
@@ -715,6 +729,7 @@ private enterBuildPhase() {
 
     this.phase = 'planning'
     this.hud.setPhase('planning')
+    this.mcc?.setPhase('planning')
 
     this.planningPhase = new PlanningPhase(
       this.scene, this.spheres, this.attackerUnits, this.structures, this.powerCore,
@@ -737,6 +752,7 @@ private enterBuildPhase() {
 
     this.phase = 'reveal'
     this.hud.setPhase('reveal')
+    this.mcc?.setPhase('reveal')
     this.hud.onBattle = null   // reveal can't be skipped via the button
     // Drop the fog: AI pieces become visible so the player can see what
     // they're up against as the round plays out.
@@ -751,11 +767,11 @@ private enterBuildPhase() {
       this.ammoBoxes,
     )
     this.revealPhase.onWin = () => {
-      this.phase = 'win'; this.hud.setPhase('win')
+      this.phase = 'win'; this.hud.setPhase('win'); this.mcc?.setPhase('win')
       this.recordBattleEnd('cyborgs_eliminated')
     }
     this.revealPhase.onLose = () => {
-      this.phase = 'lose'; this.hud.setPhase('lose')
+      this.phase = 'lose'; this.hud.setPhase('lose'); this.mcc?.setPhase('lose')
       this.recordBattleEnd('core_destroyed')
     }
     // Stream each log line to the HUD as it's recorded so the panel keeps
@@ -822,6 +838,7 @@ private enterBuildPhase() {
       if (!this.powerCore.isDead && !this.cyborgsCanAttack()) {
         this.phase = 'win'
         this.hud.setPhase('win')
+        this.mcc?.setPhase('win')
         this.recordBattleEnd('attrition')
         return
       }
@@ -1533,6 +1550,7 @@ private enterBuildPhase() {
     window.removeEventListener('mousemove', this.onMouseMove)
     window.removeEventListener('mouseup', this.onMouseUp)
     window.removeEventListener('contextmenu', this.onContextMenu)
+    this.mcc?.dispose()
     this.buildPhase?.cleanup()
     this.endPlacement()
     this.removeZoneTint('att')

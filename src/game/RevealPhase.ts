@@ -1655,13 +1655,24 @@ export class RevealPhase {
 
   // ── Main tick ────────────────────────────────────────────────────────────
 
+  // Pause flag controlled by the Mini Control Center BATTLE / PAUSE pill.
+  // When true, the engine still ticks visuals (so in-flight projectiles
+  // and explosions resolve naturally) but does NOT advance the planned
+  // step sequence or accumulate step time. Unpausing resumes from exactly
+  // where the engine left off.
+  paused = false
+
   update(delta: number) {
-    // Always tick visuals (projectiles, explosions, unit anims) — they keep
-    // running between steps and after the engine ends.
+    // Always tick visuals (projectiles, explosions, unit anims): they
+    // keep running between steps and after the engine ends.
     this.tickProjectiles(delta)
     this.tickExplosions(delta)
     this.tickPendingGrenades(delta)
     for (const u of this.units) u.update(delta)
+
+    // Pause check happens AFTER visuals so any in-flight projectile or
+    // explosion can finish drawing while the engine is frozen.
+    if (this.paused) return
 
     if (this.done) return
 
