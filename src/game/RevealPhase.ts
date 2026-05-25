@@ -15,6 +15,7 @@ import { RepairTether, RepairTetherTarget } from '../entities/RepairTether'
 import { AmmoBox, KIT_AMOUNT } from '../entities/AmmoBox'
 import { playGunshot, playExplosion } from '../audio/sfx'
 import { revealSpeedMultiplier } from './RevealSpeed'
+import { spawnSpeechBubble } from '../entities/SpeechBubble'
 
 // Phase 3 reveal engine: consumes the queued plans the player set up during
 // Planning, sorts every (actor, action) pair by Initiative descending, and
@@ -201,10 +202,143 @@ export class RevealPhase {
         }
         this.damageHistory.delete(id)   // free memory; target is dead
       }
+      // Speech + side-effects for the death. PixelPowerCore deaths run
+      // through their own cinematic sequence elsewhere, so skip the
+      // generic death handler for the core.
+      if (!(target instanceof PixelPowerCore)) {
+        this.handleDeath(target, side, attackerType)
+      }
+      // Killer (attacker) gets an on_kill brag if it's a SpriteUnit on
+      // the field. Structures + spheres don't currently have an announce
+      // method so they stay silent on kill.
+      this.announceKill(attackerType, side)
     } else {
       if (!this.damageHistory.has(id)) this.damageHistory.set(id, new Set())
       this.damageHistory.get(id)!.add(attackerType)
+      // Non-killing core hits get a reaction bubble from both factions.
+      if (target instanceof PixelPowerCore) this.announceCoreHit()
     }
+  }
+
+  // Resolve the dying target's position + side, spawn an on_death
+  // speech bubble, and for ROBOT (defender) deaths fire a small
+  // self-destruct AoE: the robot's "I chose to detonate" callouts are
+  // backed by actual mechanical bite. Friendly fire applies (matches
+  // the rest of the AoE system), so robot deaths can chain-detonate
+  // a tight defender cluster which is the trade-off for the dramatic
+  // exit lines.
+  private handleDeath(
+    target: { id?: string; isDead: boolean },
+    killerSide: 'attacker' | 'defender',
+    killerType: string,
+  ) {
+    let x = 0, y = 0
+    let voice: 'cyborg' | 'robot' = 'robot'
+    let isRobot = false
+    if (target instanceof SpriteUnit) {
+      x = target.worldX; y = target.worldY
+      voice = target.side === 'attacker' ? 'cyborg' : 'robot'
+      isRobot = target.side === 'defender'
+    } else if (target instanceof Structure) {
+      x = target.worldX; y = target.worldY
+      voice = 'robot'
+      isRobot = true
+    } else if (target instanceof SphereDefender) {
+      x = target.worldX; y = target.worldY
+      voice = 'robot'
+      isRobot = true
+    } else {
+      return
+    }
+    spawnSpeechBubble(this.scene, x, y, voice, 'on_death')
+    if (!isRobot) return
+    // Chain-reaction guard. If this death was already caused by a
+    // self-destruct AoE, do NOT trigger another self-destruct on top.
+    // The dying robot still gets its bubble (above) so the cluster
+    // reads as a synchronised dramatic death, but only the first
+    // robot in the chain actually detonates. Without this guard a
+    // tight defender cluster could chain-detonate infinitely.
+    if (killerType === 'self_destruct') return
+    // Robot self-destruct AoE. Smaller radius + lower damage than a
+    // grenadier blast (60 / 25) so it nudges the balance toward the
+    // defender side without giving every robot a free explosion-on-
+    // death kingmaker. Uses the shared applyAoeForSide so the visual
+    // and audio sequencing matches every other explosion in the game.
+    const RADIUS = 60
+    const DAMAGE = 25
+    this.explosions.push(new Explosion(this.scene, x, y, RADIUS, 0.55, 0xff9a4a))
+    this.explosions.push(new Explosion(this.scene, x, y, RADIUS * 0.55, 0.35, 0xffe0c0))
+    playExplosion()
+    void killerSide  // kept on signature for future per-killer tuning
+    const summary = this.applyAoeForSide(x, y, RADIUS, DAMAGE, 'defender', 'self_destruct')
+    if (summary.hits > 0) {
+      this.combatThisReveal = true
+      this.log('defender', `Self-destruct AoE hits ${summary.hits} (${summary.damageDealt} dmg${summary.kills > 0 ? `, ${summary.kills} killed` : ''})`)
+    }
+  }
+
+  // Find the attacker entity by type + side and fire its on_kill brag.
+  // Best-effort: structures and spheres have no announce method so
+  // they go silent on kill. Hulks / cannons / cyborgs all speak.
+  private announceKill(attackerType: string, side: 'attacker' | 'defender') {
+    const pool = side === 'attacker' ? this.units : this.defenderUnits
+    // Pick the first living unit of matching type. If multiple of the
+    // same type contributed to the kill chain we cannot tell which
+    // actually swung; firing on the first is good enough for a
+    // flavour callout.
+    for (const u of pool) {
+      if (u.isDead) continue
+      if (u.type === attackerType) {
+        u.announce('on_kill')
+        return
+      }
+    }
+  }
+
+  // Core_hit: defender side reports the breach; cyborg side gloats
+  // about approaching the objective. Spawn one bubble per faction
+  // nearest the core, so the moment reads as a paired call/response.
+  // De-dup per reveal so chip damage from a single bomb does not
+  // produce two bubbles back-to-back.
+  private coreHitAnnouncedThisReveal = false
+  private announceCoreHit() {
+    if (this.coreHitAnnouncedThisReveal) return
+    this.coreHitAnnouncedThisReveal = true
+    const cc = this.core.cellCenters()
+    const cx = cc[0].x + Config.GRID_CELL / 2
+    const cy = cc[0].y + Config.GRID_CELL / 2
+    // Nearest defender (any sprite, sphere, or structure) reports.
+    const nearestDefender = this.findNearestRobot(cx, cy)
+    if (nearestDefender) {
+      spawnSpeechBubble(this.scene, nearestDefender.x, nearestDefender.y, 'robot', 'core_hit')
+    }
+    // Nearest cyborg gloats.
+    const nearestCyborg = this.findNearestCyborg(cx, cy)
+    if (nearestCyborg) {
+      spawnSpeechBubble(this.scene, nearestCyborg.x, nearestCyborg.y, 'cyborg', 'core_hit')
+    }
+  }
+  private findNearestRobot(x: number, y: number): { x: number; y: number } | null {
+    let best: { x: number; y: number } | null = null
+    let bestD = Infinity
+    const consider = (px: number, py: number) => {
+      const d = Math.hypot(px - x, py - y)
+      if (d < bestD) { bestD = d; best = { x: px, y: py } }
+    }
+    for (const u of this.defenderUnits) if (!u.isDead) consider(u.worldX, u.worldY)
+    for (const s of this.spheres)        if (!s.isDead) consider(s.worldX, s.worldY)
+    for (const s of this.structures)     if (!s.isDead) consider(s.worldX, s.worldY)
+    return best
+  }
+  private findNearestCyborg(x: number, y: number): { x: number; y: number } | null {
+    let best: { x: number; y: number } | null = null
+    let bestD = Infinity
+    for (const u of this.units) {
+      if (u.isDead) continue
+      const d = Math.hypot(u.worldX - x, u.worldY - y)
+      if (d < bestD) { bestD = d; best = { x: u.worldX, y: u.worldY } }
+    }
+    return best
   }
 
   constructor(

@@ -1285,10 +1285,10 @@
       { id: 'sniper_shot',       label: 'SNIPER SHOT',       when: 'Sniper or precision strike scores a confirmed kill.' },
       { id: 'medic_low_packs',   label: 'MEDIC LOW',         when: 'Medic or repair bot down to last 1-2 charges. <code>{n}</code> = charges left.' },
       { id: 'no_repairs_needed', label: 'NO REPAIRS NEEDED', when: 'Repair bot has full reserves and nothing damaged in sight. Robot voice only. Cyborgs have no repair role.' },
-      // S17.6 additions. Declared in source but not yet fired from RevealPhase. Flagged in UI.
-      { id: 'on_kill',           label: 'ON KILL',           when: 'Piece scores a non-sniper kill.', pending: true },
-      { id: 'on_death',          label: 'ON DEATH',          when: 'Piece dies. Dramatic or comic final line.', pending: true },
-      { id: 'core_hit',          label: 'CORE HIT',          when: 'Power Core takes damage. Robot side reports the breach. Cyborg side celebrates approaching the objective.', pending: true },
+      // S17.8: these triggers are now wired in RevealPhase.attribute.
+      { id: 'on_kill',           label: 'ON KILL',           when: 'Piece scores a kill of any kind. Fires on the killer.' },
+      { id: 'on_death',          label: 'ON DEATH',          when: 'Piece dies. Robot deaths also trigger a small self-destruct AoE (60 radius, 25 damage). Dramatic or comic final line.' },
+      { id: 'core_hit',          label: 'CORE HIT',          when: 'Power Core takes damage. Robot side reports the breach. Cyborg side celebrates approaching the objective. Once per reveal.' },
     ]
 
     function expand(template, n) {
