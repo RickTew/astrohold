@@ -72,7 +72,10 @@ export class MiniControlCenter {
   private host: HTMLDivElement
   private speed: RevealSpeed = getRevealSpeed()
   private paused = false
-  private phase: McPhase = 'build'
+  // Default to 'loading' so the widget starts HIDDEN. Game.init creates
+  // the MCC before the side picker resolves; without this default the
+  // dial would flash onto the pick-side screen for a frame.
+  private phase: McPhase = 'loading'
 
   /** Toggle states. Read on construction from localStorage so a player's
    *  choice survives Play Again. */
@@ -87,6 +90,10 @@ export class MiniControlCenter {
     this.host = document.createElement('div')
     this.host.id = 'mini-control-center'
     this.host.className = 'mcc-cluster mcc-style-c'
+    // Start hidden. Default phase is 'loading' so the dial does not
+    // flash onto the side-picker screen between construction and the
+    // first phase transition.
+    this.host.style.display = 'none'
     document.body.appendChild(this.host)
     injectStyles()
     // Apply the persisted combat-log toggle before the first paint so
@@ -98,12 +105,16 @@ export class MiniControlCenter {
 
   /** Called by Game on phase transitions so the BATTLE pill label and
    *  enabled state can update (BATTLE during BUILD, BATTLE inert
-   *  during reveal since auto-chain drives it, PLAY AGAIN after end). */
+   *  during reveal since auto-chain drives it, PLAY AGAIN after end).
+   *  The widget hides itself entirely during pre-game (loading and
+   *  pick-side) so the side picker stays uncluttered. */
   setPhase(phase: McPhase) {
     this.phase = phase
     // Leaving reveal clears any pause state so it does not carry into
     // the next match's reveal (would block the auto-chain).
     if (phase !== 'reveal') this.paused = false
+    const hidden = phase === 'loading' || phase === 'pick-side'
+    this.host.style.display = hidden ? 'none' : ''
     this.paint()
   }
 
