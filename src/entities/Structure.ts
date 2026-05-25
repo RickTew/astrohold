@@ -757,8 +757,14 @@ function getShieldDomeTexture(): THREE.CanvasTexture {
   c.width = 256; c.height = 256
   const ctx = c.getContext('2d')!
   const cx = 128, cy = 128, r = 124
-  // Dome body. Bright cyan core fading to translucent edge.
-  const grad = ctx.createRadialGradient(cx, cy - 18, 20, cx, cy + 14, r)
+  // Dome body. Bright cyan core fading to translucent edge. Gradient
+  // is now perfectly centered (both inner + outer circles share the
+  // same center point) so the highlight sits in the middle of the
+  // dome rather than biased toward the top. The earlier off-center
+  // gradient + top highlight band were meant to fake a hemisphere
+  // under the top-down camera but read as a floating cloud above
+  // the dome; user wanted the lighting centered on the piece itself.
+  const grad = ctx.createRadialGradient(cx, cy, 12, cx, cy, r)
   grad.addColorStop(0.00, 'rgba(180, 230, 255, 0.42)')
   grad.addColorStop(0.45, 'rgba(107, 217, 255, 0.26)')
   grad.addColorStop(0.78, 'rgba(60, 140, 200, 0.18)')
@@ -767,20 +773,10 @@ function getShieldDomeTexture(): THREE.CanvasTexture {
   ctx.beginPath()
   ctx.arc(cx, cy, r, 0, Math.PI * 2)
   ctx.fill()
-  // No outer rim stroke. The hard cyan ring used to read the boundary
-  // at a glance but it cut across other in-game visuals (turret
-  // sprites, terrain seams) and the user wanted it gone. The radial
-  // gradient alone still communicates coverage softly.
-  // Highlight band. Curved horizontal sliver near the top of the dome
-  // to suggest a 3D hemisphere even though we are rendering top-down.
-  const hi = ctx.createRadialGradient(cx, cy - 70, 4, cx, cy - 50, 80)
-  hi.addColorStop(0.0, 'rgba(220, 240, 255, 0.45)')
-  hi.addColorStop(0.6, 'rgba(220, 240, 255, 0.10)')
-  hi.addColorStop(1.0, 'rgba(220, 240, 255, 0)')
-  ctx.fillStyle = hi
-  ctx.beginPath()
-  ctx.ellipse(cx, cy - 60, 70, 24, 0, 0, Math.PI * 2)
-  ctx.fill()
+  // No outer rim stroke and no top highlight band. The hard cyan ring
+  // cut across nearby pieces; the top highlight (curved sliver above
+  // center) read as a stray cloud rather than as dome volume. Soft
+  // centered gradient alone communicates coverage.
   shieldDomeTexture = new THREE.CanvasTexture(c)
   shieldDomeTexture.magFilter = THREE.LinearFilter
   shieldDomeTexture.minFilter = THREE.LinearFilter
