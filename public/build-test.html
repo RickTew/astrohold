@@ -1398,6 +1398,209 @@
     }
   </script>
 
+  <!-- ═══════════════ SHIELD AURA VISUALIZATION ═══════════════
+       The Shield generator (defense piece) provides a 25 percent
+       damage-reduction aura to defender pieces within 1.5 grid
+       cells. Three visualization options to compare. Mock scene:
+       one Shield in the middle, four allies surrounding it (three
+       in range, one out of range to show the boundary). -->
+  <div class="preview-section">
+    <h2 style="color:#6bd9ff;border-color:rgba(107,217,255,0.4);">
+      SHIELD AURA VISUALIZATION
+      <span class="tag after" style="background:rgba(107,217,255,0.12);border-color:rgba(107,217,255,0.5);color:#6bd9ff;">PICK ONE</span>
+    </h2>
+    <p style="font-family:'Share Tech Mono',monospace;color:#88a4b8;font-size:11px;letter-spacing:1px;margin:0 4px 16px;max-width:900px;">
+      Each scene shows one Shield generator (center) with four nearby
+      allies. The three at top, right, and bottom are within the 1.5
+      cell aura and are protected. The ally at the far left sits one
+      cell beyond the aura and gets no damage reduction. Pick the
+      visualization that makes shield coverage easiest to read in a
+      busy battle.
+    </p>
+  </div>
+
+  <div class="preview-section">
+    <h2 style="color:#6bd9ff;border-color:rgba(107,217,255,0.4);">
+      VARIANT A. GROUND RING
+    </h2>
+    <p style="font-family:'Share Tech Mono',monospace;color:#88a4b8;font-size:11px;letter-spacing:1px;margin:0 4px 12px;max-width:900px;">
+      Cyan circle drawn on the floor around the Shield, extending to
+      the protection radius. Pieces inside the circle are protected.
+      Cleanest at-a-glance read. No per-unit chrome.
+    </p>
+    <div class="aura-frame"><div id="aura-a" class="aura-scene aura-variant-a"></div></div>
+  </div>
+
+  <div class="preview-section">
+    <h2 style="color:#6bd9ff;border-color:rgba(107,217,255,0.4);">
+      VARIANT B. PER-UNIT HALOS
+    </h2>
+    <p style="font-family:'Share Tech Mono',monospace;color:#88a4b8;font-size:11px;letter-spacing:1px;margin:0 4px 12px;max-width:900px;">
+      Soft cyan halo on each protected unit individually. No ring on
+      the Shield itself. Per-unit clarity (you can tell exactly which
+      pieces are shielded). Risk: more chrome on the field.
+    </p>
+    <div class="aura-frame"><div id="aura-b" class="aura-scene aura-variant-b"></div></div>
+  </div>
+
+  <div class="preview-section">
+    <h2 style="color:#6bd9ff;border-color:rgba(107,217,255,0.4);">
+      VARIANT C. TRANSLUCENT DOME
+    </h2>
+    <p style="font-family:'Share Tech Mono',monospace;color:#88a4b8;font-size:11px;letter-spacing:1px;margin:0 4px 12px;max-width:900px;">
+      Semi-transparent cyan dome rendered over the Shield extending
+      out to the aura radius. Reads as a force-field bubble. Most
+      thematic but also the most visual weight.
+    </p>
+    <div class="aura-frame"><div id="aura-c" class="aura-scene aura-variant-c"></div></div>
+  </div>
+
+  <style>
+    /* ═════ Shield aura visualization variants ═════ */
+    .aura-frame {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 18px;
+      background:
+        linear-gradient(rgba(8,16,12,0.78), rgba(8,16,12,0.78)),
+        radial-gradient(ellipse at 50% 50%, rgba(60, 80, 110, 0.32), transparent 60%),
+        #1a1810;
+      border: 1px solid rgba(106, 196, 255, 0.15);
+    }
+    .aura-scene {
+      position: relative;
+      width: 100%;
+      height: 280px;
+      background:
+        repeating-linear-gradient(0deg, transparent 0, transparent 49px, rgba(120, 200, 230, 0.06) 49px, rgba(120, 200, 230, 0.06) 50px),
+        repeating-linear-gradient(90deg, transparent 0, transparent 49px, rgba(120, 200, 230, 0.06) 49px, rgba(120, 200, 230, 0.06) 50px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Sprite tokens for the mock scene. Use simple shapes that read
+       as "robot piece" without needing actual sprite art. */
+    .aura-shield, .aura-ally {
+      position: absolute;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Orbitron', monospace;
+      font-size: 9px;
+      letter-spacing: 1.5px;
+      color: #d8eef9;
+      text-align: center;
+      pointer-events: none;
+    }
+    .aura-shield {
+      width: 48px; height: 48px;
+      background: radial-gradient(circle at 35% 35%, rgba(140, 200, 230, 0.7), rgba(40, 80, 110, 0.95));
+      border: 2px solid #6bd9ff;
+      border-radius: 50%;
+      box-shadow: inset 0 0 12px rgba(107, 217, 255, 0.4), 0 0 8px rgba(107, 217, 255, 0.3);
+    }
+    .aura-shield::after { content: 'SHIELD'; font-size: 8px; color: #d8eef9; }
+    .aura-ally {
+      width: 36px; height: 36px;
+      background: linear-gradient(180deg, rgba(40, 60, 80, 0.95), rgba(20, 36, 56, 0.95));
+      border: 1.5px solid rgba(120, 200, 230, 0.55);
+      border-radius: 6px;
+      box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+    }
+    .aura-ally::after { content: attr(data-label); font-size: 8px; }
+    .aura-ally.protected { /* protected styling lives per-variant */ }
+
+    /* Positions. Shield centered. 3 allies in range (N, E, S), 1 ally OOR (far W). */
+    .aura-scene .aura-shield      { top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 3; }
+    .aura-scene .aura-ally.pos-n  { top: 30px; left: 50%; transform: translateX(-50%); z-index: 2; }
+    .aura-scene .aura-ally.pos-e  { top: 50%; right: calc(50% - 90px); transform: translateY(-50%); z-index: 2; }
+    .aura-scene .aura-ally.pos-s  { bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 2; }
+    .aura-scene .aura-ally.pos-w  { top: 50%; left: 10%; transform: translateY(-50%); z-index: 2; }
+
+    /* ── Variant A. Cyan ground ring around the Shield ── */
+    .aura-variant-a::before {
+      content: '';
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 220px; height: 220px;
+      border-radius: 50%;
+      border: 2px solid rgba(107, 217, 255, 0.7);
+      background: radial-gradient(circle, rgba(107, 217, 255, 0.10) 0%, rgba(107, 217, 255, 0.05) 70%, rgba(107, 217, 255, 0) 100%);
+      box-shadow: inset 0 0 18px rgba(107, 217, 255, 0.18), 0 0 14px rgba(107, 217, 255, 0.2);
+      z-index: 1;
+      animation: aura-pulse 2.4s ease-in-out infinite;
+    }
+    @keyframes aura-pulse {
+      0%, 100% { opacity: 0.9; }
+      50%      { opacity: 0.6; }
+    }
+
+    /* ── Variant B. Per-unit cyan halos ── */
+    .aura-variant-b .aura-ally.protected {
+      box-shadow:
+        0 0 0 2px rgba(107, 217, 255, 0.65),
+        0 0 14px rgba(107, 217, 255, 0.55),
+        inset 0 0 8px rgba(107, 217, 255, 0.18);
+    }
+    .aura-variant-b .aura-ally.protected::before {
+      content: '';
+      position: absolute;
+      inset: -8px;
+      border-radius: 8px;
+      border: 1px solid rgba(107, 217, 255, 0.35);
+      animation: aura-pulse 2.4s ease-in-out infinite;
+    }
+
+    /* ── Variant C. Translucent dome ── */
+    .aura-variant-c::before {
+      content: '';
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 230px; height: 230px;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 50% 35%, rgba(180, 230, 255, 0.32) 0%, rgba(107, 217, 255, 0.18) 45%, rgba(60, 140, 200, 0.10) 75%, rgba(60, 140, 200, 0) 100%);
+      border: 1px solid rgba(107, 217, 255, 0.5);
+      box-shadow: inset 0 -20px 30px rgba(60, 140, 200, 0.25), 0 0 24px rgba(107, 217, 255, 0.35);
+      z-index: 1;
+      animation: aura-pulse 3s ease-in-out infinite;
+    }
+    /* Subtle highlight band to give the dome a 3D feel */
+    .aura-variant-c::after {
+      content: '';
+      position: absolute;
+      top: calc(50% - 115px); left: 50%;
+      transform: translateX(-50%);
+      width: 180px; height: 40px;
+      border-radius: 50%;
+      background: radial-gradient(ellipse, rgba(255, 255, 255, 0.18), transparent 70%);
+      z-index: 2;
+      pointer-events: none;
+    }
+  </style>
+
+  <script>
+    // Mock scene populator. Drop one shield + four allies (3 in-range
+    // marked .protected, 1 out-of-range as .unprotected) into each
+    // variant container.
+    function buildAuraScene(hostId) {
+      const host = document.getElementById(hostId)
+      host.innerHTML = `
+        <div class="aura-shield"></div>
+        <div class="aura-ally protected pos-n"  data-label="TURRET"></div>
+        <div class="aura-ally protected pos-e"  data-label="SENTRY"></div>
+        <div class="aura-ally protected pos-s"  data-label="BOMBER"></div>
+        <div class="aura-ally unprotected pos-w" data-label="LASER"></div>
+      `
+    }
+    buildAuraScene('aura-a')
+    buildAuraScene('aura-b')
+    buildAuraScene('aura-c')
+  </script>
+
   <div class="wip-section">
     <h2 style="font-family:'Orbitron',monospace;font-size:14px;letter-spacing:4px;color:#c8e8a0;margin:12px 4px 8px;">
       WIP / UNUSED <span class="tag wip" style="display:inline-block;font-size:10px;letter-spacing:2px;padding:3px 9px;margin-left:12px;background:rgba(200,232,160,0.08);border:1px solid rgba(200,232,160,0.35);color:#c8e8a0;vertical-align:middle;">ASSETS + IDEAS</span>

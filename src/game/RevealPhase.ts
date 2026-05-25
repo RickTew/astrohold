@@ -338,6 +338,43 @@ export class RevealPhase {
   // Find the attacker entity by type + side and fire its on_kill brag.
   // Best-effort: structures and spheres have no announce method so
   // they go silent on kill. Hulks / cannons / cyborgs all speak.
+  // Shield aura. Defender pieces within 1.5 grid cells of any alive
+  // defender Shield generator (type 'defense') take 25 percent less
+  // damage. Applied at the major damage sites (direct fire, slam,
+  // AoE). Returns the reduced amount, floored at 1 so a shielded
+  // target never absorbs a hit entirely. Non-defender targets pass
+  // through unchanged.
+  private shieldedDamage(target: { isDead: boolean } | PixelPowerCore, amount: number): number {
+    let isDefender = false
+    let x = 0, y = 0
+    if (target instanceof PixelPowerCore) {
+      isDefender = true
+      const cc = target.cellCenters()[0]
+      x = cc.x + Config.GRID_CELL / 2
+      y = cc.y + Config.GRID_CELL / 2
+    } else if (target instanceof Structure) {
+      isDefender = true
+      x = target.worldX; y = target.worldY
+    } else if (target instanceof SphereDefender) {
+      isDefender = true
+      x = target.worldX; y = target.worldY
+    } else if (target instanceof SpriteUnit) {
+      isDefender = target.side === 'defender'
+      x = target.worldX; y = target.worldY
+    }
+    if (!isDefender) return amount
+    const AURA_RADIUS = Config.GRID_CELL * 1.5
+    const DR = 0.25
+    for (const s of this.structures) {
+      if (s.type !== 'defense' || s.isDead) continue
+      const d = Math.hypot(s.worldX - x, s.worldY - y)
+      if (d <= AURA_RADIUS) {
+        return Math.max(1, Math.round(amount * (1 - DR)))
+      }
+    }
+    return amount
+  }
+
   // Mine-spotted announcer. Cyborg sees an armed enemy mine in the
   // map (no strict sight gate, but within a reasonable proximity so
   // we don't spam "Mine!" from across the map). Uses SpriteUnit's
@@ -2481,14 +2518,20 @@ export class RevealPhase {
     let hits = 0, kills = 0
     this.emit({ kind: 'action', actorType: 'hulk', side: actor.side, action: 'slam' })
     this.emit({ kind: 'attack', actorType: 'hulk', side: actor.side })
+    let totalSlamDamage = 0
     for (const wc of wedgeCells) {
       this.explosions.push(new Explosion(this.scene, wc.x, wc.y, 22, 0.35))
       const hit = (t: { id?: string; isDead: boolean; takeDamage(n: number): void } | PixelPowerCore) => {
         if (t.isDead) return
-        t.takeDamage(damage); hits++
+        // Shield aura applies. Defender targets in a friendly shield's
+        // aura take reduced slam damage. Track per-hit reduced amount
+        // for the log line since per-target totals vary now.
+        const final = this.shieldedDamage(t, damage)
+        t.takeDamage(final); hits++
+        totalSlamDamage += final
         const killed = t.isDead
         if (killed) kills++
-        this.attribute(t, 'hulk', actor.side, damage, killed)
+        this.attribute(t, 'hulk', actor.side, final, killed)
       }
       if (actor.side === 'attacker') {
         for (const s of this.spheres) {
@@ -2519,7 +2562,7 @@ export class RevealPhase {
     else          this.emit({ kind: 'miss', actorType: 'hulk', side: actor.side })
     this.log(actor.side, hits === 0
       ? `${this.actorLabel(actor)} slams the ground (no targets)`
-      : `${this.actorLabel(actor)} slams ${hits} target${hits === 1 ? '' : 's'} (−${hits * damage}${kills > 0 ? `, ${kills} killed` : ''})`)
+      : `${this.actorLabel(actor)} slams ${hits} target${hits === 1 ? '' : 's'} (−${totalSlamDamage}${kills > 0 ? `, ${kills} killed` : ''})`)
   }
 
   // Grenadier safe-remove of an armed enemy bomb. The bomb just vanishes —
@@ -2772,10 +2815,14 @@ export class RevealPhase {
               this.emit({ kind: 'miss', actorType: attackerType, side: attackerSide })
               return
             }
-            targetEntity.takeDamage(damage)
+            // Shield aura applies before damage is dealt. Reduced amount
+            // also drives the log line and attribute counters so dmg/cr
+            // accurately reflects what landed.
+            const final = this.shieldedDamage(targetEntity, damage)
+            targetEntity.takeDamage(final)
             const killed = targetEntity.isDead
-            this.log(attackerSide, `${this.actorLabel(actor)} hits ${targetLabel} (−${damage}${killed ? `, killed` : ''})`)
-            this.attribute(targetEntity, attackerType, attackerSide, damage, killed)
+            this.log(attackerSide, `${this.actorLabel(actor)} hits ${targetLabel} (−${final}${killed ? `, killed` : ''})`)
+            this.attribute(targetEntity, attackerType, attackerSide, final, killed)
             this.emit({ kind: 'hit', actorType: attackerType, side: attackerSide })
           }
         } else {
@@ -2880,12 +2927,16 @@ export class RevealPhase {
     let allyHits = 0
     const hit = (target: { id?: string; isDead: boolean; takeDamage(n: number): void } | PixelPowerCore, dmg: number, isAlly: boolean) => {
       if (target.isDead) return
-      target.takeDamage(dmg)
+      // Shield aura applies before damage is dealt. The reduced amount
+      // is what gets attributed for stats too, so dmg/cr math reflects
+      // the actual damage absorbed.
+      const final = this.shieldedDamage(target, dmg)
+      target.takeDamage(final)
       hits++
       if (isAlly) allyHits++
       const killed = target.isDead
       if (killed) kills++
-      if (attackerType) this.attribute(target, attackerType, side, dmg, killed)
+      if (attackerType) this.attribute(target, attackerType, side, final, killed)
     }
     // Cyborgs are ALLIES if the AoE source side was attacker.
     const cyborgsAreAllies = side === 'attacker'

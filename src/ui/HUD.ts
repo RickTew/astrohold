@@ -94,7 +94,7 @@ export class HUD {
       { label: 'MINE',   cost: 20, icon: '/sprites/robot_mine/south.png', dataType: 'mine',    preview: true },
       { label: 'WALL',   cost: 20, icon: 'wall',                           dataType: 'wall' },
       { label: 'SIGNAL', cost: 70, icon: '/sprites/signal/south.png',     dataType: 'signal',  preview: true },
-      { label: 'SHIELD', cost: 50, icon: '/sprites/defense/south.png',    dataType: 'defense', preview: true },
+      { label: 'SHIELD', cost: 50, icon: '/sprites/defense/south.png',    dataType: 'defense' },
       { label: '', cost: 0, icon: '', empty: true },
       { label: '', cost: 0, icon: '', empty: true },
       { label: '', cost: 0, icon: '', empty: true },
