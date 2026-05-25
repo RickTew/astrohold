@@ -55,9 +55,13 @@ export class SphereDefender {
   readonly range = Config.SPHERE.range
   readonly damage = Config.SPHERE.damage
 
-  // Stationary piece — always sorts late in initiative. apBudget allows the
-  // sphere to queue multiple shots per turn (live behavior: 3 shots).
-  readonly initiative = STATIONARY_INITIATIVE
+  // S17.12: sphere is no longer stationary. Initiative tracks speed so
+  // it interleaves with other mobile units. apBudget allows multiple
+  // shots per turn while ammo lasts. STATIONARY_INITIATIVE is still
+  // used as a floor so sphere still beats most cyborgs to first shot
+  // before it starts moving.
+  readonly initiative: number = Math.max(STATIONARY_INITIATIVE, Config.SPHERE.speed ?? 0)
+  readonly speed: number = Config.SPHERE.speed ?? 0
   readonly apBudget = Config.SPHERE.apBudget
   apRemaining = this.apBudget
   // D&D-style ammo budget for the whole game (not per turn). When 0 the
@@ -165,6 +169,17 @@ export class SphereDefender {
   queueAction(action: QueuedAction, apCost: number) {
     this.queuedActions.push(action)
     this.apRemaining -= apCost
+  }
+
+  // S17.12 movement. RevealPhase calls moveTo when sphere has a move
+  // step queued (the new "roll toward enemy" + "suicide rush when out
+  // of ammo" behaviors). No animation lerp: snap to the destination
+  // and let the per-frame rotation cycle keep the rolling illusion.
+  moveTo(x: number, y: number) {
+    if (this.isDead) return
+    this.worldX = x
+    this.worldY = y
+    this.mesh.position.set(x, y, this.mesh.position.z)
   }
 
   takeDamage(amount: number) {

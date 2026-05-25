@@ -338,6 +338,23 @@ export class RevealPhase {
   // Find the attacker entity by type + side and fire its on_kill brag.
   // Best-effort: structures and spheres have no announce method so
   // they go silent on kill. Hulks / cannons / cyborgs all speak.
+  // Mine-spotted announcer. Cyborg sees an armed enemy mine in the
+  // map (no strict sight gate, but within a reasonable proximity so
+  // we don't spam "Mine!" from across the map). Uses SpriteUnit's
+  // spokenSet dedupe so each unit only warns once per game.
+  private maybeAnnounceMineSpotted(unit: SpriteUnit) {
+    if (unit.side !== 'attacker') return
+    const PROX = Config.GRID_CELL * 4   // within 4 cells
+    for (const s of this.structures) {
+      if (s.type !== 'mine' || s.isDead) continue
+      const d = Math.hypot(s.worldX - unit.worldX, s.worldY - unit.worldY)
+      if (d <= PROX) {
+        unit.announceOnce('mine_spotted')
+        return
+      }
+    }
+  }
+
   private announceKill(attackerType: string, side: 'attacker' | 'defender') {
     const pool = side === 'attacker' ? this.units : this.defenderUnits
     // Pick the first living unit of matching type. If multiple of the
@@ -909,7 +926,13 @@ export class RevealPhase {
     if (unit.side === 'attacker' && !this.core.isDead) {
       const cc = this.core.cellCenters()[0]
       const cell = this.pickStepTowardPoint(unit, cc.x, cc.y)
-      if (cell) return { kind: 'move', cell }
+      if (cell) {
+        // Mine-spotted callout. If there is a live armed enemy mine
+        // within ~2 cells of the unit's path, broadcast a warning so
+        // the lane reads "watch the ground." Once per unit per game.
+        this.maybeAnnounceMineSpotted(unit)
+        return { kind: 'move', cell }
+      }
       // Blocked from stepping toward core — wander is now directional
       // (west-biased for attackers) so the cyborg still makes general
       // westward progress instead of spinning N/S randomly.
@@ -917,9 +940,13 @@ export class RevealPhase {
       if (wander) return { kind: 'move', cell: wander }
     }
     if (unit.side === 'defender') {
-      // Defender mobile units (dog) — chase sighted enemy, then wander.
-      const sight: number = Config.UNITS[unit.type].sightRange ?? range
-      const moveTarget = this.nearestEnemy(unit, sight)
+      // Defender mobile units (dog). Aggressive pursuit: ALWAYS close
+      // distance to the nearest cyborg, ignoring sight range. Same
+      // pattern as the cyborg-side Stalker. Without this, dogs sat
+      // idle at spawn until cyborgs walked into the 280-unit sight
+      // window, which read as passive. The user wants dogs actively
+      // engaging the moment cyborgs are on the map.
+      const moveTarget = this.nearestEnemy(unit, Infinity)
       if (moveTarget) {
         const cell = this.pickStepTowardPoint(unit, moveTarget.x, moveTarget.y)
         if (cell) return { kind: 'move', cell }
@@ -1522,17 +1549,78 @@ export class RevealPhase {
 
   // Default sphere action: fire at nearest cyborg in range. Skipped if the
   // sphere has burned through its ammo budget.
+  // S17.12 sphere AI. Three branches:
+  //   1. Has ammo + cyborg in range  -> fire (existing behavior).
+  //   2. Has ammo + no cyborg in range -> roll toward nearest cyborg
+  //      on the map (sphere is a "walking gun", closes the gap).
+  //   3. Out of ammo                  -> SUICIDE RUSH. Roll toward
+  //      the nearest cyborg. On adjacency, sphere takeDamage(maxHp)
+  //      kills itself; the existing defender on-death self-destruct
+  //      AoE detonates and damages everyone in radius 60.
   private defaultSphereAction(sphere: SphereDefender): QueuedAction | null {
-    if (sphere.ammoRemaining <= 0) return null
+    // Find the closest live cyborg anywhere on the map. Used by all
+    // three branches.
     let nearest: SpriteUnit | null = null
-    let nearestDist: number = sphere.range
+    let nearestDist = Infinity
     for (const u of this.units) {
       if (u.isDead) continue
       const d = Math.hypot(u.worldX - sphere.worldX, u.worldY - sphere.worldY)
-      if (d <= nearestDist) { nearestDist = d; nearest = u }
+      if (d < nearestDist) { nearestDist = d; nearest = u }
     }
     if (!nearest) return null
-    return { kind: 'fire', target: { kind: 'unit', id: nearest.id } }
+
+    if (sphere.ammoRemaining > 0) {
+      // Branch 1: cyborg in attack range. Fire.
+      if (nearestDist <= sphere.range) {
+        return { kind: 'fire', target: { kind: 'unit', id: nearest.id } }
+      }
+      // Branch 2: no one in range but ammo remains. Roll closer.
+      const cell = this.pickSphereStep(sphere, nearest.worldX, nearest.worldY)
+      if (cell) return { kind: 'move', cell }
+      return null
+    }
+
+    // Branch 3: out of ammo. Suicide rush. If adjacent (within ~1.5
+    // grid cells of the target), self-detonate by zeroing HP. The
+    // on-death handler will spawn the self-destruct AoE that catches
+    // the nearby cyborg cluster. Otherwise, roll toward the target.
+    const CELL = Config.GRID_CELL
+    if (nearestDist <= CELL * 1.5) {
+      sphere.takeDamage(sphere.hp)   // immediate death triggers defender AoE
+      this.log('defender', `${this.actorLabel(sphere)} detonates at point-blank range`)
+      return { kind: 'hold' }
+    }
+    const cell = this.pickSphereStep(sphere, nearest.worldX, nearest.worldY)
+    if (cell) return { kind: 'move', cell }
+    return null
+  }
+
+  // Sphere-specific step picker. pickStepTowardPoint depends on
+  // SpriteUnit fields (allowDiagonalMove via Config.UNITS, last-
+  // traversed bookkeeping, etc.) that the sphere does not have.
+  // This is a stripped down cardinal-only "closer is better" picker
+  // that respects cell occupancy.
+  private pickSphereStep(sphere: SphereDefender, tx: number, ty: number): CellRef | null {
+    const cs = Config.GRID_CELL
+    const curDist = Math.hypot(tx - sphere.worldX, ty - sphere.worldY)
+    let best: CellRef | null = null
+    let bestD = curDist
+    for (const [dx, dy] of CARDINAL_STEPS) {
+      const x = sphere.worldX + dx * cs
+      const y = sphere.worldY + dy * cs
+      if (x < Config.WORLD.LEFT || x > Config.WORLD.RIGHT) continue
+      if (y < Config.WORLD.BOTTOM || y > Config.WORLD.TOP) continue
+      // Don't crash into other defenders, cyborgs, structures, the core.
+      if (this.isCellOccupiedAtBattle(x, y, sphere)) continue
+      const d = Math.hypot(tx - x, ty - y)
+      if (d < bestD) {
+        bestD = d
+        const col = Math.floor((x - Config.WORLD.LEFT) / cs)
+        const row = Math.floor((y - Config.WORLD.BOTTOM) / cs)
+        best = { col, row }
+      }
+    }
+    return best
   }
 
   // ── Lobbed-thrower (Bomber / Grenadier) helpers ────────────────────────
@@ -2457,8 +2545,16 @@ export class RevealPhase {
   }
 
   private executeMove(actor: Actor, cell: CellRef) {
-    // Only mobile units (cyborgs) can move; structures/spheres ignore move
-    // even if the planning UI accidentally queued one.
+    // Mobile actors only. Structures can never move. SpriteUnit and
+    // SphereDefender both have moveTo. S17.12 made the sphere mobile;
+    // before, this branch only ran for SpriteUnit.
+    if (actor instanceof SphereDefender) {
+      const dest = this.cellCenter(cell)
+      if (this.isCellOccupiedAtBattle(dest.x, dest.y, actor)) return
+      actor.moveTo(dest.x, dest.y)
+      this.emit({ kind: 'move', actorType: 'sphere', side: 'defender' })
+      return
+    }
     if (!(actor instanceof SpriteUnit)) return
     const dest = this.cellCenter(cell)
     if (this.isCellOccupiedAtBattle(dest.x, dest.y, actor)) return   // strict skip

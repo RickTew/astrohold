@@ -55,7 +55,14 @@ export const Config = {
   // Damage bumped 10→25 so the sphere actually deters cyborgs (was being
   // ignored because by the time it fired, multiple cyborgs had already
   // closed in for free).
-  SPHERE: { cost: 100, hp: 300, damage: 25, range: 300, sightRange: 400, apBudget: 3, ammo: 8 },
+  // S17.12 sphere overhaul. Sphere is now MOBILE (slow speed). It knows
+  // it is a walking bomb: while it has ammo, it fires from current
+  // position; once out of ammo, it rolls toward the nearest cyborg and
+  // detonates on adjacency. The detonation is its existing on-death
+  // self-destruct AoE (defender side), so the suicide rush slots
+  // cleanly into the existing mechanic. Speed 35 is intentionally low
+  // (vs Hulk's 45) so the sphere is a slow rolling threat, not a sprinter.
+  SPHERE: { cost: 100, hp: 300, damage: 25, range: 300, sightRange: 400, apBudget: 3, ammo: 8, speed: 35 },
 
   // Per-piece Action Point budgets used by the plan-then-play turn system.
   // Walls/mines stay passive (apBudget 0 → reveal skips them). Turrets/cannons
@@ -85,7 +92,13 @@ export const Config = {
     // dropped to 150 (~2× tower HP at 2× cost) for honest value.
     sentry:  { cost: 60, hp: 150, damage: 25, range: 200, fireInterval: 2, apBudget: 1, aoeRadius: 0,  ammo: 5, label: 'Sentry 60cr' },
     mine:    { cost: 20, hp: 50,  damage: 60, range: 60,  fireInterval: 0, apBudget: 0, aoeRadius: 0,  ammo: 1, label: 'Mine   20cr' },
-    defense: { cost: 20, hp: 80,  damage: 0,  range: 0,   fireInterval: 0, apBudget: 0, aoeRadius: 0,  ammo: 0, label: 'Defense 20cr (preview)' },
+    // Shield generator. HUD tile labels this as SHIELD and prices it at
+    // 50cr. Cost aligned to 50 so the BUILD ledger matches what the
+    // shop displays. Currently NO active shield mechanic is wired:
+    // the piece just sits there as a 50cr 80hp blocker. See open
+    // questions in docs/STATS.md re: the aura design (damage reduction
+    // for adjacent allies, shield HP pool, or visual-only dome).
+    defense: { cost: 50, hp: 80,  damage: 0,  range: 0,   fireInterval: 0, apBudget: 0, aoeRadius: 0,  ammo: 0, label: 'Shield 50cr (preview)' },
     gun:     { cost: 30, hp: 80,  damage: 15, range: 200, fireInterval: 2, apBudget: 1, aoeRadius: 0,  ammo: 5, label: 'Gun 30cr (preview)' },
     // Laser — twin-laser direct-fire turret. Promoted out of "preview" in
     // S17.2: stats kept (damage 25, range 300 = longest direct-fire on the
