@@ -86,11 +86,19 @@ export const Config = {
     // weapon is spent). Drives strategic resource-allocation — towers can't
     // hold the line forever, bombers can't carpet the map.
     turret:  { cost: 30, hp: 80,  damage: 25, range: 250, fireInterval: 2, apBudget: 1, aoeRadius: 0,  ammo: 5, label: 'Turret 30cr' },
-    cannon:  { cost: 60, hp: 120, damage: 40, range: 280, fireInterval: 4, apBudget: 1, aoeRadius: 45, ammo: 5, label: 'Cannon 60cr' },
+    // Phaser (S17.19 rename of internal type 'cannon'). Fires a piercing
+    // beam along its facing direction. Every enemy in the cardinal
+    // lane takes the listed damage. aoeRadius left at 0 since the beam
+    // is per-target, not an explosion. Range 280 keeps the longest
+    // direct-fire profile on the defender side.
+    cannon:  { cost: 60, hp: 120, damage: 40, range: 280, fireInterval: 4, apBudget: 1, aoeRadius: 0, ammo: 5, label: 'Phaser 60cr' },
     // Bomber — mid-range proximity-trap thrower. Ammo 3 = three bombs per
     // game total. Combined with the one-bomb-on-field rule this means the
     // defender Bomber is a deliberate placement choice, not a turret.
-    bomber:  { cost: 70, hp: 100, damage: 20, range: 200, fireInterval: 4, apBudget: 1, aoeRadius: 65, ammo: 5, label: 'Bomber 70cr' },
+    // Mortar (S17.19 rename of internal type 'bomber'). Proximity-trap
+    // thrower; player-facing label changed for distinction from the
+    // cyborg-side Bomber (which is also a unit type).
+    bomber:  { cost: 70, hp: 100, damage: 20, range: 200, fireInterval: 4, apBudget: 1, aoeRadius: 65, ammo: 5, label: 'Mortar 70cr' },
     wall:    { cost: 20, hp: 300, damage: 0,  range: 0,   fireInterval: 0, apBudget: 0, aoeRadius: 0,  ammo: 0, label: 'Wall   20cr' },
     // Sentry — heavy-armor turret (the art is a tracked vehicle with gun
     // arms — reads as a tower, not a wall). Tankier than a tower (HP 150

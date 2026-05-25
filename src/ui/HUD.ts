@@ -82,9 +82,9 @@ export class HUD {
     // uses the existing class). Same applies to Mine/Signal/Shield
     // sprites that ship at larger native sizes.
     const robotLeftTiles: Tile[] = [
-      { label: 'CANNON', cost:  60, icon: '/sprites/gun/south.png',     dataType: 'cannon', preview: true },
+      { label: 'PHASER', cost:  60, icon: '/sprites/gun/south.png',     dataType: 'cannon', preview: true },
       { label: 'TOWER',  cost:  30, icon: '/sprites/tower/south.png',   dataType: 'turret' },
-      { label: 'BOMBER', cost:  70, icon: '/sprites/bomber/south.png',  dataType: 'bomber' },
+      { label: 'MORTAR', cost:  70, icon: '/sprites/bomber/south.png',  dataType: 'bomber' },
       { label: 'LASER',  cost:  40, icon: '/sprites/laser/south.png',   dataType: 'laser', preview: true },
       { label: 'SPHERE', cost: 100, icon: '/sprites/sphere/south.png',  action: 'sphere'   },
       { label: 'SENTRY', cost:  60, icon: '/sprites/sentry/south.png',  dataType: 'sentry' },

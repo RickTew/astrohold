@@ -82,7 +82,9 @@ const MINE_DETECT_RADIUS = 65
 // total wedge. East-facing defender towers cover everything between NE and
 // SE (the cyborg corridor). Future UI lets the player pay credits to add
 // extra facings to the structure's fireFacings array.
-const FIRE_ARC_HALF_RAD = (60 * Math.PI) / 180
+// S17.19: FIRE_ARC_HALF_RAD retired. Old 120-degree wedge let towers
+// shoot diagonally. The arc check now uses a cardinal-lane rule (see
+// targetInFireArc).
 
 // Structures that fire in any direction (no arc gating). Their sprite
 // rotates each turn to face whichever target they're shooting — the
@@ -2056,18 +2058,113 @@ export class RevealPhase {
     return nearest
   }
 
-  // True if (dx, dy) points within any of `struct.fireFacings` ± half-arc.
-  // Used for direct-fire structures AND bomb-throw cell picking — both are
-  // constrained to the structure's facing wedge(s).
+  // S17.19 Phaser beam attack. Defender 'cannon' fires a piercing
+  // line of light along the facing direction nearest the targeted
+  // enemy. Every enemy in the cardinal lane between Phaser and end
+  // of range takes the full Config damage value (no falloff, no
+  // damage split, just one beam = N damage per enemy along it).
+  // Friendlies + walls are skipped: this is a tuned anti-cyborg
+  // weapon, not a friendly-fire trap.
+  private firePhaserBeam(struct: Structure, tx: number, ty: number) {
+    const range = struct.range
+    const damage = struct.damage
+    const halfCell = Config.GRID_CELL / 2
+    const ax = struct.worldX
+    const ay = struct.worldY
+    // Pick the facing whose cardinal lane covers the target. Among
+    // qualifying lanes the one with the greatest forward projection
+    // wins (target is most "in front" of that facing).
+    let bestFacing: number | null = null
+    let bestForward = -Infinity
+    for (const facing of struct.fireFacings) {
+      const fx = Math.cos(facing); const fy = Math.sin(facing)
+      const fwd  = (tx - ax) * fx + (ty - ay) * fy
+      const perp = Math.abs((tx - ax) * -fy + (ty - ay) * fx)
+      if (fwd > 0 && perp <= halfCell && fwd > bestForward) {
+        bestForward = fwd
+        bestFacing = facing
+      }
+    }
+    if (bestFacing === null) return   // no facing covers the target (defensive; AI should not queue this)
+    const fx = Math.cos(bestFacing)
+    const fy = Math.sin(bestFacing)
+    // Scan cyborgs in the lane and damage every one in range.
+    let hits = 0
+    let totalDamage = 0
+    for (const u of this.units) {
+      if (u.isDead) continue
+      const ux = u.worldX - ax
+      const uy = u.worldY - ay
+      const fwd  = ux * fx + uy * fy
+      const perp = Math.abs(ux * -fy + uy * fx)
+      if (fwd <= 0 || fwd > range || perp > halfCell) continue
+      u.takeDamage(damage)
+      hits++
+      totalDamage += damage
+      this.attribute(u, 'cannon', 'defender', damage, u.isDead)
+    }
+    // Beam visual along the full range.
+    this.spawnPhaserBeamVisual(ax, ay, fx, fy, range)
+    playGunshot()
+    this.log('defender', hits === 0
+      ? `${this.actorLabel(struct)} fires phaser beam (no targets)`
+      : `${this.actorLabel(struct)} phaser beam hits ${hits} (${totalDamage} dmg)`)
+    if (hits > 0) this.emit({ kind: 'hit',  actorType: 'cannon', side: 'defender' })
+    else          this.emit({ kind: 'miss', actorType: 'cannon', side: 'defender' })
+  }
+
+  // Quick beam visual. A translucent cyan plane positioned + rotated
+  // along the facing direction, fades out over 0.6s. No need for a
+  // dedicated entity class; managed inline with requestAnimationFrame.
+  private spawnPhaserBeamVisual(ax: number, ay: number, fx: number, fy: number, range: number) {
+    const angle = Math.atan2(fy, fx)
+    const beamLen = range
+    const beamWidth = 10
+    const geo = new THREE.PlaneGeometry(beamLen, beamWidth)
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0x88e6ff,
+      transparent: true,
+      opacity: 0.85,
+      depthWrite: false,
+      depthTest: false,
+    })
+    const mesh = new THREE.Mesh(geo, mat)
+    // Plane is centered on its midpoint, so position at struct + halfLength * facing.
+    mesh.position.set(ax + fx * beamLen / 2, ay + fy * beamLen / 2, 6)
+    mesh.rotation.z = angle
+    mesh.renderOrder = 8
+    this.scene.add(mesh)
+    const startMs = performance.now()
+    const tick = () => {
+      const elapsed = (performance.now() - startMs) / 1000
+      if (elapsed >= 0.6) {
+        mesh.removeFromParent()
+        mat.dispose()
+        geo.dispose()
+        return
+      }
+      mat.opacity = 0.85 * (1 - elapsed / 0.6)
+      requestAnimationFrame(tick)
+    }
+    requestAnimationFrame(tick)
+  }
+
+  // S17.19 cardinal-lane fire arc. Replaces the old 120-degree wedge.
+  // Tower facing east can only hit targets in the east row (forward
+  // dot-product > 0 AND perpendicular distance <= cs/2). Diagonal
+  // neighbours (NE, SE, etc.) are now OUTSIDE the arc. Each entry in
+  // fireFacings is one cardinal lane; the player can buy extra
+  // facings via the compass rose to widen coverage.
   private targetInFireArc(struct: Structure, dx: number, dy: number): boolean {
     if (dx === 0 && dy === 0) return true
-    const angle = Math.atan2(dy, dx)
+    const halfCell = Config.GRID_CELL / 2
     for (const facing of struct.fireFacings) {
-      let delta = angle - facing
-      // Normalize to [-π, π].
-      while (delta > Math.PI)  delta -= Math.PI * 2
-      while (delta < -Math.PI) delta += Math.PI * 2
-      if (Math.abs(delta) <= FIRE_ARC_HALF_RAD) return true
+      const fx = Math.cos(facing)
+      const fy = Math.sin(facing)
+      const forward = dx * fx + dy * fy
+      if (forward <= 0) continue                // target behind the tower
+      const perp = Math.abs(dx * -fy + dy * fx)
+      if (perp <= halfCell) return true
     }
     return false
   }
@@ -2901,6 +2998,17 @@ export class RevealPhase {
     // already-zero ammo melee fallback).
     if (!meleeUnlimited && !isMeleeFallback) this.decrementActorAmmo(actor)
     this.combatThisReveal = true
+
+    // S17.19 Phaser beam. Defender 'cannon' (player-facing "Phaser")
+    // is now a piercing beam instead of a single-target AoE blast.
+    // Fires a continuous line in the facing direction nearest the
+    // target; every enemy in the cardinal lane up to its range takes
+    // damage. Spawn beam visual and bail before the standard
+    // projectile path.
+    if (actor instanceof Structure && actor.type === 'cannon') {
+      this.firePhaserBeam(actor, aim.x, aim.y)
+      return
+    }
 
     // Cyborg attack animation; spheres/structures don't have shoot anims yet.
     if (actor instanceof SpriteUnit) {
