@@ -599,6 +599,336 @@
     <div class="preview-frame"><div id="hud-cyborg-after" class="hud-top"></div></div>
   </div>
 
+  <!-- ═══════════════ SPEED CONTROL — pick one ═══════════════
+       Three space-themed console designs for slow/normal/fast battle pacing.
+       All three are interactive in this sandbox (click = light up the active
+       button) but DO NOT touch production HUD or RevealSpeed yet. After the
+       user picks one, port to src/ui/HUD.ts and wire to setRevealSpeed(). -->
+  <div class="preview-section">
+    <h2 style="color:#ffb96b;border-color:rgba(255,185,107,0.35);">
+      SPEED CONTROL — VARIANT A: SEGMENTED THRUSTER BAR
+      <span class="tag after" style="background:rgba(255,185,107,0.12);border-color:rgba(255,185,107,0.5);color:#ffb96b;">SANDBOX</span>
+    </h2>
+    <p style="font-family:'Share Tech Mono',monospace;color:#88a4b8;font-size:11px;letter-spacing:1px;margin:0 4px 10px;max-width:900px;">
+      Horizontal segmented bar. Each step is a chamfered tile that lights
+      its own color (amber → cyan → red). Reads as a thruster gauge: more
+      lit = more speed. Compact, slides into the HUD center panel's action
+      row easily.
+    </p>
+    <div class="preview-frame" style="padding:32px 24px;">
+      <div id="speed-a" class="speed-variant-a"></div>
+    </div>
+  </div>
+
+  <div class="preview-section">
+    <h2 style="color:#ffb96b;border-color:rgba(255,185,107,0.35);">
+      SPEED CONTROL — VARIANT B: TRIPLE CONSOLE BUTTONS
+      <span class="tag after" style="background:rgba(255,185,107,0.12);border-color:rgba(255,185,107,0.5);color:#ffb96b;">SANDBOX</span>
+    </h2>
+    <p style="font-family:'Share Tech Mono',monospace;color:#88a4b8;font-size:11px;letter-spacing:1px;margin:0 4px 10px;max-width:900px;">
+      Three large chamfered push-buttons in a row, each with an icon glyph
+      + label + cost-style mini caption. Mechanical translate-on-press, lit
+      ring around the active one. Matches the existing tile-grid visual
+      language so it can drop into any HUD panel.
+    </p>
+    <div class="preview-frame" style="padding:32px 24px;">
+      <div id="speed-b" class="speed-variant-b"></div>
+    </div>
+  </div>
+
+  <div class="preview-section">
+    <h2 style="color:#ffb96b;border-color:rgba(255,185,107,0.35);">
+      SPEED CONTROL — VARIANT C: WARP-DIAL ROTARY
+      <span class="tag after" style="background:rgba(255,185,107,0.12);border-color:rgba(255,185,107,0.5);color:#ffb96b;">SANDBOX</span>
+    </h2>
+    <p style="font-family:'Share Tech Mono',monospace;color:#88a4b8;font-size:11px;letter-spacing:1px;margin:0 4px 10px;max-width:900px;">
+      Circular instrument dial with three detents (8 / 10 / 12 o'clock). A
+      glowing pointer rotates to the selected setting; an arc behind shows
+      the range. Heaviest "spaceship cockpit" feel of the three; needs more
+      vertical room than A or B.
+    </p>
+    <div class="preview-frame" style="padding:32px 24px;display:flex;justify-content:center;">
+      <div id="speed-c" class="speed-variant-c"></div>
+    </div>
+  </div>
+
+  <style>
+    /* ═════ Speed-control variants — sandbox-only ═════ */
+    /* Shared palette */
+    .sv-amber { --sv-c: #ffb96b; --sv-c-rgb: 255,185,107; }   /* slow */
+    .sv-cyan  { --sv-c: #6bd9ff; --sv-c-rgb: 107,217,255; }   /* normal */
+    .sv-red   { --sv-c: #ff6b7a; --sv-c-rgb: 255,107,122; }   /* fast */
+
+    /* ─── Variant A: segmented thruster bar ─── */
+    .speed-variant-a {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      justify-content: center;
+      font-family: 'Orbitron', monospace;
+    }
+    .speed-variant-a .sv-a-title {
+      font-size: 11px;
+      letter-spacing: 4px;
+      color: #88c5e0;
+      min-width: 90px;
+    }
+    .speed-variant-a .sv-a-track {
+      display: flex;
+      gap: 4px;
+      padding: 6px;
+      background: rgba(8, 18, 32, 0.6);
+      border: 1px solid rgba(120, 200, 230, 0.35);
+      clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+    }
+    .speed-variant-a .sv-a-step {
+      position: relative;
+      padding: 12px 22px;
+      font-size: 11px;
+      letter-spacing: 3px;
+      color: #5a7a92;
+      cursor: pointer;
+      background: rgba(20, 36, 56, 0.5);
+      border: 1px solid rgba(120, 200, 230, 0.2);
+      transition: all 120ms ease;
+      clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%);
+    }
+    .speed-variant-a .sv-a-step:hover { color: #b8d8ee; border-color: rgba(120, 200, 230, 0.5); }
+    .speed-variant-a .sv-a-step.active {
+      color: var(--sv-c);
+      background: rgba(var(--sv-c-rgb), 0.18);
+      border-color: var(--sv-c);
+      box-shadow:
+        inset 0 0 12px rgba(var(--sv-c-rgb), 0.4),
+        0 0 14px rgba(var(--sv-c-rgb), 0.55);
+      text-shadow: 0 0 6px rgba(var(--sv-c-rgb), 0.9);
+    }
+    .speed-variant-a .sv-a-readout {
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: #88c5e0;
+      min-width: 140px;
+    }
+    .speed-variant-a .sv-a-readout strong {
+      color: var(--sv-c, #6bd9ff);
+      letter-spacing: 3px;
+    }
+
+    /* ─── Variant B: triple console buttons ─── */
+    .speed-variant-b {
+      display: flex;
+      gap: 18px;
+      justify-content: center;
+      align-items: stretch;
+      font-family: 'Orbitron', monospace;
+    }
+    .speed-variant-b .sv-b-btn {
+      position: relative;
+      width: 130px;
+      padding: 14px 10px 12px;
+      background: linear-gradient(180deg, rgba(20, 36, 56, 0.85), rgba(8, 18, 32, 0.85));
+      border: 1px solid rgba(120, 200, 230, 0.3);
+      color: #88c5e0;
+      cursor: pointer;
+      text-align: center;
+      transition: transform 80ms ease, box-shadow 120ms ease, border-color 120ms ease;
+      clip-path: polygon(
+        10px 0, calc(100% - 10px) 0, 100% 10px,
+        100% calc(100% - 10px), calc(100% - 10px) 100%,
+        10px 100%, 0 calc(100% - 10px), 0 10px
+      );
+    }
+    .speed-variant-b .sv-b-btn:hover { border-color: rgba(120, 200, 230, 0.6); }
+    .speed-variant-b .sv-b-btn:active { transform: translateY(2px); }
+    .speed-variant-b .sv-b-glyph {
+      font-size: 24px;
+      letter-spacing: 4px;
+      line-height: 1;
+      margin-bottom: 8px;
+      color: #b8d8ee;
+    }
+    .speed-variant-b .sv-b-label {
+      font-size: 13px;
+      letter-spacing: 4px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .speed-variant-b .sv-b-mult {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: #5a7a92;
+    }
+    .speed-variant-b .sv-b-btn.active {
+      color: var(--sv-c);
+      border-color: var(--sv-c);
+      background: linear-gradient(180deg, rgba(var(--sv-c-rgb), 0.22), rgba(var(--sv-c-rgb), 0.06));
+      box-shadow:
+        inset 0 0 18px rgba(var(--sv-c-rgb), 0.35),
+        0 0 22px rgba(var(--sv-c-rgb), 0.55);
+    }
+    .speed-variant-b .sv-b-btn.active .sv-b-glyph,
+    .speed-variant-b .sv-b-btn.active .sv-b-label { color: var(--sv-c); text-shadow: 0 0 6px rgba(var(--sv-c-rgb), 0.9); }
+    .speed-variant-b .sv-b-btn.active .sv-b-mult  { color: var(--sv-c); }
+
+    /* ─── Variant C: warp-dial rotary ─── */
+    .speed-variant-c {
+      position: relative;
+      width: 260px;
+      height: 200px;
+      font-family: 'Orbitron', monospace;
+      color: #88c5e0;
+      user-select: none;
+    }
+    .speed-variant-c svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+    .speed-variant-c .sv-c-arc { fill: none; stroke: rgba(120, 200, 230, 0.18); stroke-width: 18; }
+    .speed-variant-c .sv-c-arc-live {
+      fill: none;
+      stroke: var(--sv-c, #6bd9ff);
+      stroke-width: 18;
+      stroke-linecap: round;
+      filter: drop-shadow(0 0 8px rgba(var(--sv-c-rgb, 107,217,255), 0.9));
+      transition: stroke 200ms ease, stroke-dasharray 200ms ease;
+    }
+    .speed-variant-c .sv-c-pointer {
+      stroke: var(--sv-c, #6bd9ff);
+      stroke-width: 3;
+      stroke-linecap: round;
+      filter: drop-shadow(0 0 6px rgba(var(--sv-c-rgb, 107,217,255), 0.9));
+      transition: transform 220ms cubic-bezier(0.4, 0.0, 0.2, 1), stroke 200ms ease;
+      transform-origin: 130px 130px;
+    }
+    .speed-variant-c .sv-c-hub {
+      fill: #0a1828;
+      stroke: rgba(120, 200, 230, 0.5);
+      stroke-width: 1.5;
+    }
+    .speed-variant-c .sv-c-tick {
+      position: absolute;
+      cursor: pointer;
+      font-size: 10px;
+      letter-spacing: 3px;
+      transform: translate(-50%, -50%);
+      padding: 4px 8px;
+      transition: color 150ms ease, text-shadow 150ms ease;
+    }
+    .speed-variant-c .sv-c-tick.active {
+      color: var(--sv-c);
+      text-shadow: 0 0 8px rgba(var(--sv-c-rgb), 0.9);
+    }
+    .speed-variant-c .sv-c-tick:hover { color: #d8eef9; }
+    .speed-variant-c .sv-c-readout {
+      position: absolute;
+      left: 50%;
+      bottom: -2px;
+      transform: translateX(-50%);
+      font-size: 11px;
+      letter-spacing: 4px;
+      color: var(--sv-c, #6bd9ff);
+      text-shadow: 0 0 6px rgba(var(--sv-c-rgb, 107,217,255), 0.6);
+      white-space: nowrap;
+    }
+  </style>
+
+  <script>
+    // ═════ Speed-control variants — interactive sandbox ═════
+    // Click any control to light it up. State is local to each variant.
+    // Production wiring (RevealSpeed.setRevealSpeed) happens only after
+    // the user picks a winner — sandbox stays decoupled until then.
+
+    const SPEEDS = [
+      { id: 'slow',   label: 'SLOW',   glyph: '◀',   mult: '×2.4', cls: 'sv-amber', readout: 'RELAXED · 2.4× duration' },
+      { id: 'normal', label: 'NORMAL', glyph: '◀◀',  mult: '×1.5', cls: 'sv-cyan',  readout: 'STANDARD · 1.5× duration' },
+      { id: 'fast',   label: 'FAST',   glyph: '◀◀◀', mult: '×1.0', cls: 'sv-red',   readout: 'OVERDRIVE · current pace' },
+    ]
+
+    // ─── Variant A: segmented thruster bar ───
+    function renderVariantA(initial = 'fast') {
+      const host = document.getElementById('speed-a')
+      let current = initial
+      function paint() {
+        const cur = SPEEDS.find(s => s.id === current)
+        host.className = 'speed-variant-a ' + cur.cls
+        host.innerHTML = `
+          <div class="sv-a-title">THRUST</div>
+          <div class="sv-a-track">
+            ${SPEEDS.map(s => `
+              <div class="sv-a-step${s.id === current ? ' active ' + s.cls : ''}" data-id="${s.id}">${s.label}</div>
+            `).join('')}
+          </div>
+          <div class="sv-a-readout">${cur.readout}<br/><strong>${cur.mult}</strong></div>
+        `
+        host.querySelectorAll('.sv-a-step').forEach(el => {
+          el.addEventListener('click', () => { current = el.dataset.id; paint() })
+        })
+      }
+      paint()
+    }
+
+    // ─── Variant B: triple console buttons ───
+    function renderVariantB(initial = 'fast') {
+      const host = document.getElementById('speed-b')
+      let current = initial
+      function paint() {
+        host.innerHTML = SPEEDS.map(s => `
+          <div class="sv-b-btn ${s.cls}${s.id === current ? ' active' : ''}" data-id="${s.id}">
+            <div class="sv-b-glyph">${s.glyph}</div>
+            <div class="sv-b-label">${s.label}</div>
+            <div class="sv-b-mult">${s.mult}</div>
+          </div>
+        `).join('')
+        host.querySelectorAll('.sv-b-btn').forEach(el => {
+          el.addEventListener('click', () => { current = el.dataset.id; paint() })
+        })
+      }
+      paint()
+    }
+
+    // ─── Variant C: warp-dial rotary ───
+    function renderVariantC(initial = 'fast') {
+      const host = document.getElementById('speed-c')
+      let current = initial
+      // Pointer angles for each setting (degrees from 12 o'clock, clockwise)
+      const ANGLE = { slow: -120, normal: -90, fast: -60 }  // -120 = 8 o'clock, -60 = 4 o'clock visually
+      // Arc length per setting (% of full 240° arc)
+      const ARC_PCT = { slow: 0.10, normal: 0.50, fast: 0.90 }
+      function paint() {
+        const cur = SPEEDS.find(s => s.id === current)
+        host.className = 'speed-variant-c ' + cur.cls
+        const arcCircum = 2 * Math.PI * 90 * (240 / 360)   // 240° arc on r=90
+        const live = arcCircum * ARC_PCT[current]
+        host.innerHTML = `
+          <svg viewBox="0 0 260 200">
+            <!-- Background arc 240° -->
+            <path class="sv-c-arc" d="M 60 180 A 90 90 0 1 1 200 180" />
+            <!-- Live arc — same start, length scales with setting -->
+            <path class="sv-c-arc-live" d="M 60 180 A 90 90 0 1 1 200 180"
+                  stroke-dasharray="${live} ${arcCircum * 2}" />
+            <!-- Pointer (rotates) -->
+            <line class="sv-c-pointer" x1="130" y1="130" x2="130" y2="58"
+                  style="transform: rotate(${ANGLE[current] + 90}deg)" />
+            <circle class="sv-c-hub" cx="130" cy="130" r="14" />
+          </svg>
+          <div class="sv-c-tick ${current === 'slow' ? 'active sv-amber' : ''}"
+               data-id="slow"  style="left:40px;top:170px">SLOW</div>
+          <div class="sv-c-tick ${current === 'normal' ? 'active sv-cyan' : ''}"
+               data-id="normal" style="left:130px;top:30px">NORMAL</div>
+          <div class="sv-c-tick ${current === 'fast' ? 'active sv-red' : ''}"
+               data-id="fast"  style="left:220px;top:170px">FAST</div>
+          <div class="sv-c-readout">${cur.label} · ${cur.mult}</div>
+        `
+        host.querySelectorAll('.sv-c-tick').forEach(el => {
+          el.addEventListener('click', () => { current = el.dataset.id; paint() })
+        })
+      }
+      paint()
+    }
+
+    renderVariantA()
+    renderVariantB()
+    renderVariantC()
+  </script>
+
   <div class="wip-section">
     <h2 style="font-family:'Orbitron',monospace;font-size:14px;letter-spacing:4px;color:#c8e8a0;margin:12px 4px 8px;">
       WIP / UNUSED <span class="tag wip" style="display:inline-block;font-size:10px;letter-spacing:2px;padding:3px 9px;margin-left:12px;background:rgba(200,232,160,0.08);border:1px solid rgba(200,232,160,0.35);color:#c8e8a0;vertical-align:middle;">ASSETS + IDEAS</span>

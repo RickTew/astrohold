@@ -18,6 +18,7 @@ import { AmmoBox, AmmoKitType, kitForUnit } from '../entities/AmmoBox'
 import { FireArcPreview } from '../entities/FireArcPreview'
 import { OpponentAI, OpponentSide } from '../ai/OpponentAI'
 import { recordBattle, BattleRecord } from './BattleStats'
+import { getRevealSpeed } from './RevealSpeed'
 import type { CombatLogEntry } from './RevealPhase'
 
 type Phase = 'loading' | 'pick-side' | 'build' | 'planning' | 'reveal' | 'win' | 'lose'
@@ -120,6 +121,10 @@ export class Game {
   // True if recordBattleEnd already fired for this game — prevents a
   // double-record if win/lose handlers ever stack.
   private battleRecorded = false
+  // Wall-clock ms at first reveal start. Diff at recordBattleEnd = how
+  // long the player actually watched. Skip BUILD/PLAN time so the metric
+  // is "battle pacing" not "user think time."
+  private battleStartMs: number | null = null
 
   // Single-player mode: the player picks one side at load; the other side
   // runs on autopilot via OpponentAI. Set after the side picker resolves.
@@ -736,6 +741,9 @@ private enterBuildPhase() {
     // Drop the fog: AI pieces become visible so the player can see what
     // they're up against as the round plays out.
     this.setAiPiecesVisible(true)
+    // First reveal of this game → stamp the wall-clock start. Auto-chain
+    // re-entries (every turn) leave it alone.
+    if (this.battleStartMs == null) this.battleStartMs = Date.now()
 
     this.revealPhase = new RevealPhase(
       this.scene, this.powerCore, this.attackerUnits, this.structures, this.spheres, this.defenderUnits,
@@ -917,6 +925,8 @@ private enterBuildPhase() {
       attacksByPieceType: { ...this.attacksByPieceType },
       creditsSpentByPieceType,
       enemyEliminatedAtTurn: this.enemyEliminatedAtTurn,
+      durationMs: this.battleStartMs != null ? Date.now() - this.battleStartMs : undefined,
+      speed: getRevealSpeed(),
     })
   }
 

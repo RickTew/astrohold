@@ -14,6 +14,7 @@ import { RepairPad } from '../entities/RepairPad'
 import { RepairTether, RepairTetherTarget } from '../entities/RepairTether'
 import { AmmoBox, KIT_AMOUNT } from '../entities/AmmoBox'
 import { playGunshot, playExplosion } from '../audio/sfx'
+import { revealSpeedMultiplier } from './RevealSpeed'
 
 // Phase 3 reveal engine: consumes the queued plans the player set up during
 // Planning, sorts every (actor, action) pair by Initiative descending, and
@@ -1695,7 +1696,13 @@ export class RevealPhase {
     // visible action breathe at the normal 0.6s cadence. Was: every step
     // waited 0.6s regardless, making a 15-cyborg turn drag for 9s even
     // when 10 of those steps were no-ops.
-    const stepDuration = this.steps[this.idx].action.kind === 'hold' ? 0.08 : STEP_DURATION
+    // Player-controlled pacing — slow=2.4× / normal=1.5× / fast=1.0×.
+    // Reads localStorage on first call per session via the cached getter,
+    // so flipping speed mid-game (via console or HUD button) takes effect
+    // on the very next step.
+    const speedMul = revealSpeedMultiplier()
+    const baseStep = this.steps[this.idx].action.kind === 'hold' ? 0.08 : STEP_DURATION
+    const stepDuration = baseStep * speedMul
     this.stepTime += delta
     if (this.stepTime >= stepDuration) {
       this.stepTime = 0

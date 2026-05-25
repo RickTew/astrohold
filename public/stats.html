@@ -288,6 +288,19 @@
       const avgTurns = records.reduce((s, r) => s + r.turns, 0) / total
       const avgAttDmg = records.reduce((s, r) => s + r.damageDealt.attacker, 0) / total
       const avgDefDmg = records.reduce((s, r) => s + r.damageDealt.defender, 0) / total
+      // Wall-clock pacing — only games that recorded durationMs contribute.
+      // Older records pre-S17.5 don't have it; skip them in the average.
+      const timed = records.filter(r => typeof r.durationMs === 'number')
+      const avgSeconds = timed.length
+        ? timed.reduce((s, r) => s + r.durationMs, 0) / timed.length / 1000
+        : null
+      const avgSecondsPerTurn = timed.length
+        ? timed.reduce((s, r) => s + r.durationMs / r.turns, 0) / timed.length / 1000
+        : null
+      // Tally games per speed setting — lets the user see which pacing
+      // their dataset is biased toward.
+      const speedCounts = { slow: 0, normal: 0, fast: 0, unknown: 0 }
+      for (const r of records) speedCounts[r.speed || 'unknown']++
 
       // Per-piece totals across all games
       const piecesBuilt = { attacker: {}, defender: {} }
@@ -346,6 +359,7 @@
         total, wins, losses: total - wins,
         defenderGames, defenderWins, attackerGames, attackerWins,
         byEnd, avgTurns, avgAttDmg, avgDefDmg,
+        avgSeconds, avgSecondsPerTurn, timedCount: timed.length, speedCounts,
         avgPiecesBuilt, dmgByPiece, killsByPiece, actions,
         assistsByPiece, cellsWalkedByPiece, attacksByPiece,
         damagePerCredit, killsPerCredit,
@@ -380,11 +394,20 @@
         statCard('DEFENDER WIN RATE', `${defRate}%`, `${a.defenderWins}/${a.defenderGames}`),
         statCard('ATTACKER WIN RATE', `${attRate}%`, `${a.attackerWins}/${a.attackerGames}`),
         statCard('AVG TURNS',        a.avgTurns.toFixed(1)),
+        statCard('AVG SECONDS',
+          a.avgSeconds != null ? a.avgSeconds.toFixed(1) : '—',
+          a.timedCount ? `${a.timedCount}/${a.total} games timed` : 'no timed games yet'),
+        statCard('AVG SEC/TURN',
+          a.avgSecondsPerTurn != null ? a.avgSecondsPerTurn.toFixed(2) : '—',
+          'pacing — lower = faster'),
         statCard('CORE DESTROYED',   a.byEnd.core_destroyed,    'attacker wins by core kill'),
         statCard('CYBORGS WIPED',    a.byEnd.cyborgs_eliminated,'defender wins by elimination'),
         statCard('ATTRITION END',    a.byEnd.attrition,         'no cyborg can damage core'),
         statCard('AVG ATT DMG',      a.avgAttDmg.toFixed(0)),
         statCard('AVG DEF DMG',      a.avgDefDmg.toFixed(0)),
+        statCard('SPEED MIX',
+          `${a.speedCounts.slow}/${a.speedCounts.normal}/${a.speedCounts.fast}`,
+          'slow / normal / fast'),
       ].join('')
 
       // Pieces built per game (average)
@@ -464,12 +487,16 @@
       const recentRows = recent.map(r => {
         const time = (r.endedAt || '').slice(11, 19)
         const outcomeColor = r.outcome === 'win' ? '#d4ff7a' : '#ff7a9a'
+        const sec = typeof r.durationMs === 'number' ? (r.durationMs / 1000).toFixed(1) : '—'
+        const speed = r.speed || '—'
         return `<tr>
           <td>${time}</td>
           <td>${r.playerSide}</td>
           <td style="color:${outcomeColor}">${r.outcome}</td>
           <td>${r.endType}</td>
           <td class="num">${r.turns}</td>
+          <td class="num">${sec}</td>
+          <td>${speed}</td>
           <td class="num">${r.damageDealt.attacker}</td>
           <td class="num">${r.damageDealt.defender}</td>
           <td>${r.coreHpEnd}/${r.coreMaxHp}</td>
@@ -479,6 +506,8 @@
         <thead><tr>
           <th>TIME</th><th>PLAYER</th><th>OUTCOME</th><th>END</th>
           <th style="text-align:right">TURNS</th>
+          <th style="text-align:right">SEC</th>
+          <th>SPEED</th>
           <th style="text-align:right">ATT DMG</th>
           <th style="text-align:right">DEF DMG</th>
           <th>CORE</th>

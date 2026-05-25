@@ -68,6 +68,17 @@ export interface BattleRecord {
    *  null = never happened (game ended with both sides still having units).
    *  Useful for "did the side that won take too long to finish the job?" */
   enemyEliminatedAtTurn?: number | null
+
+  // ── S17.5 additions: wall-clock pacing ─────────────────────────────
+
+  /** ms between first reveal start and game end. Lets the analyst see how
+   *  much real time a match takes regardless of turn count, so speed-control
+   *  changes show up directly. */
+  durationMs?: number
+  /** Speed setting active when the battle ended ('slow' | 'normal' | 'fast').
+   *  Stamped here so a duration delta across records can be attributed to
+   *  player-side speed choice vs actual game-pace changes. */
+  speed?: 'slow' | 'normal' | 'fast'
 }
 
 const KEY = 'astrohold:battle-stats:v1'
@@ -113,6 +124,8 @@ export function installBattleStatsConsoleApi() {
         outcome: r.outcome,
         side: r.playerSide,
         turns: r.turns,
+        sec: r.durationMs != null ? (r.durationMs / 1000).toFixed(1) : '—',
+        speed: r.speed ?? '—',
         att_alive: r.alive.attacker,
         def_alive: r.alive.defender,
         att_dmg: r.damageDealt.attacker,
@@ -141,12 +154,21 @@ export function installBattleStatsConsoleApi() {
       const avgAttDmg = all.reduce((s, r) => s + r.damageDealt.attacker, 0) / total
       const avgDefDmg = all.reduce((s, r) => s + r.damageDealt.defender, 0) / total
       const defenderWinRate = all.filter(r => r.endType !== 'core_destroyed').length / total
+      const timed = all.filter(r => typeof r.durationMs === 'number')
+      const avgSeconds = timed.length
+        ? timed.reduce((s, r) => s + (r.durationMs as number), 0) / timed.length / 1000
+        : null
+      const avgSecondsPerTurn = timed.length
+        ? timed.reduce((s, r) => s + (r.durationMs as number) / r.turns, 0) / timed.length / 1000
+        : null
       return {
         games: total,
         outcomes: { wins, losses },
         endTypes: byEnd,
         defenderWinRate: defenderWinRate.toFixed(2),
         avgTurns: avgTurns.toFixed(1),
+        avgSeconds: avgSeconds != null ? avgSeconds.toFixed(1) : 'n/a',
+        avgSecondsPerTurn: avgSecondsPerTurn != null ? avgSecondsPerTurn.toFixed(2) : 'n/a',
         avgDamageAttacker: avgAttDmg.toFixed(0),
         avgDamageDefender: avgDefDmg.toFixed(0),
       }
