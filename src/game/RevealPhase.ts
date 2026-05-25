@@ -2116,9 +2116,17 @@ export class RevealPhase {
   // Quick beam visual. A translucent cyan plane positioned + rotated
   // along the facing direction, fades out over 0.6s. No need for a
   // dedicated entity class; managed inline with requestAnimationFrame.
+  //
+  // S17.20: beam now starts at the cell-edge in the facing direction
+  // (approximate barrel tip) instead of at the cell center. Before
+  // the beam appeared to come from inside the Phaser sprite and read
+  // as "a little low" relative to where the gun visually sits.
+  // Z bumped 6 -> 12 so the beam renders above sprites instead of
+  // beneath them, also addressing the "low" perception.
   private spawnPhaserBeamVisual(ax: number, ay: number, fx: number, fy: number, range: number) {
     const angle = Math.atan2(fy, fx)
-    const beamLen = range
+    const barrelOffset = Config.GRID_CELL / 2     // start at cell edge
+    const beamLen = range - barrelOffset          // ends at range from cell center
     const beamWidth = 10
     const geo = new THREE.PlaneGeometry(beamLen, beamWidth)
     const mat = new THREE.MeshBasicMaterial({
@@ -2129,10 +2137,12 @@ export class RevealPhase {
       depthTest: false,
     })
     const mesh = new THREE.Mesh(geo, mat)
-    // Plane is centered on its midpoint, so position at struct + halfLength * facing.
-    mesh.position.set(ax + fx * beamLen / 2, ay + fy * beamLen / 2, 6)
+    // Beam centroid sits at (barrel tip) + half beam length in facing dir.
+    const cx = ax + fx * (barrelOffset + beamLen / 2)
+    const cy = ay + fy * (barrelOffset + beamLen / 2)
+    mesh.position.set(cx, cy, 12)
     mesh.rotation.z = angle
-    mesh.renderOrder = 8
+    mesh.renderOrder = 14
     this.scene.add(mesh)
     const startMs = performance.now()
     const tick = () => {
