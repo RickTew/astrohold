@@ -3021,6 +3021,22 @@ export class RevealPhase {
       const isGrenadier = actor instanceof SpriteUnit && actor.type === 'grenadier'
       const triggerMode = isGrenadier ? 'timed' : 'proximity'
       proj.onHit = () => {
+        // S17.18 no-stack rule: a bomb can NEVER land on the same cell
+        // as an existing bomb. The pick-time check in pickBombThrowCell
+        // catches single-turn intent, but two bombers throwing in the
+        // SAME reveal can both target the same empty cell before
+        // either bomb is on the field. This is the safety net at
+        // arrival time. If a duplicate would happen, the projectile
+        // fizzles with a small puff so the player sees what failed.
+        const E = 1
+        const dup = this.pendingGrenades.some(
+          g => Math.abs(g.worldX - aim.x) < E && Math.abs(g.worldY - aim.y) < E,
+        )
+        if (dup) {
+          this.explosions.push(new Explosion(this.scene, aim.x, aim.y, 14, 0.25))
+          this.log(side, `${ownerLabel}'s ${what} hits an existing bomb cell, fizzles`)
+          return
+        }
         this.pendingGrenades.push(new PendingGrenade(
           this.scene, aim.x, aim.y, damage, aoeRadius, side, ownerId, triggerMode, 16, ownerType,
         ))
