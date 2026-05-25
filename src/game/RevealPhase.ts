@@ -1549,10 +1549,40 @@ export class RevealPhase {
       if (d < curDist - 0.5) reducing.push(cand)
       else if (d <= curDist + SIDEWAYS_THRESHOLD) sideways.push(cand)
     }
-    // Score helper — distance + danger weight + spacing penalty. Backtrack
-    // candidates get a big penalty so they only win when no non-backtrack
+    // S17.23 core-zone avoidance. Ranged cyborgs (anyone with ammo
+    // who isn't a melee-only Hulk or Stalker) should NOT step into
+    // the core electric-defense zone when they can fire from
+    // outside. The fire branch in defaultMobileUnitAction already
+    // wins when an enemy is in range, but the move path itself
+    // didn't penalise stepping into the zone, so a cyborg walking
+    // up to the core could land inside the zone for one turn of
+    // free 20 damage before the fire branch kicked in. Hulk +
+    // Stalker need to enter the zone for melee, so they bypass.
+    const avoidsCoreZone = unit.side === 'attacker'
+                          && unit.type !== 'hulk'
+                          && unit.type !== 'stalker'
+    const inCoreZone = (x: number, y: number): boolean => {
+      if (this.core.isDead) return false
+      const E = 1
+      for (const c of this.core.defenseZoneCells()) {
+        if (Math.abs(c.x - x) < E && Math.abs(c.y - y) < E) return true
+      }
+      return false
+    }
+    // Score helper. distance + danger weight + spacing penalty + a
+    // hefty zone penalty for avoidant units. Backtrack candidates
+    // get a big penalty so they only win when no non-backtrack
     // option exists.
-    const score = (c: Cand) => c.d + c.danger * 2 + c.spacing + (c.isBacktrack ? 1000 : 0)
+    const score = (c: Cand) => {
+      let s = c.d + c.danger * 2 + c.spacing + (c.isBacktrack ? 1000 : 0)
+      // 30 added to score is roughly 0.6 cells worth of "extra
+      // distance" so a cyborg will detour around the zone rather
+      // than march straight through. If every option is in the
+      // zone (no detour available), the lowest-score zone cell
+      // still wins so the unit eventually progresses.
+      if (avoidsCoreZone && inCoreZone(c.x, c.y)) s += 30
+      return s
+    }
     const pickFrom = (pool: Cand[]): Cand | null => {
       if (pool.length === 0) return null
       // Random tiebreaker — with stable sort, ties resolve in CARDINAL_STEPS
