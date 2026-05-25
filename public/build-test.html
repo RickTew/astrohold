@@ -1239,17 +1239,20 @@
         low_hp: [
           "MEDIC!!", "Where's the medic?", "I'm hit, cover me!", "Need a patch!", "Bleeding out!",
           "Still alive... barely.", "I'm melting!", "Patch me up!", "Rebooting brain...", "That hurt!",
+          "Losing fluid!", "More cy in my borg!", "Damn wires!", "Neuroleak!",
+          "Sparks flying!", "Servo's failing!", "Coolant low!", "My arm's twitching!",
         ],
-        low_ammo:         ["{n} shot{s} left!", "Down to {n}!", "Almost dry!", "Last few rounds!", "Charge low!"],
-        out_of_ammo:      ["I'm out!", "Down to fists!", "Need ammo, now!", "Pistol's dry!", "Need juice!", "Cell's tapped!"],
-        sniper_shot:      ["One shot, one kill.", "Target down.", "Headshot.", "Eagle eye.", "Take the shot!"],
-        medic_low_packs:  ["{n} pack{s} left!", "Running low on supplies!", "Down to {n} kit{s}!", "Save the rest!"],
-        crate_spotted:    ["Crate spotted!", "Resupply incoming!", "Ammo drop, on me!", "Mine!!"],
-        rearmed:          ["Reloaded!", "Locked and loaded!", "Fresh clip!", "Back in the fight!", "Going in!", "Recharged!"],
+        low_ammo:         ["{n} shot{s} left!", "Down to {n}!", "Almost dry!", "Last few rounds!", "Charge low!", "Running on fumes!", "Stretching it!"],
+        out_of_ammo:      ["I'm out!", "Down to fists!", "Need ammo, now!", "Click click!", "Throwing punches!", "Magazine empty!"],
+        sniper_shot:      ["One shot, one kill.", "Target down.", "Headshot.", "Eagle eye.", "Take the shot!", "Aim for the CPU.", "Crosshairs locked.", "Lights out."],
+        medic_low_packs:  ["{n} pack{s} left!", "Running low on supplies!", "Down to {n} kit{s}!", "Save the rest!", "Patches running thin!", "Out of stims!"],
+        crate_spotted:    ["Crate spotted!", "Resupply incoming!", "Ammo drop, on me!", "Loot!", "Goodies!", "Free swag!"],
+        rearmed:          ["Reloaded!", "Locked and loaded!", "Fresh clip!", "Back in the fight!", "Going in!", "Topped off!", "Got the goods!", "Back to work!"],
         no_repairs_needed: [],
-        on_kill:          ["Who's next?", "Got one!", "Take that!", "Down!"],
-        on_death:         ["They're cheating!", "I hate Mondays.", "Aaargh!", "Tell my mom..."],
+        on_kill:          ["Who's next?", "Got one!", "Take that!", "Down!", "Tag and bag!", "Hardware downgrade!", "Scrap that one!"],
+        on_death:         ["Aaargh!", "Tell my mom...", "Never go full bot.", "Wires cut!", "Boot sector failure!", "Going dark.", "Should have stayed human...", "Final patch."],
         core_hit:         ["Core's ours!", "Crack that thing!", "Almost there!"],
+        mine_spotted:     ["Mine!", "Mine spotted!", "Watch the ground!", "Trap!", "Tread careful!"],
       },
       robot: {
         low_hp: [
@@ -1273,6 +1276,7 @@
           "SYSTEM COLLAPSE. BY DESIGN",
         ],
         core_hit:         ["CORE HIT", "CORE BREACH", "CRITICAL TARGET STRUCK"],
+        mine_spotted:     ["MINE DETECTED", "EXPLOSIVE HAZARD", "OBSTRUCTION FLAGGED", "TRAP IN PATH"],
       },
     }
 
@@ -1289,6 +1293,8 @@
       { id: 'on_kill',           label: 'ON KILL',           when: 'Piece scores a kill of any kind. Fires on the killer.' },
       { id: 'on_death',          label: 'ON DEATH',          when: 'Piece dies. Robot deaths also trigger a small self-destruct AoE (60 radius, 25 damage). Dramatic or comic final line.' },
       { id: 'core_hit',          label: 'CORE HIT',          when: 'Power Core takes damage. Robot side reports the breach. Cyborg side celebrates approaching the objective. Once per reveal.' },
+      // S17.11. Declared but not yet wired.
+      { id: 'mine_spotted',      label: 'MINE SPOTTED',      when: 'Unit sights an armed enemy mine in its path. Warning callout, not ownership.', pending: true },
     ]
 
     function expand(template, n) {

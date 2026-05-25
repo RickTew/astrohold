@@ -15,11 +15,13 @@ export type SpeechTrigger =
   | 'sniper_shot' | 'medic_low_packs'
   | 'crate_spotted' | 'rearmed'
   | 'no_repairs_needed'
-  // ── S17.6 additions — not yet wired in RevealPhase ──
-  // These triggers are documented in the line table and can be fired
-  // from RevealPhase once we decide the timing/rate-limit story. Until
-  // then the lines exist for design review on /build-test.html only.
+  // ── S17.6 additions ──
+  // on_kill / on_death / core_hit wired in S17.8.
   | 'on_kill' | 'on_death' | 'core_hit'
+  // ── S17.11 ── New trigger for units that sight an armed enemy
+  // mine in their path. Not yet wired in RevealPhase; lines exist
+  // for design review and live preview on /build-test.html.
+  | 'mine_spotted'
 
 // Lines may include {n} (count) and {s} (auto-pluralizer: '' if n==1
 // else 's') so "{n} shot{s} left!" renders "1 shot left!" / "3 shots left!"
@@ -52,6 +54,16 @@ export const SPEECH_LINES: Record<SpeechVoice, Record<SpeechTrigger, string[]>> 
       "Patch me up!",
       "Rebooting brain…",
       "That hurt!",
+      // S17.11 dark-comedy expansion. Cyborg-flavor body horror,
+      // half-human half-machine pain readouts.
+      "Losing fluid!",
+      "More cy in my borg!",
+      "Damn wires!",
+      "Neuroleak!",
+      "Sparks flying!",
+      "Servo's failing!",
+      "Coolant low!",
+      "My arm's twitching!",
     ],
     low_ammo: [
       "{n} shot{s} left!",
@@ -59,14 +71,16 @@ export const SPEECH_LINES: Record<SpeechVoice, Record<SpeechTrigger, string[]>> 
       "Almost dry!",
       "Last few rounds!",
       "Charge low!",
+      "Running on fumes!",
+      "Stretching it!",
     ],
     out_of_ammo: [
       "I'm out!",
       "Down to fists!",
       "Need ammo, now!",
-      "Pistol's dry!",
-      "Need juice!",
-      "Cell's tapped!",
+      "Click click!",
+      "Throwing punches!",
+      "Magazine empty!",
     ],
     sniper_shot: [
       "One shot, one kill.",
@@ -74,18 +88,25 @@ export const SPEECH_LINES: Record<SpeechVoice, Record<SpeechTrigger, string[]>> 
       "Headshot.",
       "Eagle eye.",
       "Take the shot!",
+      "Aim for the CPU.",
+      "Crosshairs locked.",
+      "Lights out.",
     ],
     medic_low_packs: [
       "{n} pack{s} left!",
       "Running low on supplies!",
       "Down to {n} kit{s}!",
       "Save the rest!",
+      "Patches running thin!",
+      "Out of stims!",
     ],
     crate_spotted: [
       "Crate spotted!",
       "Resupply incoming!",
       "Ammo drop, on me!",
-      "Mine!!",
+      "Loot!",
+      "Goodies!",
+      "Free swag!",
     ],
     rearmed: [
       "Reloaded!",
@@ -93,7 +114,9 @@ export const SPEECH_LINES: Record<SpeechVoice, Record<SpeechTrigger, string[]>> 
       "Fresh clip!",
       "Back in the fight!",
       "Going in!",
-      "Recharged!",
+      "Topped off!",
+      "Got the goods!",
+      "Back to work!",
     ],
     no_repairs_needed: [],  // cyborg-side has no repair role
     on_kill: [
@@ -101,17 +124,34 @@ export const SPEECH_LINES: Record<SpeechVoice, Record<SpeechTrigger, string[]>> 
       "Got one!",
       "Take that!",
       "Down!",
+      "Tag and bag!",
+      "Hardware downgrade!",
+      "Scrap that one!",
     ],
     on_death: [
-      "They're cheating!",
-      "I hate Mondays.",
       "Aaargh!",
       "Tell my mom…",
+      // S17.11. Dark-comedy + cyborg-specific final lines.
+      "Never go full bot.",
+      "Wires cut!",
+      "Boot sector failure!",
+      "Going dark.",
+      "Should have stayed human…",
+      "Final patch.",
     ],
     core_hit: [
       "Core's ours!",
       "Crack that thing!",
       "Almost there!",
+    ],
+    // Mine spotted. Cyborg sees an armed enemy mine ahead. Pending
+    // wiring in RevealPhase.
+    mine_spotted: [
+      "Mine!",
+      "Mine spotted!",
+      "Watch the ground!",
+      "Trap!",
+      "Tread careful!",
     ],
   },
   robot: {
@@ -202,6 +242,12 @@ export const SPEECH_LINES: Record<SpeechVoice, Record<SpeechTrigger, string[]>> 
       "CORE HIT",
       "CORE BREACH",
       "CRITICAL TARGET STRUCK",
+    ],
+    mine_spotted: [
+      "MINE DETECTED",
+      "EXPLOSIVE HAZARD",
+      "OBSTRUCTION FLAGGED",
+      "TRAP IN PATH",
     ],
   },
 }
