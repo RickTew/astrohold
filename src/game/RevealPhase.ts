@@ -2837,13 +2837,20 @@ export class RevealPhase {
 
   private executeAttack(actor: Actor, action: QueuedAction) {
     // Three attack flavors:
-    //   1. Hulk fists      — unlimited ammo, full damage (55), full range (70).
-    //   2. Universal melee — when a SpriteUnit (not hulk/sniper/medic/repair)
-    //      is at ammo=0 AND target is adjacent, swing for MELEE_FALLBACK_DAMAGE
-    //      (10) at MELEE_FALLBACK_RANGE (70). No ammo to burn (already 0).
-    //   3. Standard fire   — needs ammo; uses Config damage + range.
+    //   1. Hulk fists      unlimited ammo, full damage (55), full range (70).
+    //   2. Stalker melee   unlimited ammo (S17.17), full damage (40),
+    //                      full range (70). Melee-only unit per user spec.
+    //   3. Universal melee when a SpriteUnit (not hulk/stalker/sniper/medic
+    //                      /repair) is at ammo=0 AND target is adjacent,
+    //                      swing for MELEE_FALLBACK_DAMAGE (10) at
+    //                      MELEE_FALLBACK_RANGE (70). No ammo cost.
+    //   4. Standard fire   needs ammo; uses Config damage + range.
     // Towers / Spheres / Structures don't get melee fallback (immobile).
-    const meleeUnlimited = actor instanceof SpriteUnit && actor.type === 'hulk'
+    // S17.17: Stalker joins Hulk as a melee-only unit. Hits deal full
+    // damage (40) at full range (70) with no ammo cost. Per user spec:
+    // "Stalker does not have ammo. They are melee only."
+    const meleeUnlimited = actor instanceof SpriteUnit
+                          && (actor.type === 'hulk' || actor.type === 'stalker')
     const ammoZero = this.actorAmmo(actor) <= 0
     const isMeleeFallback = actor instanceof SpriteUnit
                            && ammoZero

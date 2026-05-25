@@ -1154,10 +1154,10 @@ private enterBuildPhase() {
   // condition should not fire when they exist on the field.
   //
   // Per-type rules:
-  //   medic   never attacks (heal-only role)
-  //   sniper  attacks only with ammo > 0 (retreats when empty)
-  //   hulk    always (unlimited fists)
-  //   others  always (melee fallback covers ammo=0 case)
+  //   medic            never attacks (heal-only role)
+  //   sniper           attacks only with ammo > 0 (retreats when empty)
+  //   hulk / stalker   always (melee-only, no ammo cost)
+  //   others           always (melee fallback covers ammo=0 case)
   private cyborgsCanAttack(): boolean {
     for (const u of this.attackerUnits) {
       if (u.isDead) continue
@@ -1166,9 +1166,9 @@ private enterBuildPhase() {
         if (u.ammoRemaining > 0) return true
         continue
       }
-      // Hulk, cannon, grenadier, doublegun, stalker, bomber, scout,
-      // tank, drone: all can still threaten the core via fists or
-      // melee fallback. Existence alone is enough to deny attrition.
+      // Hulk / Stalker: melee-only units, no ammo gate.
+      // Cannon / Grenadier / Doublegun / Bomber / Scout / Tank / Drone:
+      // melee fallback (10 dmg) covers the ammo-empty case.
       return true
     }
     return false
