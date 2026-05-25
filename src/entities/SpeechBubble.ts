@@ -19,28 +19,111 @@ export type SpeechTrigger =
 // Lines may include {n} (count) and {s} (auto-pluralizer: '' if n==1
 // else 's') so "{n} shot{s} left!" renders "1 shot left!" / "3 shots left!"
 // without per-count duplicates. Robot voice uses {S} for capital 's'.
-const LINES: Record<SpeechVoice, Record<SpeechTrigger, string[]>> = {
+//
+// ⚠ KEEP IN SYNC: public/build-test.html has a CALLOUT MATRIX section that
+// mirrors this table for design review. Update both when adding/changing
+// lines so the sandbox reflects production.
+export const SPEECH_LINES: Record<SpeechVoice, Record<SpeechTrigger, string[]>> = {
   cyborg: {
-    low_hp:           ["MEDIC!!", "Where's the medic?", "Aaargh!", "I'm hit!", "Need a patch!", "Bleeding out!"],
-    low_ammo:         ["{n} shot{s} left!", "Down to {n}!", "Last few rounds!", "Almost out!"],
-    out_of_ammo:      ["I'm out!", "Down to fists!", "Need ammo!", "Pistol's dry!"],
-    sniper_shot:      ["Lining one up... shot.", "Target acquired... gone.", "One shot, one kill.", "Eagle eye."],
-    medic_low_packs:  ["{n} pack{s} left!", "Running low on supplies!", "Down to {n} kit{s}!"],
-    crate_spotted:    ["Crate spotted!", "Resupply incoming!", "Going for the crate!", "Ammo drop, on me!"],
-    rearmed:          ["Reloaded!", "Locked and loaded!", "Got it!", "Fresh clip!"],
-    no_repairs_needed: [],  // cyborg-side has no repair role; placeholder
+    low_hp: [
+      "MEDIC!!",
+      "Where's the medic?",
+      "I'm hit — cover me!",
+      "Need a patch!",
+      "Bleeding out!",
+    ],
+    low_ammo: [
+      "{n} shot{s} left!",
+      "Down to {n}!",
+      "Almost dry!",
+      "Last few rounds!",
+    ],
+    out_of_ammo: [
+      "I'm out!",
+      "Down to fists!",
+      "Need ammo, now!",
+      "Pistol's dry!",
+    ],
+    sniper_shot: [
+      "One shot, one kill.",
+      "Target down.",
+      "Headshot.",
+      "Eagle eye.",
+    ],
+    medic_low_packs: [
+      "{n} pack{s} left!",
+      "Running low on supplies!",
+      "Down to {n} kit{s}!",
+      "Save the rest!",
+    ],
+    crate_spotted: [
+      "Crate spotted!",
+      "Resupply incoming!",
+      "Ammo drop — on me!",
+      "Mine!",
+    ],
+    rearmed: [
+      "Reloaded!",
+      "Locked and loaded!",
+      "Fresh clip!",
+      "Back in the fight!",
+    ],
+    no_repairs_needed: [],  // cyborg-side has no repair role
   },
   robot: {
-    low_hp:           ["SYSTEMS CRITICAL", "INTEGRITY: LOW", "DAMAGE: SEVERE", "ARMOR FAILING"],
-    low_ammo:         ["{n} ROUND{S} LEFT", "AMMUNITION: {n}", "RESERVES LOW"],
-    out_of_ammo:      ["AMMUNITION DEPLETED", "WEAPON OFFLINE", "RELOAD UNAVAILABLE"],
-    sniper_shot:      ["TARGET ELIMINATED", "MARK STRUCK", "ONE SHOT CONFIRMED"],
-    medic_low_packs:  ["REPAIR CHARGES: {n}", "{n} CHARGE{S} LEFT", "SUPPLIES DEPLETING"],
-    crate_spotted:    ["RESUPPLY DETECTED", "CRATE ON MAP", "TARGETING SUPPLY"],
-    rearmed:          ["AMMUNITION RESTORED", "RELOAD COMPLETE", "RESUPPLIED"],
-    no_repairs_needed: ["ALL SYSTEMS NOMINAL", "NO REPAIRS NEEDED", "STANDING BY", "AWAITING DAMAGE REPORT"],
+    low_hp: [
+      "SYSTEMS CRITICAL",
+      "INTEGRITY: LOW",
+      "DAMAGE: SEVERE",
+      "ARMOR FAILING",
+    ],
+    low_ammo: [
+      "{n} ROUND{S} LEFT",
+      "AMMUNITION: {n}",
+      "RESERVES LOW",
+      "MAGAZINE NEAR EMPTY",
+    ],
+    out_of_ammo: [
+      "AMMUNITION DEPLETED",
+      "WEAPON OFFLINE",
+      "RELOAD UNAVAILABLE",
+      "RESUPPLY REQUIRED",
+    ],
+    sniper_shot: [
+      "TARGET ELIMINATED",
+      "PRECISION SHOT CONFIRMED",
+      "MARK STRUCK",
+      "SINGLE-ROUND KILL",
+    ],
+    medic_low_packs: [
+      "REPAIR CHARGES: {n}",
+      "{n} CHARGE{S} LEFT",
+      "WELD MATERIAL LOW",
+      "SUPPLIES DEPLETING",
+    ],
+    crate_spotted: [
+      "RESUPPLY DETECTED",
+      "CRATE ON MAP",
+      "TARGETING SUPPLY",
+      "CACHE LOCKED",
+    ],
+    rearmed: [
+      "AMMUNITION RESTORED",
+      "RELOAD COMPLETE",
+      "RESUPPLIED",
+      "MAGAZINE RELOADED",
+    ],
+    no_repairs_needed: [
+      "ALL SYSTEMS NOMINAL",
+      "NO REPAIRS REQUIRED",
+      "STANDING BY",
+      "AWAITING DAMAGE REPORT",
+    ],
   },
 }
+// Back-compat alias — internal callers use the local name; SPEECH_LINES is
+// the exported one so external tooling (test page generator etc.) can read it.
+const LINES = SPEECH_LINES
 
 export interface SpeechContext {
   /** Substituted into {n} in the line template. Undefined → no substitution. */

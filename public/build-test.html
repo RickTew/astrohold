@@ -929,6 +929,259 @@
     renderVariantC()
   </script>
 
+  <!-- ═══════════════ CALLOUT MATRIX ═══════════════
+       Mirror of src/entities/SpeechBubble.ts SPEECH_LINES. Update both
+       when adding/changing lines. Cyborg lines render in the in-game
+       red bubble (italic peach text); robot lines render in the blue
+       bubble (cyan monospace). {n} = count; {s}/{S} = auto-pluralizer. -->
+  <div class="preview-section">
+    <h2 style="color:#dd8888;border-color:rgba(221,136,136,0.35);">
+      CALLOUT MATRIX — UNIT VOICE LINES
+      <span class="tag after" style="background:rgba(221,136,136,0.12);border-color:rgba(221,136,136,0.5);color:#dd8888;">DESIGN REVIEW</span>
+    </h2>
+    <p style="font-family:'Share Tech Mono',monospace;color:#88a4b8;font-size:11px;letter-spacing:1px;margin:0 4px 14px;max-width:900px;">
+      Every situational callout in the game, grouped by trigger. Each
+      cell shows the 3-4 random options a unit can say. <code style="color:#d4ff7a">{n}</code>
+      substitutes the current count; <code style="color:#d4ff7a">{s}/{S}</code> auto-pluralizes
+      ("" if n=1, else "s"/"S"). Click any line to pop a sample bubble
+      on the canvas so you can read it at battle scale.
+    </p>
+    <div class="preview-frame" style="padding:18px 18px 24px;">
+      <table class="callout-matrix">
+        <thead>
+          <tr>
+            <th style="width:14%">TRIGGER</th>
+            <th style="width:30%">WHEN IT FIRES</th>
+            <th style="width:28%" class="cm-cyborg-h">CYBORG VOICE</th>
+            <th style="width:28%" class="cm-robot-h">ROBOT VOICE</th>
+          </tr>
+        </thead>
+        <tbody id="callout-matrix-body"></tbody>
+      </table>
+      <!-- Live sample bubble preview rendered on click -->
+      <div class="cm-sample-wrap">
+        <canvas id="cm-sample-canvas" width="320" height="80"></canvas>
+        <div id="cm-sample-caption" class="cm-sample-caption">Click any line above to preview the rendered bubble.</div>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    /* ═════ Callout matrix table ═════ */
+    .callout-matrix {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 12px;
+      color: #b8d8ee;
+    }
+    .callout-matrix thead th {
+      text-align: left;
+      padding: 8px 12px;
+      background: rgba(8, 18, 32, 0.7);
+      border-bottom: 1px solid rgba(120, 200, 230, 0.3);
+      font-family: 'Orbitron', monospace;
+      font-size: 10px;
+      letter-spacing: 3px;
+      color: #88c5e0;
+      font-weight: 700;
+    }
+    .callout-matrix thead th.cm-cyborg-h { color: #dd8888; }
+    .callout-matrix thead th.cm-robot-h  { color: #88c8ff; }
+    .callout-matrix tbody td {
+      padding: 12px;
+      border-bottom: 1px solid rgba(120, 200, 230, 0.12);
+      vertical-align: top;
+    }
+    .callout-matrix tbody tr:hover td { background: rgba(120, 200, 230, 0.04); }
+    .callout-matrix .cm-trigger {
+      font-family: 'Orbitron', monospace;
+      font-size: 11px;
+      letter-spacing: 2px;
+      color: #d4ff7a;
+    }
+    .callout-matrix .cm-when {
+      color: #88a4b8;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+    .callout-matrix .cm-when code {
+      color: #d4ff7a;
+      font-family: 'Share Tech Mono', monospace;
+    }
+    .callout-matrix .cm-lines { line-height: 1.75; }
+    .callout-matrix .cm-line {
+      display: inline-block;
+      padding: 2px 8px;
+      margin: 2px 4px 2px 0;
+      border-radius: 2px;
+      cursor: pointer;
+      transition: background 100ms ease, transform 80ms ease;
+    }
+    .callout-matrix .cm-line:active { transform: translateY(1px); }
+    .callout-matrix .cm-line-cyborg {
+      background: rgba(45, 18, 22, 0.7);
+      border: 1px solid rgba(221, 136, 136, 0.45);
+      color: #ffe0d0;
+      font-family: 'Helvetica Neue', sans-serif;
+      font-style: italic;
+      font-weight: 700;
+    }
+    .callout-matrix .cm-line-cyborg:hover {
+      background: rgba(60, 24, 30, 0.95);
+      border-color: #dd8888;
+    }
+    .callout-matrix .cm-line-robot {
+      background: rgba(14, 28, 44, 0.7);
+      border: 1px solid rgba(136, 200, 255, 0.45);
+      color: #d8f0ff;
+      font-family: 'Courier New', monospace;
+      font-weight: 700;
+    }
+    .callout-matrix .cm-line-robot:hover {
+      background: rgba(20, 40, 60, 0.95);
+      border-color: #88c8ff;
+    }
+    .callout-matrix .cm-empty {
+      color: #5a7a92;
+      font-style: italic;
+      font-size: 11px;
+    }
+    .cm-sample-wrap {
+      margin: 24px auto 0;
+      text-align: center;
+    }
+    #cm-sample-canvas {
+      display: block;
+      margin: 0 auto;
+      background: rgba(8, 18, 32, 0.4);
+      border: 1px dashed rgba(120, 200, 230, 0.18);
+      max-width: 100%;
+    }
+    .cm-sample-caption {
+      margin-top: 10px;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 11px;
+      color: #88a4b8;
+      letter-spacing: 1px;
+    }
+  </style>
+
+  <script>
+    // ═════ Callout matrix data — MIRROR of src/entities/SpeechBubble.ts ═════
+    // Keep in sync. Field shape: SPEECH_LINES[voice][trigger] = string[].
+    const SPEECH_LINES = {
+      cyborg: {
+        low_hp:           ["MEDIC!!", "Where's the medic?", "I'm hit — cover me!", "Need a patch!", "Bleeding out!"],
+        low_ammo:         ["{n} shot{s} left!", "Down to {n}!", "Almost dry!", "Last few rounds!"],
+        out_of_ammo:      ["I'm out!", "Down to fists!", "Need ammo, now!", "Pistol's dry!"],
+        sniper_shot:      ["One shot, one kill.", "Target down.", "Headshot.", "Eagle eye."],
+        medic_low_packs:  ["{n} pack{s} left!", "Running low on supplies!", "Down to {n} kit{s}!", "Save the rest!"],
+        crate_spotted:    ["Crate spotted!", "Resupply incoming!", "Ammo drop — on me!", "Mine!"],
+        rearmed:          ["Reloaded!", "Locked and loaded!", "Fresh clip!", "Back in the fight!"],
+        no_repairs_needed: [],
+      },
+      robot: {
+        low_hp:           ["SYSTEMS CRITICAL", "INTEGRITY: LOW", "DAMAGE: SEVERE", "ARMOR FAILING"],
+        low_ammo:         ["{n} ROUND{S} LEFT", "AMMUNITION: {n}", "RESERVES LOW", "MAGAZINE NEAR EMPTY"],
+        out_of_ammo:      ["AMMUNITION DEPLETED", "WEAPON OFFLINE", "RELOAD UNAVAILABLE", "RESUPPLY REQUIRED"],
+        sniper_shot:      ["TARGET ELIMINATED", "PRECISION SHOT CONFIRMED", "MARK STRUCK", "SINGLE-ROUND KILL"],
+        medic_low_packs:  ["REPAIR CHARGES: {n}", "{n} CHARGE{S} LEFT", "WELD MATERIAL LOW", "SUPPLIES DEPLETING"],
+        crate_spotted:    ["RESUPPLY DETECTED", "CRATE ON MAP", "TARGETING SUPPLY", "CACHE LOCKED"],
+        rearmed:          ["AMMUNITION RESTORED", "RELOAD COMPLETE", "RESUPPLIED", "MAGAZINE RELOADED"],
+        no_repairs_needed: ["ALL SYSTEMS NOMINAL", "NO REPAIRS REQUIRED", "STANDING BY", "AWAITING DAMAGE REPORT"],
+      },
+    }
+
+    const CALLOUT_TRIGGERS = [
+      { id: 'low_hp',            label: 'LOW HP',            when: 'HP drops to ≤25%' },
+      { id: 'low_ammo',          label: 'LOW AMMO',          when: 'ammo down to its last few rounds (offensive pieces). Substitutes <code>{n}</code> with the remaining count' },
+      { id: 'out_of_ammo',       label: 'OUT OF AMMO',       when: 'ammo hits 0' },
+      { id: 'rearmed',           label: 'REARMED',           when: 'unit picks up an ammo/grenade crate' },
+      { id: 'crate_spotted',     label: 'CRATE SPOTTED',     when: 'unit (out of ammo) sights a compatible resupply crate' },
+      { id: 'sniper_shot',       label: 'SNIPER SHOT',       when: 'sniper or precision shot lands a kill' },
+      { id: 'medic_low_packs',   label: 'MEDIC LOW',         when: 'medic / repair bot down to last 1-2 charges; <code>{n}</code> = charges left' },
+      { id: 'no_repairs_needed', label: 'NO REPAIRS NEEDED', when: 'repair-bot has full reserves and nothing damaged in sight (robot voice only — cyborgs have no repair role)' },
+    ]
+
+    function expand(template, n) {
+      if (n == null) return template
+      const s = n === 1 ? '' : 's'
+      return template.replace(/\{n\}/g, n).replace(/\{s\}/g, s).replace(/\{S\}/g, s.toUpperCase())
+    }
+    // Use 2 as the demo count — exercises {s}/{S} pluralizer; 1 would hide it.
+    function preview(template) { return expand(template, /\{n\}/.test(template) ? 2 : null) }
+
+    // Render the matrix table
+    {
+      const body = document.getElementById('callout-matrix-body')
+      body.innerHTML = CALLOUT_TRIGGERS.map(t => {
+        const cy = SPEECH_LINES.cyborg[t.id] || []
+        const rb = SPEECH_LINES.robot[t.id]  || []
+        const renderLines = (lines, cls) => lines.length === 0
+          ? '<span class="cm-empty">— not used —</span>'
+          : lines.map(l => {
+              const text = preview(l)
+              return `<span class="cm-line ${cls}" data-voice="${cls.includes('cyborg') ? 'cyborg' : 'robot'}" data-text="${text.replace(/"/g, '&quot;')}">${text}</span>`
+            }).join('')
+        return `
+          <tr>
+            <td class="cm-trigger">${t.label}</td>
+            <td class="cm-when">${t.when}</td>
+            <td class="cm-lines">${renderLines(cy, 'cm-line-cyborg')}</td>
+            <td class="cm-lines">${renderLines(rb, 'cm-line-robot')}</td>
+          </tr>`
+      }).join('')
+
+      // Live bubble preview — uses the same canvas dimensions + colors
+      // as SpeechBubble.makeTexture so the sandbox matches in-game.
+      const canvas = document.getElementById('cm-sample-canvas')
+      const caption = document.getElementById('cm-sample-caption')
+      const ctx = canvas.getContext('2d')
+      function drawBubble(text, voice) {
+        const W = 320, H = 80
+        canvas.width = W; canvas.height = H
+        ctx.clearRect(0, 0, W, H)
+        const bgFill   = voice === 'cyborg' ? 'rgba(45, 18, 22, 0.94)' : 'rgba(14, 28, 44, 0.94)'
+        const bgStroke = voice === 'cyborg' ? '#dd8888' : '#88c8ff'
+        const textColor= voice === 'cyborg' ? '#ffe0d0' : '#d8f0ff'
+        const font = voice === 'cyborg'
+          ? 'italic 700 22px "Helvetica Neue", sans-serif'
+          : '700 22px "Courier New", monospace'
+        const r = 10, padL = 8, padR = 8, padT = 4, tailH = 12
+        const bodyTop = padT
+        const bodyBottom = H - tailH - 4
+        ctx.beginPath()
+        ctx.moveTo(padL + r, bodyTop)
+        ctx.lineTo(W - padR - r, bodyTop)
+        ctx.arcTo(W - padR, bodyTop, W - padR, bodyTop + r, r)
+        ctx.lineTo(W - padR, bodyBottom - r)
+        ctx.arcTo(W - padR, bodyBottom, W - padR - r, bodyBottom, r)
+        ctx.lineTo(W / 2 + 10, bodyBottom)
+        ctx.lineTo(W / 2, bodyBottom + tailH)
+        ctx.lineTo(W / 2 - 10, bodyBottom)
+        ctx.lineTo(padL + r, bodyBottom)
+        ctx.arcTo(padL, bodyBottom, padL, bodyBottom - r, r)
+        ctx.lineTo(padL, bodyTop + r)
+        ctx.arcTo(padL, bodyTop, padL + r, bodyTop, r)
+        ctx.closePath()
+        ctx.fillStyle = bgFill; ctx.fill()
+        ctx.lineWidth = 2; ctx.strokeStyle = bgStroke; ctx.stroke()
+        ctx.font = font
+        ctx.fillStyle = textColor
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.fillText(text, W / 2, (bodyTop + bodyBottom) / 2)
+      }
+      body.addEventListener('click', e => {
+        const el = e.target.closest('.cm-line')
+        if (!el) return
+        drawBubble(el.dataset.text, el.dataset.voice)
+        caption.textContent = `${el.dataset.voice.toUpperCase()} VOICE · "${el.dataset.text}"`
+      })
+    }
+  </script>
+
   <div class="wip-section">
     <h2 style="font-family:'Orbitron',monospace;font-size:14px;letter-spacing:4px;color:#c8e8a0;margin:12px 4px 8px;">
       WIP / UNUSED <span class="tag wip" style="display:inline-block;font-size:10px;letter-spacing:2px;padding:3px 9px;margin-left:12px;background:rgba(200,232,160,0.08);border:1px solid rgba(200,232,160,0.35);color:#c8e8a0;vertical-align:middle;">ASSETS + IDEAS</span>
