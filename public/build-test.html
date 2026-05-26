@@ -1812,10 +1812,10 @@
     <h2>SOUND TEST <span class="tag after">SUNO SAMPLE OPTIONS</span></h2>
     <div class="preview-frame" style="padding: 20px; display: flex; flex-direction: column; gap: 22px;">
       <p style="color:#cce8ff; font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.6; max-width: 820px;">
-        Each row is a game event with multiple Suno tracks competing for the slot. Click any
-        chip to audition that option. In the live game the player hears a random pick from
-        the pool each time the event fires — when you want to remove a loser, tell me which
-        chip to drop and I'll trim the pool in <code>src/audio/sfx.ts</code>.
+        Every pool currently active in <code>src/audio/sfx.ts</code>, grouped by category and
+        showing exact current choices. Single-option pools render one chip; multi-option
+        pools let you compare variants and ship random picks in-game. When you want to swap
+        or trim a sound, tell me which chip and I'll edit the pool.
       </p>
       <div id="sfx-pools-list" style="display: flex; flex-direction: column; gap: 16px;"></div>
     </div>
@@ -1903,108 +1903,158 @@
       letter-spacing: 0.1em;
     }
     .sfx-pool-random:hover { background: rgba(30, 80, 120, 0.9); }
+    .sfx-category-header {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      color: #88c8ff;
+      font-size: 11px;
+      text-transform: uppercase;
+      padding: 8px 4px 2px;
+      border-bottom: 1px solid rgba(120, 200, 255, 0.18);
+      margin-top: 8px;
+    }
+    .sfx-category-header:first-child { margin-top: 0; }
   </style>
 
   <script>
     // ── Suno sample pool mirror ──
-    // Mirrors src/audio/sfx.ts POOLS. Only multi-option pools are listed
-    // (single-sample events ship straight to the game with no decision
-    // to make). When you add/remove a variant in sfx.ts, mirror it here.
+    // Mirrors EVERY pool currently declared in src/audio/sfx.ts POOLS so
+    // the user can audition every sound that ships. Categories match the
+    // section comments in sfx.ts. When sfx.ts changes a pool, mirror the
+    // file list here.
     const SUNO_DIR = '/audio/Astrohold3 Suno Sounds'
 
-    // Each pool: short name, description of WHERE the sound fires in
-    // the game, and an ordered list of file basenames. Files live in
-    // /public/audio/Astrohold3 Suno Sounds/ (URL-encoded by the browser).
     const POOLS = [
-      {
-        id: 'rifle',
-        label: 'Rifle',
+      // ── Weapon fire ───────────────────────────────────────
+      { id: 'rifle',         label: 'Rifle',         category: 'Weapon fire',
         where: 'Cyborg Cannon · Defender Tower · default direct fire',
         files: [
           'Cyborg Cannon, Defender Tower Shot.mp3',
           'Cyborg Cannon, Defender Tower Shot (1).mp3',
           'Cyborg canon shot.mp3',
           'Cyborg shot.mp3',
-        ],
-      },
-      {
-        id: 'sentry',
-        label: 'Sentry',
+        ] },
+      { id: 'phaser',        label: 'Phaser',        category: 'Weapon fire',
+        where: 'Defender Cannon (Phaser beam)',
+        files: [ 'Defender Cannon (phaser Beam) Shot (1).mp3' ] },
+      { id: 'sniper',        label: 'Sniper',        category: 'Weapon fire',
+        where: 'Cyborg Sniper',
+        files: [ 'Cyborg Sniper Shot (1).mp3' ] },
+      { id: 'doublegun',     label: 'Doublegun',     category: 'Weapon fire',
+        where: 'Cyborg Doublegun',
+        files: [ 'Cyborg Double Shots.mp3' ] },
+      { id: 'sentry',        label: 'Sentry',        category: 'Weapon fire',
         where: 'Defender Sentry · auto-cannon turret',
         files: [
           'Robot Sentry Shot.mp3',
           'Cyborg Gatling Tower attack.mp3',
           'Space tower gun sound.mp3',
-        ],
-      },
-      {
-        id: 'sphere',
-        label: 'Sphere',
+        ] },
+      { id: 'sphere',        label: 'Sphere',        category: 'Weapon fire',
         where: 'Defender Sphere · energy zap',
         files: [
           'Laser Shot.mp3',
           'Bright Sine Sweep Triangle Partial.mp3',
-        ],
-      },
-      {
-        id: 'melee_hit',
-        label: 'Melee Hit',
-        where: 'Dog bite · Hulk fist · generic body impact (Stalker has its own)',
+        ] },
+      { id: 'bomb_throw',    label: 'Bomb Throw',    category: 'Weapon fire',
+        where: 'Grenadier / Bomber lobbed launch',
+        files: [ 'Space swoosh.mp3' ] },
+      { id: 'melee_hit',     label: 'Melee Hit',     category: 'Weapon fire',
+        where: 'Dog bite · Hulk fist · generic body impact',
         files: [
           'Light attack.mp3',
           'Medium attack.mp3',
           'Metal on Metal.mp3',
-        ],
-      },
-      {
-        id: 'heal',
-        label: 'Heal',
+        ] },
+      { id: 'stalker_swing', label: 'Stalker Swing', category: 'Weapon fire',
+        where: 'Cyborg Stalker melee',
+        files: [ 'Cyborg Stalker Swing Attack.mp3' ] },
+      { id: 'heal',          label: 'Heal',          category: 'Weapon fire',
         where: 'Cyborg Medic · throw / pad / tether',
         files: [
           'Cyborg Healing Kit Activated.mp3',
           'Cyborg Healing Kit Activated (1).mp3',
           'Healing quick mist.mp3',
-        ],
-      },
-      {
-        id: 'weld',
-        label: 'Weld',
+        ] },
+      { id: 'weld',          label: 'Weld',          category: 'Weapon fire',
         where: 'Robot Repair · pad + tether buzz',
         files: [
           'Robot Repairing.mp3',
           'Robot Repair 2.mp3',
           'Robot Repair Buzz.mp3',
           'Buzzing Bandpass Square.mp3',
-        ],
-      },
-      {
-        id: 'explosion',
-        label: 'Explosion',
+        ] },
+
+      // ── Detonations + special attacks ─────────────────────
+      { id: 'explosion',     label: 'Explosion',     category: 'Detonations',
         where: 'All AoE detonations · Power Core death',
         files: [
           'Cyborge Grenade Explosion big.mp3',
           'Cyborge Grenade Explosion small.mp3',
           'Distant explosion.mp3',
-        ],
-      },
-      {
-        id: 'ammo_pickup',
-        label: 'Ammo Pickup',
+        ] },
+      { id: 'hulk_slam',     label: 'Hulk Slam',     category: 'Detonations',
+        where: 'Cyborg Hulk slam wedge',
+        files: [ 'Cyborg Hulk Power Ground Slam Attack (1).mp3' ] },
+      { id: 'core_zap',      label: 'Core Zap',      category: 'Detonations',
+        where: 'Power Core electric defense zone hit',
+        files: [ 'Robot Power Core electric fense defense attack.mp3' ] },
+      { id: 'signal_attack', label: 'Signal Attack', category: 'Detonations',
+        where: 'Signal tower EMP (not yet wired in-game)',
+        files: [ 'Signal Tower attack.mp3' ] },
+
+      // ── Pickups + support ─────────────────────────────────
+      { id: 'ammo_pickup',     label: 'Ammo Pickup',     category: 'Pickups + support',
         where: 'Cyborg grabs an ammo / medkit / grenade crate',
         files: [
           'Cyborg Medic pack collect from drop.mp3',
           'Robot recharging.mp3',
-        ],
-      },
-      {
-        id: 'signal_placement',
-        label: 'Signal Placement',
-        where: 'BUILD phase · Signal tower drop',
+        ] },
+      { id: 'core_recharge',   label: 'Core Recharge',   category: 'Pickups + support',
+        where: 'Robot Repair docks at the Power Core',
+        files: [ 'Robot Power Core unit recharge.mp3' ] },
+      { id: 'repair_recharged', label: 'Repair Recharged', category: 'Pickups + support',
+        where: 'Robot Repair refills a friendly structure',
+        files: [ 'Robot Repair recharged.mp3' ] },
+      { id: 'medic_pad_tick',  label: 'Medic Pad Tick',  category: 'Pickups + support',
+        where: 'Medic pad heal tick (not yet wired in-game)',
+        files: [ 'Healing quick mist.mp3' ] },
+
+      // ── UI + placement ────────────────────────────────────
+      { id: 'button_click',         label: 'Button Click',        category: 'UI + placement',
+        where: 'HUD tile · MCC dial pip · MCC action pill',
+        files: [ 'Click sound.mp3' ] },
+      { id: 'button_toggle',        label: 'Button Toggle',       category: 'UI + placement',
+        where: 'Reserved on/off toggle sound (MCC toggles use button_click now)',
+        files: [ 'Clicking on off sound.mp3' ] },
+      { id: 'power_up',             label: 'Power Up',            category: 'UI + placement',
+        where: 'Side picker confirmed · battle starting',
+        files: [ 'Robot power up.mp3' ] },
+      { id: 'robot_alert',          label: 'Robot Alert',         category: 'UI + placement',
+        where: 'Reserved low-HP alarm (not yet wired in-game)',
+        files: [ 'Robot Alert.mp3' ] },
+      { id: 'structure_placement',  label: 'Structure Placement', category: 'UI + placement',
+        where: 'BUILD · cyborg + defender piece drops on the grid',
+        files: [ 'Robot placement.mp3' ] },
+      { id: 'refund',               label: 'Refund',              category: 'UI + placement',
+        where: 'Player refunds a placed piece (click during BUILD)',
+        files: [ 'Space placement sound.mp3' ] },
+      { id: 'signal_placement',     label: 'Signal Placement',    category: 'UI + placement',
+        where: 'BUILD · Signal tower drop',
         files: [
           'Signal tower placement.mp3',
           'Robot Signal Placement2.mp3',
-        ],
-      },
+        ] },
+      { id: 'shield_placement',     label: 'Shield Placement',    category: 'UI + placement',
+        where: 'BUILD · Shield generator + Wall drop',
+        files: [ 'Robot shield unit placement.mp3' ] },
+      { id: 'step',                 label: 'Step',                category: 'UI + placement',
+        where: 'Reserved unit footstep (not yet wired in-game)',
+        files: [ 'Stepping Crunch.mp3' ] },
+      { id: 'hulk_callout',         label: 'Hulk Callout',        category: 'UI + placement',
+        where: 'Reserved Hulk speech callout (not yet wired in-game)',
+        files: [ 'Cyborg HULK attack call out.mp3' ] },
     ]
 
     // Cache HTMLAudioElement instances so rapid clicks don't reconstruct
@@ -2030,35 +2080,52 @@
 
     function renderPools() {
       const root = document.getElementById('sfx-pools-list')
-      POOLS.forEach(pool => {
-        const row = document.createElement('div')
-        row.className = 'sfx-pool-row'
-        const meta = document.createElement('div')
-        meta.className = 'sfx-pool-meta'
-        meta.innerHTML = `
-          <span class="sfx-pool-name">${pool.label}</span>
-          <span class="sfx-pool-where">${pool.where}</span>
-          <span class="sfx-pool-count">${pool.files.length} options</span>
-          <button class="sfx-pool-random" data-pool="${pool.id}">▶ Random pick</button>
-        `
-        const chips = document.createElement('div')
-        chips.className = 'sfx-pool-chips'
-        pool.files.forEach((file, i) => {
-          const chip = document.createElement('button')
-          chip.className = 'sfx-chip'
-          chip.innerHTML = `<span class="sfx-chip-num">${i + 1}.</span><span>${file.replace(/\.mp3$/, '')}</span>`
-          const url = `${SUNO_DIR}/${file}`
-          chip.addEventListener('click', () => playFile(url))
-          chips.appendChild(chip)
+      // Preserve category order from POOLS' first occurrence so the
+      // sections render top-down in the same order they appear in sfx.ts.
+      const grouped = new Map()
+      for (const pool of POOLS) {
+        if (!grouped.has(pool.category)) grouped.set(pool.category, [])
+        grouped.get(pool.category).push(pool)
+      }
+      for (const [category, pools] of grouped) {
+        const header = document.createElement('div')
+        header.className = 'sfx-category-header'
+        header.textContent = category
+        root.appendChild(header)
+        pools.forEach(pool => {
+          const row = document.createElement('div')
+          row.className = 'sfx-pool-row'
+          const meta = document.createElement('div')
+          meta.className = 'sfx-pool-meta'
+          const multi = pool.files.length > 1
+          meta.innerHTML = `
+            <span class="sfx-pool-name">${pool.label}</span>
+            <span class="sfx-pool-where">${pool.where}</span>
+            <span class="sfx-pool-count">${pool.files.length} option${pool.files.length === 1 ? '' : 's'}</span>
+            ${multi ? `<button class="sfx-pool-random" data-pool="${pool.id}">▶ Random pick</button>` : ''}
+          `
+          const chips = document.createElement('div')
+          chips.className = 'sfx-pool-chips'
+          pool.files.forEach((file, i) => {
+            const chip = document.createElement('button')
+            chip.className = 'sfx-chip'
+            const numLabel = multi ? `<span class="sfx-chip-num">${i + 1}.</span>` : ''
+            chip.innerHTML = `${numLabel}<span>${file.replace(/\.mp3$/, '')}</span>`
+            const url = `${SUNO_DIR}/${file}`
+            chip.addEventListener('click', () => playFile(url))
+            chips.appendChild(chip)
+          })
+          if (multi) {
+            meta.querySelector('.sfx-pool-random').addEventListener('click', () => {
+              const idx = Math.floor(Math.random() * pool.files.length)
+              playFile(`${SUNO_DIR}/${pool.files[idx]}`)
+            })
+          }
+          row.appendChild(meta)
+          row.appendChild(chips)
+          root.appendChild(row)
         })
-        meta.querySelector('.sfx-pool-random').addEventListener('click', () => {
-          const idx = Math.floor(Math.random() * pool.files.length)
-          playFile(`${SUNO_DIR}/${pool.files[idx]}`)
-        })
-        row.appendChild(meta)
-        row.appendChild(chips)
-        root.appendChild(row)
-      })
+      }
     }
     renderPools()
 
