@@ -111,6 +111,12 @@ export class Game {
   // recordBattleEnd. Resets on Play Again (full page reload).
   private statsDamage = { attacker: 0, defender: 0 }
   private statsKills  = { attacker: 0, defender: 0 }
+  // Shield aura observability. Accumulated from each RevealPhase's
+  // counters when the reveal completes. Folded into the BattleRecord
+  // so /stats.html can show how often the shield actually fired and
+  // how much damage it ate.
+  private shieldSaves = 0
+  private shieldAbsorbed = 0
   // S17.3 per-piece accumulators — keyed by actor type (e.g. 'hulk',
   // 'sphere', 'tower'). Fed by RevealPhase.onPieceEvent so we don't
   // re-parse log text. Action counts are also keyed by action name
@@ -934,6 +940,10 @@ private enterBuildPhase() {
       // S17.25: read combatThisReveal BEFORE the revealPhase is nulled.
       // This drives the no-progress stalemate guard below.
       const hadCombat = this.revealPhase?.combatThisReveal ?? false
+      // Roll up shield aura telemetry from this reveal before the phase
+      // ref is nulled. Each RevealPhase resets these to zero at construction.
+      this.shieldSaves    += this.revealPhase?.shieldSaves    ?? 0
+      this.shieldAbsorbed += this.revealPhase?.shieldAbsorbed ?? 0
       // S19.2: progress = combat OR movement. A reveal where cyborgs
       // marched a cell west but didn't reach engagement range is still
       // forward progress and must not count toward the stalemate streak.
@@ -1157,6 +1167,9 @@ private enterBuildPhase() {
         attacker: { ...this.piecesStats.attacker },
         defender: { ...this.piecesStats.defender },
       },
+      // S19 shield aura verification.
+      shieldSaves: this.shieldSaves,
+      shieldAbsorbed: this.shieldAbsorbed,
     })
   }
 

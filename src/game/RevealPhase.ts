@@ -164,6 +164,13 @@ export class RevealPhase {
   // guard while units were still pathing toward each other.
   movementThisReveal = false
 
+  // Shield aura observability. Bumped every time shieldedDamage returns
+  // a reduced amount; `absorbed` accumulates the (original - reduced)
+  // delta so post-game stats can show how much damage the shield ate.
+  // Game reads these in onComplete and folds into the BattleRecord.
+  shieldSaves = 0
+  shieldAbsorbed = 0
+
   // D&D-style turn log. Each combat-relevant event pushes one entry here as
   // it resolves. Game reads this after onComplete and forwards it to the HUD.
   readonly combatLog: CombatLogEntry[] = []
@@ -424,7 +431,18 @@ export class RevealPhase {
       if (s.type !== 'defense' || s.isDead) continue
       const d = Math.hypot(s.worldX - x, s.worldY - y)
       if (d <= AURA_RADIUS) {
-        return Math.max(1, Math.round(amount * (1 - DR)))
+        const reduced = Math.max(1, Math.round(amount * (1 - DR)))
+        // Verification telemetry. saves = number of hits the shield
+        // reduced; absorbed = total damage points eaten across the
+        // match. Bumped every time the aura actually fires.
+        this.shieldSaves++
+        this.shieldAbsorbed += Math.max(0, amount - reduced)
+        // Quick cyan flash on the target so the player SEES the shield
+        // working in real time. Small explosion sprite tinted cyan,
+        // shorter duration than a hit explosion so it doesn't compete
+        // with the actual damage feedback.
+        this.explosions.push(new Explosion(this.scene, x, y, 18, 0.22, 0x88e6ff))
+        return reduced
       }
     }
     return amount
@@ -3183,7 +3201,8 @@ export class RevealPhase {
             const final = this.shieldedDamage(targetEntity, damage)
             targetEntity.takeDamage(final)
             const killed = targetEntity.isDead
-            this.log(attackerSide, `${this.actorLabel(actor)} hits ${targetLabel} (−${final}${killed ? `, killed` : ''})`)
+            const shieldedTag = final < damage ? ' (shielded)' : ''
+            this.log(attackerSide, `${this.actorLabel(actor)} hits ${targetLabel} (−${final}${shieldedTag}${killed ? `, killed` : ''})`)
             this.attribute(targetEntity, attackerType, attackerSide, final, killed)
             this.emit({ kind: 'hit', actorType: attackerType, side: attackerSide })
           }

@@ -167,6 +167,12 @@ export interface BattleRecord {
     attacker: Record<string, PerPieceCounters>
     defender: Record<string, PerPieceCounters>
   }
+  /** Shield aura verification (S19). `shieldSaves` is the count of hits
+   *  the aura reduced; `shieldAbsorbed` sums the (raw − reduced) deltas,
+   *  i.e. total damage the shield ate over the match. Zero on matches
+   *  with no Shield generator built. */
+  shieldSaves?: number
+  shieldAbsorbed?: number
 }
 
 /** Per-piece counters used inside BattleRecord.piecesStats. Every field

@@ -454,6 +454,13 @@
       const grenadeThrows = []
       const hulkProgressAll = []
       const reconciliations = []
+      // Shield aura roll-up (S19). Total saves + total absorbed damage
+      // across all matches. matchesWithShield counts how many recorded
+      // games actually had a defense structure that fired the aura
+      // (i.e. shieldSaves > 0), so the dashboard can show participation.
+      let shieldSavesTotal = 0
+      let shieldAbsorbedTotal = 0
+      let matchesWithShield = 0
       // S17.14 side-split per-piece accumulator
       const pieceBySideType = { attacker: {}, defender: {} }
       // S19.balance: per-(side, type) deployment count + wins-when-deployed.
@@ -501,6 +508,11 @@
         if (r.grenadeThrows) for (const t of r.grenadeThrows) grenadeThrows.push(t)
         if (r.hulkProgress)  for (const h of r.hulkProgress)  hulkProgressAll.push(h)
         if (r.damageReconciliation) reconciliations.push(r.damageReconciliation)
+        if (typeof r.shieldSaves === 'number') {
+          shieldSavesTotal += r.shieldSaves
+          shieldAbsorbedTotal += r.shieldAbsorbed || 0
+          if (r.shieldSaves > 0) matchesWithShield++
+        }
         // S17.14: merge side-split per-piece counters from piecesStats.
         if (r.piecesStats) {
           for (const side of ['attacker', 'defender']) {
@@ -618,6 +630,8 @@
         hitsByPiece, missesByPiece, ffEventsByPiece, ffHitsByPiece,
         weakeningByPiece, oneShotsByPiece, oneShotVictimsByType,
         resupplyTotals, grenadeThrows, hulkProgressAll, reconciliations,
+        // Shield aura roll-up (S19)
+        shieldSavesTotal, shieldAbsorbedTotal, matchesWithShield,
         // Raw credits-by-piece (used for per-piece detail dmg/cr math)
         creditsByPiece,
         // S17.14 side-split per-piece counters
@@ -680,6 +694,13 @@
         statCard('SPEED MIX',
           `${a.speedCounts.slow}/${a.speedCounts.normal}/${a.speedCounts.fast}`,
           'slow / normal / fast'),
+        // Shield aura verification cards. SAVES = how many hits the aura
+        // reduced across all games; ABSORBED = total damage points eaten.
+        // GAMES W/ SHIELD shows how many recorded matches had the aura
+        // actually fire (so you can tell when the shield is being built).
+        statCard('SHIELD SAVES',     a.shieldSavesTotal,    'hits reduced by aura'),
+        statCard('SHIELD ABSORBED',  a.shieldAbsorbedTotal, 'total dmg eaten'),
+        statCard('GAMES W/ SHIELD',  a.matchesWithShield,   `of ${a.total} (aura fired)`),
       ].join('')
 
       // Pieces built per game (average)
