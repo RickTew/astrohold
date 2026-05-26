@@ -168,16 +168,16 @@ export const Config = {
     // starting values for each piece.
     scout:     { cost: 20, hp: 120, speed: 130, damage: 10, range: 280, sightRange: 360, aoeRadius: 0,  apBudget: 3, ammo: 5, label: 'Scout',     color: 0x4488ff },
     tank:      { cost: 50, hp: 200, speed: 44,  damage: 25, range: 200, sightRange: 260, aoeRadius: 0,  apBudget: 3, ammo: 5, label: 'Tank',      color: 0xff4444 },
-    bomber:    { cost: 60, hp: 80,  speed: 70,  damage: 25, range: 160, sightRange: 240, aoeRadius: 70, apBudget: 3, ammo: 5, label: 'Bomber',    color: 0xff8800 },
+    bomber:    { cost: 60, hp: 80,  speed: 70,  damage: 25, range: 160, sightRange: 240, aoeRadius: 70, apBudget: 3, ammo: 4, label: 'Bomber',    color: 0xff8800 },
     drone:     { cost: 30, hp: 20,  speed: 160, damage: 8,  range: 350, sightRange: 420, aoeRadius: 0,  apBudget: 3, ammo: 5, label: 'Drone',     color: 0x44ffff },
-    cannon:    { cost: 70, hp: 180, speed: 55,  damage: 35, range: 240, sightRange: 320, aoeRadius: 0,  apBudget: 3, ammo: 5, label: 'Cannon',    color: 0xffaa55 },
-    grenadier: { cost: 50, hp: 110, speed: 75,  damage: 20, range: 180, sightRange: 280, aoeRadius: 60, apBudget: 3, ammo: 5, label: 'Grenadier', color: 0x88dd44 },
+    cannon:    { cost: 70, hp: 180, speed: 55,  damage: 35, range: 240, sightRange: 320, aoeRadius: 0,  apBudget: 3, ammo: 4, label: 'Cannon',    color: 0xffaa55 },
+    grenadier: { cost: 50, hp: 110, speed: 75,  damage: 20, range: 180, sightRange: 280, aoeRadius: 60, apBudget: 3, ammo: 4, label: 'Grenadier', color: 0x88dd44 },
     // Double Gun — dual hand-cannons. Fires TWO shots per turn (RevealPhase
     // schedules the second projectile 80ms after the first). Per-shot damage
     // is halved (23) so total burst ~46 matches the prior single-shot 45,
     // i.e. same throughput with a burst-weapon feel. Total game damage budget
     // is therefore unchanged (5 turns × 2 shots × 23 ≈ 230).
-    doublegun: { cost: 90, hp: 160, speed: 65,  damage: 23, range: 230, sightRange: 300, aoeRadius: 0,  apBudget: 3, ammo: 5, label: 'Double Gun',color: 0xff8866 },
+    doublegun: { cost: 90, hp: 160, speed: 65,  damage: 23, range: 230, sightRange: 300, aoeRadius: 0,  apBudget: 3, ammo: 4, label: 'Double Gun',color: 0xff8866 },
     // Combat Dog — DEFENDER mobile unit. Fast and now armed: the sprite
     // has a gun mounted on top so it should shoot. range 150 + damage 15
     // = short-medium harasser. Closes the gap to flank cyborgs then fires.
@@ -187,7 +187,7 @@ export const Config = {
     // (ammo 1) that one-shots any single defender structure. Squishy and
     // slow — after firing the sniper is just a slow target. Use the shot
     // wisely: the cannon turret (HP 120) is the natural target.
-    sniper:    { cost: 90, hp: 80, speed: 50,  damage: 135, range: 350, sightRange: 400, aoeRadius: 0, apBudget: 2, ammo: 5, label: 'Sniper',     color: 0x99bb66 },
+    sniper:    { cost: 90, hp: 80, speed: 50,  damage: 135, range: 350, sightRange: 400, aoeRadius: 0, apBudget: 2, ammo: 4, label: 'Sniper',     color: 0x99bb66 },
     // Cyborg Hulk — exo-suited melee bruiser. Highest HP and damage in the
     // roster, slowest speed, very short range (must close to melee). Ammo
     // budget is low so each punch matters.
@@ -195,7 +195,7 @@ export const Config = {
     // tile forward. Lower per-target damage than a punch (40 vs 55) but
     // can hit up to 3 enemies at once. `slamAmmo` is a separate counter
     // from punch ammo — the Hulk picks his moments.
-    hulk:      { cost: 100, hp: 280, speed: 45, damage: 55, range: 70,  sightRange: 220, aoeRadius: 0, apBudget: 2, ammo: 5, slamDamage: 40, slamAmmo: 3, label: 'Hulk',       color: 0x886622 },
+    hulk:      { cost: 100, hp: 400, speed: 45, damage: 55, range: 70,  sightRange: 220, aoeRadius: 0, apBudget: 2, ammo: 5, slamDamage: 40, slamAmmo: 3, label: 'Hulk',       color: 0x886622 },
     // Cyborg Medic — support unit with three heal modes (med-pack throw,
     // deployable medic-pad, tether). Fragile (HP 50) so positioning matters.
     // `damage` repurposed as heal amount per tick; `range` is throw range

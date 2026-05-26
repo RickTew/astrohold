@@ -185,6 +185,18 @@
   </div>
 
   <div class="panel">
+    <h2 style="margin-top:0">BALANCE HEALTH</h2>
+    <p class="hint" style="margin:0 0 12px;">
+      One row per piece-type per side, aggregated across all recorded matches. The status flag points to outliers:
+      <span style="color:#ff7a9a">🔥 OVERPERFORMER</span> (dmg/cr above 2x its side average),
+      <span style="color:#88c5e0">❄ UNDERPERFORMER</span> (below 0.5x),
+      <span style="color:#ffd07a">⚠ AMMO OVERFLOW</span> (avg shots above 1.5x base ammo, ie crate pickups carrying it).
+      Win rate is the side's win rate in matches where this piece was deployed; compare against the side baseline at top of the row group.
+    </p>
+    <div id="balance-health"></div>
+  </div>
+
+  <div class="panel">
     <h2 style="margin-top:0">PIECES BUILT (PER GAME AVERAGE)</h2>
     <div id="pieces-built"></div>
   </div>
@@ -332,6 +344,62 @@
       return `<table><thead><tr><th>${side ? side.toUpperCase() + ' PIECE' : 'PIECE'}</th><th style="text-align:right">VALUE</th></tr></thead><tbody>${rowsHtml}</tbody></table>`
     }
 
+    // Render the Balance Health panel from aggregate output. Two stacked
+    // tables (attacker, defender). Each row shows the piece's deployment
+    // count, win rate when present, average damage per match, dmg/cr,
+    // and avg shots vs base ammo. Status column stacks any outlier flags.
+    function renderBalanceHealth(a) {
+      const root = document.getElementById('balance-health')
+      if (!a || !a.balanceHealth) { root.innerHTML = ''; return }
+      const renderSide = (side) => {
+        const rows = a.balanceHealth[side]
+        const sideAvg = a.balanceHealth.sideAvg[side]
+        if (!rows || rows.length === 0) return '<div class="empty">No ' + side + ' piece data yet.</div>'
+        const tdSide = side === 'attacker' ? 'txt-att' : 'txt-def'
+        const head = '<thead><tr>' +
+          '<th>' + side.toUpperCase() + ' PIECE</th>' +
+          '<th style="text-align:right">DEPLOY</th>' +
+          '<th style="text-align:right">WIN RATE</th>' +
+          '<th style="text-align:right">AVG DMG</th>' +
+          '<th style="text-align:right">DMG/CR</th>' +
+          '<th style="text-align:right">SHOTS / BASE</th>' +
+          '<th>STATUS</th>' +
+          '</tr></thead>'
+        const body = rows.map(r => {
+          const winColor = r.winRate >= 60 ? '#d4ff7a' : r.winRate <= 40 ? '#ff7a9a' : '#cce8ff'
+          const shotsRatio = r.baseAmmo > 0 && r.baseAmmo < 90 ? (r.avgShots / r.baseAmmo).toFixed(1) + 'x' : '—'
+          const flagBadge = (f) => {
+            if (f === 'over')  return '<span style="color:#ff7a9a;font-weight:700">🔥 OVER</span>'
+            if (f === 'under') return '<span style="color:#88c5e0;font-weight:700">❄ UNDER</span>'
+            if (f === 'ammo')  return '<span style="color:#ffd07a;font-weight:700">⚠ AMMO+</span>'
+            return ''
+          }
+          const status = r.flags.length === 0
+            ? '<span style="color:#7a9a8a">balanced</span>'
+            : r.flags.map(flagBadge).join(' ')
+          return '<tr>' +
+            '<td class="' + tdSide + '">' + r.type + '</td>' +
+            '<td class="num">' + r.deployments + '</td>' +
+            '<td class="num" style="color:' + winColor + '">' + r.winRate.toFixed(0) + '%</td>' +
+            '<td class="num">' + r.avgDmg.toFixed(0) + '</td>' +
+            '<td class="num">' + r.dmgPerCr.toFixed(2) + '</td>' +
+            '<td class="num">' + r.avgShots.toFixed(1) + (r.baseAmmo > 0 && r.baseAmmo < 90 ? ' / ' + r.baseAmmo + ' (' + shotsRatio + ')' : '') + '</td>' +
+            '<td>' + status + '</td>' +
+          '</tr>'
+        }).join('')
+        const note = '<div style="font-family:Orbitron,monospace;font-size:10px;letter-spacing:2px;color:#88c5e0;margin:0 0 4px;">' +
+          side.toUpperCase() + ' SIDE AVG DMG/CR: ' + sideAvg.toFixed(2) +
+          ' (outlier thresholds: >' + (sideAvg * 2).toFixed(2) + ' or <' + (sideAvg * 0.5).toFixed(2) + ')' +
+          '</div>'
+        return note + '<table>' + head + '<tbody>' + body + '</tbody></table>'
+      }
+      root.innerHTML =
+        '<div style="display:grid;grid-template-columns:1fr;gap:18px">' +
+          '<div>' + renderSide('attacker') + '</div>' +
+          '<div>' + renderSide('defender') + '</div>' +
+        '</div>'
+    }
+
     function aggregate(records) {
       const total = records.length
       if (total === 0) return null
@@ -388,10 +456,29 @@
       const reconciliations = []
       // S17.14 side-split per-piece accumulator
       const pieceBySideType = { attacker: {}, defender: {} }
+      // S19.balance: per-(side, type) deployment count + wins-when-deployed.
+      // A "deployment" counts a match where the side fielded >=1 of the piece.
+      // A "win-when-deployed" only counts when r.outcome === 'win' AND that
+      // side is the player side. Since OpponentAI mirrors humans on the other
+      // side, this is the cleanest proxy we have for "piece appeared and the
+      // side won." Used to flag pieces that correlate with wins.
+      const deployCount = { attacker: {}, defender: {} }
+      const deployWins  = { attacker: {}, defender: {} }
       for (const r of records) {
         if (r.piecesByType) {
           for (const [t, n] of Object.entries(r.piecesByType.attacker || {})) piecesBuilt.attacker[t] = (piecesBuilt.attacker[t] || 0) + n
           for (const [t, n] of Object.entries(r.piecesByType.defender || {})) piecesBuilt.defender[t] = (piecesBuilt.defender[t] || 0) + n
+          // Deployment + win-when-deployed roll-up. r.outcome === 'win' means
+          // the PLAYER won; r.playerSide tells us which side was the player.
+          // We credit the win only to the side that benefited.
+          const playerWon = r.outcome === 'win'
+          for (const side of ['attacker', 'defender']) {
+            const sideWonThisMatch = playerWon === (r.playerSide === side)
+            for (const t of Object.keys(r.piecesByType[side] || {})) {
+              deployCount[side][t] = (deployCount[side][t] || 0) + 1
+              if (sideWonThisMatch) deployWins[side][t] = (deployWins[side][t] || 0) + 1
+            }
+          }
         }
         if (r.damageByPieceType) for (const [t, n] of Object.entries(r.damageByPieceType)) dmgByPiece[t] = (dmgByPiece[t] || 0) + n
         if (r.killsByPieceType)  for (const [t, n] of Object.entries(r.killsByPieceType))  killsByPiece[t] = (killsByPiece[t] || 0) + n
@@ -457,6 +544,67 @@
         if (cost > 0) killsPerCredit[t] = (k / cost * 100).toFixed(2)   // kills per 100cr
       }
 
+      // ── Balance Health roll-up ─────────────────────────────────────
+      // For each (side, type), compute:
+      //   deployments, wins-when-deployed, win rate
+      //   dmg/cr (using pieceBySideType.damage + creditsByPiece)
+      //   avg shots per deployment-match (attacks / deployments)
+      //   outlier flag: 🔥 (>2x side avg dmg/cr) / ❄ (<0.5x) / ⚠ (avg shots
+      //     above 1.5x base ammo, which means crate pickups carrying it)
+      //
+      // BASE_AMMO mirrors Config.UNITS / Config.STRUCTURES ammo fields.
+      // Update when those change.
+      const BASE_AMMO = {
+        attacker: { cannon: 4, grenadier: 4, doublegun: 4, sniper: 4, bomber: 4, hulk: 5, medic: 5, stalker: 99 },
+        defender: { sphere: 5, turret: 5, bomber: 5, sentry: 5, cannon: 5, laser: 5, mine: 1, signal: 2, gun: 5, defense: 0, wall: 0, dog: 5, repair: 5 },
+      }
+      const balanceHealth = { attacker: [], defender: [], sideAvg: { attacker: 0, defender: 0 } }
+      for (const side of ['attacker', 'defender']) {
+        const sideRows = []
+        const credits = creditsByPiece[side] || {}
+        // Per-side dmg/cr average across pieces with credits spent. Used
+        // to flag outliers relative to that side's own baseline (not a
+        // cross-side comparison since defender mostly has structures and
+        // attacker mostly has units; different cost curves).
+        const sideDmgPerCr = []
+        for (const [type, stats] of Object.entries(pieceBySideType[side] || {})) {
+          const cost = credits[type] || 0
+          if (cost > 0 && stats.damage) sideDmgPerCr.push(stats.damage / cost)
+        }
+        const sideAvgDmgPerCr = sideDmgPerCr.length
+          ? sideDmgPerCr.reduce((s, x) => s + x, 0) / sideDmgPerCr.length
+          : 0
+        balanceHealth.sideAvg[side] = sideAvgDmgPerCr
+        for (const [type, stats] of Object.entries(pieceBySideType[side] || {})) {
+          const deployments = deployCount[side][type] || 0
+          if (deployments === 0) continue
+          const wins = deployWins[side][type] || 0
+          const winRate = deployments ? (wins / deployments * 100) : 0
+          const cost = credits[type] || 0
+          const dmg = stats.damage || 0
+          const dmgPerCr = cost > 0 ? dmg / cost : 0
+          const attacks = stats.attacks || 0
+          // Pieces fielded per deployment match (sum across all matches)
+          // tells us "shots per piece per match" via attacks / total-pieces.
+          const totalPieces = piecesBuilt[side][type] || deployments
+          const avgShots = totalPieces > 0 ? attacks / totalPieces : 0
+          const baseAmmo = BASE_AMMO[side][type] ?? 5
+          // Outlier classification. Multiple flags can apply; we display
+          // them stacked. Empty array = balanced.
+          const flags = []
+          if (sideAvgDmgPerCr > 0 && dmgPerCr > sideAvgDmgPerCr * 2)   flags.push('over')
+          if (sideAvgDmgPerCr > 0 && dmgPerCr < sideAvgDmgPerCr * 0.5) flags.push('under')
+          if (baseAmmo > 0 && baseAmmo < 90 && avgShots > baseAmmo * 1.5) flags.push('ammo')
+          sideRows.push({
+            type, deployments, wins, winRate,
+            avgDmg: deployments ? dmg / deployments : 0,
+            dmgPerCr, avgShots, baseAmmo, flags, totalPieces,
+          })
+        }
+        sideRows.sort((a, b) => b.dmgPerCr - a.dmgPerCr)
+        balanceHealth[side] = sideRows
+      }
+
       return {
         total, wins, losses: total - wins,
         defenderGames, defenderWins, attackerGames, attackerWins,
@@ -474,6 +622,8 @@
         creditsByPiece,
         // S17.14 side-split per-piece counters
         pieceBySideType,
+        // S19.balance Balance Health derived rows + side averages
+        balanceHealth,
       }
     }
 
@@ -484,6 +634,7 @@
       const summary = document.getElementById('summary')
       if (records.length === 0) {
         summary.innerHTML = '<div class="empty">No battles recorded yet — play some games and come back.</div>'
+        document.getElementById('balance-health').innerHTML = ''
         document.getElementById('pieces-built').innerHTML = ''
         document.getElementById('damage-by-piece').innerHTML = ''
         document.getElementById('kills-by-piece').innerHTML = ''
@@ -506,6 +657,7 @@
         return
       }
       const a = aggregate(records)
+      renderBalanceHealth(a)
       const defRate = a.defenderGames ? (a.defenderWins / a.defenderGames * 100).toFixed(0) : '—'
       const attRate = a.attackerGames ? (a.attackerWins / a.attackerGames * 100).toFixed(0) : '—'
       summary.innerHTML = [
