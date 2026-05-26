@@ -840,7 +840,7 @@ function getShieldDomeTexture(): THREE.CanvasTexture {
   return shieldDomeTexture
 }
 
-function makeShieldDomeSprite(): THREE.Sprite {
+export function makeShieldDomeSprite(): THREE.Sprite {
   const tex = getShieldDomeTexture()
   const mat = new THREE.SpriteMaterial({
     map: tex,

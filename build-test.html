@@ -580,6 +580,12 @@
       Live URL: <code>https://astrohold3.vercel.app/build-test.html</code>.
       When a change is approved, port it to production and re-sync the BEFORE row.
     </p>
+    <p style="margin-top: 8px; color:#ff9a78;">
+      ⚠ Open this page via the live URL above or <code>pnpm dev</code> at
+      <code>http://localhost:5173/build-test.html</code>. Opening the file directly with
+      <code>file://</code> blocks ES module imports and audio fetches, so the production
+      MCC + shield previews and the sound test will not work.
+    </p>
   </div>
 
   <div class="preview-section">
@@ -597,6 +603,42 @@
   <div class="preview-section">
     <h2>CYBORGS — AFTER <span class="tag after">PROPOSED CHANGE</span></h2>
     <div class="preview-frame"><div id="hud-cyborg-after" class="hud-top"></div></div>
+  </div>
+
+  <!-- ═══════════════ MINI CONTROL CENTER (PRODUCTION) ═══════════════
+       Imports the actual production class from /src/ui/MiniControlCenter.
+       Whatever ships in-game renders here. No mirror to drift. -->
+  <div class="preview-section">
+    <h2 style="color:#6bd9ff;border-color:rgba(107,217,255,0.4);">
+      MINI CONTROL CENTER
+      <span class="tag" style="background:rgba(107,217,255,0.12);border-color:rgba(107,217,255,0.5);color:#6bd9ff;">LIVE PRODUCTION CLASS</span>
+    </h2>
+    <p style="font-family:'Share Tech Mono',monospace;color:#88a4b8;font-size:11px;letter-spacing:1px;margin:0 4px 16px;max-width:900px;">
+      Imported from <code>src/ui/MiniControlCenter.ts</code>. Same code path as the live game,
+      reparented from its floating bottom-right anchor into the preview slot below. Toggles
+      and pips are interactive but no-op in the sandbox.
+    </p>
+    <div class="preview-frame" style="display:flex;justify-content:center;align-items:center;padding:32px 16px;">
+      <div id="mcc-preview-host" style="width:260px;height:260px;position:relative;"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ SHIELD AURA (PRODUCTION) ═══════════════
+       Mounts the exact dome sprite Structure.ts uses, in a small
+       Three.js scene. Breathing pulse runs at production cadence. -->
+  <div class="preview-section">
+    <h2 style="color:#6bd9ff;border-color:rgba(107,217,255,0.4);">
+      SHIELD AURA DOME
+      <span class="tag" style="background:rgba(107,217,255,0.12);border-color:rgba(107,217,255,0.5);color:#6bd9ff;">LIVE PRODUCTION FACTORY</span>
+    </h2>
+    <p style="font-family:'Share Tech Mono',monospace;color:#88a4b8;font-size:11px;letter-spacing:1px;margin:0 4px 16px;max-width:900px;">
+      Uses <code>makeShieldDomeSprite()</code> from <code>src/entities/Structure.ts</code>. Shown
+      at settled full-scale (the 2.5s grow-on-place animation skipped). Opacity pulse
+      matches the in-game breathing.
+    </p>
+    <div class="preview-frame" style="display:flex;justify-content:center;align-items:center;padding:24px 16px;background:rgba(20,28,40,0.6);">
+      <div id="shield-preview-host" style="width:280px;height:280px;"></div>
+    </div>
   </div>
 
   <!-- ═══════════════ CALLOUTS. PER-TRIGGER CARDS ═══════════════
@@ -1497,6 +1539,12 @@
     renderPools()
 
   </script>
+
+  <!-- Production-class mounts (MCC + Shield Aura). This script imports
+       from /src/ via Vite, so it requires being served over HTTP (live
+       URL or `pnpm dev`). Opening this file via file:// will silently
+       skip these mounts. -->
+  <script type="module" src="/src/devtools/buildTest.ts"></script>
 
 </body>
 </html>
