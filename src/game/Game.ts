@@ -728,6 +728,7 @@ private enterBuildPhase() {
     if (idx >= 0) structs.splice(idx, 1)
     s.dispose()
     this.buildPhase.addCredits(Config.STRUCTURES[s.type].cost)
+    playEventSfx('refund')
   }
 
   // Show the live arc-preview overlay for whatever structure the compass rose
@@ -1679,6 +1680,7 @@ private enterBuildPhase() {
         this.spheres.splice(i, 1)
         this.scene.remove(s.mesh)
         this.buildPhase?.addCredits(SPHERE_COST)
+        playEventSfx('refund')
         return true
       }
     }
@@ -1692,6 +1694,7 @@ private enterBuildPhase() {
         this.defenderUnits.splice(i, 1)
         this.scene.remove(u.mesh)
         this.buildPhase?.addCredits(Config.UNITS[u.type].cost)
+        playEventSfx('refund')
         return true
       }
     }
@@ -1706,6 +1709,7 @@ private enterBuildPhase() {
         this.scene.remove(u.mesh)
         this.attCredits += Config.UNITS[u.type].cost
         this.hud.setAttCredits(this.attCredits)
+        playEventSfx('refund')
         return true
       }
     }
@@ -1732,6 +1736,7 @@ private enterBuildPhase() {
         // very cell we just emptied, defeating the refund.
         this.buildPhase?.requestSkipNextClick()
         if (this.editingStructure === s) this.closeCompassRose()
+        playEventSfx('refund')
         return true
       }
     }

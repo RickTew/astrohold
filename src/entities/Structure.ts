@@ -222,6 +222,13 @@ export class Structure {
   private shieldDomeSprite: THREE.Sprite | null = null
   private shieldDomeMat: THREE.SpriteMaterial | null = null
   private shieldDomePulse = 0
+  // Grow-on-place state. Dome scales from 0 to full diameter over
+  // shieldGrowDuration seconds, then settles into the breathing pulse.
+  // Synced visually with the shield_placement sample so the dome
+  // "blooms" alongside the placement sound.
+  private shieldGrowTime = 0
+  private readonly shieldGrowDuration = 0.7
+  private shieldFullScale = 0
   // Wall orientation. Default = vertical (plates at top/bottom, beam runs
   // north-south, blocks the east-west cyborg corridor). When set to true
   // the entire wallBody Group rotates 90° on Z so plates sit left/right
@@ -263,6 +270,11 @@ export class Structure {
       const dome = makeShieldDomeSprite()
       this.shieldDomeSprite = dome
       this.shieldDomeMat = dome.material as THREE.SpriteMaterial
+      // Capture the dome's full diameter so the grow animation can lerp
+      // toward it; start at zero so the dome blooms outward on place.
+      this.shieldFullScale = dome.scale.x
+      dome.scale.set(0, 0, 1)
+      this.shieldDomeMat.opacity = 0
       this.mesh.add(dome)
     }
     scene.add(this.mesh)
@@ -613,13 +625,29 @@ export class Structure {
     // Shield dome pulse. Runs every frame while the shield is alive so
     // the force-field reads as breathing. Fades to near-zero opacity
     // during the dying animation so the dome collapses with the piece.
-    if (this.type === 'defense' && this.shieldDomeMat) {
+    if (this.type === 'defense' && this.shieldDomeMat && this.shieldDomeSprite) {
       this.shieldDomePulse += delta
+      // Grow animation. Scale + opacity lerp from 0 to full over
+      // shieldGrowDuration with an ease-out-cubic so the dome flicks out
+      // fast and settles. Once at 1.0 the breathing pulse takes over.
+      let growT = 1
+      if (this.shieldGrowTime < this.shieldGrowDuration) {
+        this.shieldGrowTime += delta
+        const u = Math.min(1, this.shieldGrowTime / this.shieldGrowDuration)
+        growT = 1 - Math.pow(1 - u, 3)   // ease-out cubic
+        const s = this.shieldFullScale * growT
+        this.shieldDomeSprite.scale.set(s, s, 1)
+      } else if (this.shieldDomeSprite.scale.x !== this.shieldFullScale) {
+        // Snap to exact full scale once the grow window closes (avoids
+        // drifting due to floating-point accumulation in the lerp).
+        this.shieldDomeSprite.scale.set(this.shieldFullScale, this.shieldFullScale, 1)
+      }
       const baseOp = this.dying || this.removed ? 0 : 1
       // Slow ~0.33 Hz pulse between 0.65 and 1.0 of base. Subtle enough
-      // not to draw the eye away from the action.
+      // not to draw the eye away from the action. During the grow window
+      // we multiply by growT so the opacity ramps in alongside the scale.
       const k = 0.82 + 0.18 * Math.sin(this.shieldDomePulse * 2.0)
-      this.shieldDomeMat.opacity = baseOp * k
+      this.shieldDomeMat.opacity = baseOp * k * growT
     }
     // Wall pulse: runs every frame while the wall is alive so the beam +
     // sockets shimmer subtly. Sits outside the dying gate because we want

@@ -162,10 +162,10 @@ export class MiniControlCenter {
         this.state[id] = !this.state[id]
         this.persistToggle(id)
         if (id === 'log') this.applyCombatLogVisibility()
-        // Toggle has its own on/off click sound; the SFX toggle is the
-        // one exception because muting SFX kills the very feedback you
-        // just produced, which feels wrong on the first click.
-        playEventSfx('button_toggle')
+        // Single click sound. The 'button_toggle' sample we tried first
+        // contained an on-then-off pair which read as a double-click on
+        // a single press; this matches the phaser-flavored HUD click.
+        playEventSfx('button_click')
         this.paint()
       })
     })

@@ -44,6 +44,7 @@ export type SampleEvent =
   // UI + placement
   | 'button_click' | 'button_toggle' | 'power_up' | 'robot_alert'
   | 'structure_placement' | 'signal_placement' | 'shield_placement'
+  | 'refund'
   | 'step' | 'hulk_callout'
 
 interface PoolSpec { urls: string[]; volume?: number; throttleMs?: number }
@@ -183,8 +184,14 @@ const POOLS: Record<SampleEvent, PoolSpec> = {
     urls: [
       `${SUNO_DIR}/Robot placement.mp3`,
       `${SUNO_DIR}/Robot other placement.mp3`,
-      `${SUNO_DIR}/Space placement sound.mp3`,
     ],
+    volume: 0.6, throttleMs: 80,
+  },
+  refund: {
+    // Space placement sound feels like a piece being lifted off the
+    // grid — used when the player clicks a placed piece to get its
+    // credits back. Distinct from the placement-on sounds above.
+    urls: [ `${SUNO_DIR}/Space placement sound.mp3` ],
     volume: 0.6, throttleMs: 80,
   },
   signal_placement: {
