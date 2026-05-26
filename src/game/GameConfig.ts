@@ -108,7 +108,7 @@ export const Config = {
     // direct-fire profile on the defender side.
     // S17.20 Phaser range bumped 280 -> 330 (one cell longer per user
     // request). Beam length follows. Damage stays 40 per enemy in lane.
-    cannon:  { cost: 60, hp: 120, damage: 40, range: 330, fireInterval: 4, apBudget: 1, aoeRadius: 0, ammo: 5, label: 'Phaser 60cr' },
+    cannon:  { cost: 60, hp: 120, damage: 36, range: 330, fireInterval: 4, apBudget: 1, aoeRadius: 0, ammo: 5, label: 'Phaser 60cr' },
     // Bomber — mid-range proximity-trap thrower. Ammo 3 = three bombs per
     // game total. Combined with the one-bomb-on-field rule this means the
     // defender Bomber is a deliberate placement choice, not a turret.
@@ -187,7 +187,7 @@ export const Config = {
     // (ammo 1) that one-shots any single defender structure. Squishy and
     // slow — after firing the sniper is just a slow target. Use the shot
     // wisely: the cannon turret (HP 120) is the natural target.
-    sniper:    { cost: 90, hp: 80, speed: 50,  damage: 150, range: 350, sightRange: 400, aoeRadius: 0, apBudget: 2, ammo: 5, label: 'Sniper',     color: 0x99bb66 },
+    sniper:    { cost: 90, hp: 80, speed: 50,  damage: 135, range: 350, sightRange: 400, aoeRadius: 0, apBudget: 2, ammo: 5, label: 'Sniper',     color: 0x99bb66 },
     // Cyborg Hulk — exo-suited melee bruiser. Highest HP and damage in the
     // roster, slowest speed, very short range (must close to melee). Ammo
     // budget is low so each punch matters.
