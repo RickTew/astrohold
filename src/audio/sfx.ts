@@ -45,7 +45,7 @@ export type SampleEvent =
   | 'button_click' | 'button_toggle' | 'power_up' | 'robot_alert'
   | 'structure_placement' | 'signal_placement' | 'shield_placement'
   | 'refund'
-  | 'step' | 'hulk_callout'
+  | 'step'
 
 interface PoolSpec { urls: string[]; volume?: number; throttleMs?: number }
 
@@ -206,10 +206,10 @@ const POOLS: Record<SampleEvent, PoolSpec> = {
     urls: [ `${SUNO_DIR}/Stepping Crunch.mp3` ],
     volume: 0.25, throttleMs: 60,
   },
-  hulk_callout: {
-    urls: [ `${SUNO_DIR}/Cyborg HULK attack call out.mp3` ],
-    volume: 0.7, throttleMs: 1000,
-  },
+  // hulk_callout removed from the preload set: 'Cyborg HULK attack
+  // call out.mp3' is a vocal Suno render that macOS Live Caption was
+  // transcribing as 'Wow, wow.' The file stays on disk for possible
+  // future use; once we re-enable voice we can add the pool back.
 }
 
 /** Kick off decoding for every Suno sample. Safe to call once at boot.
