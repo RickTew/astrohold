@@ -164,7 +164,15 @@ export class Game {
   // Without this, a stuck cyborg (no path to core, no targets in
   // range, no melee available) could spin the auto-loop forever
   // ("Turn 393 -- no activity" type bug).
+  //
+  // S19.1: gate the counter on firstCombatSeen. The opening of every
+  // match is several no-combat reveals while cyborgs march from x≈500
+  // toward defender turrets at x≈-300 — counting those toward the
+  // stalemate limit was ending matches on turn 3 before any unit had
+  // closed to engagement range. We now only start tracking the streak
+  // once combat has happened at least once in the match.
   private noCombatStreak = 0
+  private firstCombatSeen = false
   // Wall-clock ms at first reveal start. Diff at recordBattleEnd = how
   // long the player actually watched. Skip BUILD/PLAN time so the metric
   // is "battle pacing" not "user think time."
@@ -930,8 +938,14 @@ private enterBuildPhase() {
       this.accumulateStatsFromLog(entries)
       this.revealTurn++
       this.revealPhase = null
-      if (hadCombat) this.noCombatStreak = 0
-      else this.noCombatStreak++
+      if (hadCombat) {
+        this.firstCombatSeen = true
+        this.noCombatStreak = 0
+      } else if (this.firstCombatSeen) {
+        // Only count post-engagement quiet reveals. Pre-engagement march
+        // turns are normal and must not trip the stalemate guard.
+        this.noCombatStreak++
+      }
       // End-of-reveal bomb tick: unarmed → armed, already-armed gets its
       // turnsArmed counter bumped. RevealPhase force-detonates expired bombs
       // at the start of the next reveal (see ARMED_LIFETIME there).
