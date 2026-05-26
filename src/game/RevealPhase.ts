@@ -3408,7 +3408,7 @@ export class RevealPhase {
       }
       s.takeDamage(9999)   // mine self-destructs on trigger
       this.combatThisReveal = true
-      this.log('defender', `Mine triggers — ${this.actorLabel(unit)} step set it off${hits > 0 ? ` (${hits} hit, −${hits * dmg}${kills > 0 ? `, ${kills} killed` : ''})` : ' (no other targets)'}`)
+      this.log('defender', `Mine triggers — ${this.actorLabel(unit)} step set it off${hits > 0 ? ` (−${hits * dmg}, ${hits} hit${kills > 0 ? `, ${kills} killed` : ''})` : ' (no other targets)'}`)
     }
   }
 
@@ -3441,15 +3441,23 @@ export class RevealPhase {
     // through attribute() with actorType 'core_blast' so the dying
     // cyborgs are credited and on_death speech fires as a final
     // dramatic chorus.
+    let hits = 0, kills = 0, totalDmg = 0
     for (const u of this.units) {
       if (u.isDead) continue
       if (!this.inRadius(u.worldX, u.worldY, cx, cy, BLAST_RADIUS)) continue
       const dmg = u.hp   // record actual damage applied so attribute amounts make sense
       u.takeDamage(99999)
-      this.attribute(u, 'core_blast', 'defender', dmg, u.isDead)
+      const killed = u.isDead
+      hits++
+      if (killed) kills++
+      totalDmg += dmg
+      this.attribute(u, 'core_blast', 'defender', dmg, killed)
     }
     this.explosions.push(new Explosion(this.scene, cx, cy, BLAST_RADIUS, 1.2))
     playExplosion()
+    if (hits > 0) {
+      this.log('defender', `Power Core blast hits ${hits} (−${totalDmg}${kills > 0 ? `, ${kills} killed` : ''})`)
+    }
   }
 
   // ── Resolvers ────────────────────────────────────────────────────────────
