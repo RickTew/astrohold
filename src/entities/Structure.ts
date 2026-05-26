@@ -23,7 +23,7 @@ const STRUCTURE_SPRITE_FOLDERS: Partial<Record<StructureType, string>> = {
   cannon:  'gun',
   laser:   'laser',    // twin-laser turret
   signal:  'signal',   // satellite dish — EMP emitter
-  mine:    'mine',     // spiky proximity mine (matches the HUD tile sprite)
+  mine:    'robot_mine',  // spiky proximity mine (matches the HUD tile sprite)
 }
 // Structures that ship with a 4-frame explosion sequence (folder/explosion/).
 const STRUCTURE_HAS_EXPLOSION: Partial<Record<StructureType, true>> = {
