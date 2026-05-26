@@ -25,6 +25,7 @@
 import { getRevealSpeed, setRevealSpeed, RevealSpeed } from '../game/RevealSpeed'
 import { isSfxOn, setSfxOn, isMusicOn, setMusicOn } from '../audio/AudioSettings'
 import { isSpeechBubblesOn, setSpeechBubblesOn } from '../entities/SpeechBubble'
+import { playEventSfx } from '../audio/sfx'
 
 // Phase awareness so the BATTLE pill shows the right label.
 export type McPhase = 'build' | 'planning' | 'reveal' | 'win' | 'lose' | 'pick-side' | 'loading'
@@ -150,6 +151,7 @@ export class MiniControlCenter {
         if (!id) return
         this.speed = id
         setRevealSpeed(id)
+        playEventSfx('button_click')
         this.paint()
       })
     })
@@ -160,10 +162,15 @@ export class MiniControlCenter {
         this.state[id] = !this.state[id]
         this.persistToggle(id)
         if (id === 'log') this.applyCombatLogVisibility()
+        // Toggle has its own on/off click sound; the SFX toggle is the
+        // one exception because muting SFX kills the very feedback you
+        // just produced, which feels wrong on the first click.
+        playEventSfx('button_toggle')
         this.paint()
       })
     })
     this.host.querySelector<HTMLElement>('.mcc-action')?.addEventListener('click', () => {
+      playEventSfx('button_click')
       this.handleAction()
     })
   }

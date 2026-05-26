@@ -1,13 +1,21 @@
 # AstroHold — Project Rules for Claude
 
-## Status: Single-player D&D-style strategy LIVE (session 17)
+## Status: Single-player D&D-style strategy LIVE (session 18)
 Turn-based grid strategy. **BUILD → REVEAL** is the live flow (PLAN code
-exists but is skipped — see Phase flow). After the first BATTLE click,
-reveals **auto-chain** until win / lose. **NO stalemate rule** — the
-game is die-or-survive (`feedback_die_or_survive`). Two terminal states
-only: `core.isDead` (defender loses) or all-cyborgs-dead (defender wins).
-Cyborgs who run out of ammo + can't damage the core trigger an attrition
-win for defender via `cyborgsCanAttack()` in onComplete.
+exists but is skipped, see Phase flow). After the first BATTLE click,
+reveals **auto-chain** until win / lose. **NO stalemate rule** in the
+classical sense (`feedback_die_or_survive`). Two terminal states: core
+dies (defender loses) or all cyborgs dead / unable to attack (defender
+wins). `cyborgsCanAttack()` in onComplete treats every non-medic /
+non-empty-sniper cyborg as a threat (melee fallback counts). S18 added
+a **stalemate guard**: 3 consecutive reveals with zero combat triggers
+an attrition win for defender. This is a safety net for stuck-loop
+bugs, not a balance rule.
+
+**S18 economy:** both sides get the same base credits. Difficulty
+selector on the side picker (`Difficulty.aiCreditMultiplier()`)
+multiplies only the AI's pool: easy 0.75x, normal 1.0x, hard 1.25x.
+`ATTACKER_CREDIT_BONUS` and `AI_CREDIT_BONUS` constants are 0.
 
 Mechanics tuned for D&D-style strategy:
 - **Single-player mode (session 13).** Asset preload → side-picker modal
@@ -24,6 +32,62 @@ Mechanics tuned for D&D-style strategy:
     is gone — there's no PLAN phase + no second BUILD, so reserving
     credits made no sense.
 - **Limited per-game ammo** on every offensive piece. Once spent, it's inert.
+  **S18 baseline:** every combat piece has `ammo: 5`. Exceptions are
+  intentional: mine 1 (single-use), signal 2 (EMP), walls/shields 0
+  (no weapon), Stalker 0 (melee only, unlimited fists), Hulk fists
+  unlimited (slam costs slamAmmo: 3).
+- **Cardinal-only fire arc (S18).** Towers + structures shoot only in
+  the lane(s) they face. `targetInFireArc` requires forward dot > 0
+  AND perpendicular distance ≤ half a cell. Diagonal cells need an
+  extra facing purchased via the compass rose. Old 120° wedge is
+  gone. Sentry omni-fire still tracks freely during combat.
+- **Unified death explosion (S18).** `Config.DEATH_EXPLOSION` =
+  `{ radius: 75, damage: 25 }`. Both robot self-destruct and Hulk
+  death blast use these numbers. Catches all 8 adjacent cells,
+  excludes cells two out. Friendly-fire applies. Chain guard
+  prevents single death blast from cascading through other
+  pending death detonations.
+- **Phaser beam (S18).** Cannon was renamed in the HUD to "PHASER"
+  (internal `cannon` type stays). Fires a piercing cyan beam in
+  its facing lane instead of an AoE projectile. Damages every
+  cyborg the beam touches up to `range: 330`. Visual starts at the
+  barrel tip (cell edge in facing dir), z=12. Walls + allies are
+  skipped (cyborg-only).
+- **Mortar (S18).** Defender Bomber renamed in HUD to "MORTAR".
+  Same proximity-mine mechanic. Internal type still `bomber`.
+- **Sphere is MOBILE (S18).** Speed 110, the fastest piece. AI:
+  fire if in range with ammo, else roll toward nearest cyborg.
+  Out of ammo → suicide rush toward nearest cyborg; on adjacency,
+  `sphere.takeDamage(hp)` triggers the unified death explosion in
+  the cyborg cluster.
+- **Sentry is MOBILE (S18).** Speed 40 (slow tracked vehicle).
+  Stays a Structure (omni-fire turret + compass-rose mechanic
+  intact) but `col/row` no longer readonly; `moveTo` added; AI
+  queues movement toward nearest cyborg when out of fire range.
+- **Shield aura (S18).** Defender SHIELD structure (50cr, type
+  `defense`) projects a 25% damage-reduction aura with **2.0 grid
+  cell** radius. Every direct hit, AoE tick, and Hulk slam that
+  lands on a defender within range is scaled to 75%. Visual is a
+  translucent cyan dome child sprite (centered radial gradient,
+  no top highlight, no outer rim, breathing pulse).
+- **Repair refill (S18).** Robot Repair has a second pool
+  `refillCharges: 3` independent of heal charges. End of move
+  adjacent to a friendly with `ammoRemaining < max` → transfer
+  +1 ammo at -1 refill charge. Walls / shields / mines skipped.
+- **Power Core dock (S18).** Repair units in adjacency to the
+  Power Core regain +2 heal charges and +1 refill charge per
+  turn. Cycle is: deploy → spend → walk back to core → top up.
+- **Core defense zone avoidance (S18).** Ranged cyborgs treat the
+  core's electric zone as +30 pathing cost. Hulks and Stalkers
+  ignore the penalty since they need to enter for melee. Snipers
+  and grenadiers detour around.
+- **Dog aggression (S18).** Combat Dog sight gate removed; dogs
+  pursue nearest cyborg from anywhere on the map (matches Stalker
+  pattern).
+- **Bomber no-stack (S18).** Two bombs cannot share a cell.
+  Pick-time gate prevents new bomb selection on an occupied cell;
+  arrival-time gate fizzles the projectile if a bomb already sits
+  at the landing point. Ammo still spent on a fizzled throw.
 - **Cardinal-only movement** (N/S/E/W) by default. Special characters opt in
   to diagonals via `Config.UNITS[type].allowDiagonalMove = true`.
 - **Reactive AI** — units flee armed bomb AoEs, prefer shooting bombs from
@@ -140,12 +204,31 @@ Mechanics tuned for D&D-style strategy:
   (10) at no ammo cost. Excludes hulk (already unlimited at 55), sniper
   (retreats), medic + repair (retreat). Keeps combat moving when both
   sides are dry.
-- **Ammo crates.** Resupply boxes drop in the middle no-build zone every
-  5 reveals (cap 4). Four kit types gated by unit family:
-  ammo / grenade / medkit / repair_kit. AI: every out-of-ammo unit prefers
-  detouring to a compatible crate over retreat/wander. Crates are
-  destructible (1 HP) — grenades destroy them, defender structures with
-  no cyborg target fire on crates to deny enemy reloads. See `AmmoBox.ts`.
+- **Ammo crates (cyborgs only).** Resupply boxes drop in the middle
+  no-build zone every 5 reveals (cap 4). Four kit types gated by unit
+  family: ammo / grenade / medkit / repair_kit. **Robots do NOT pick
+  up crates** (per S18 user rule); they restore via the Power Core
+  dock. Out-of-ammo cyborgs prefer detouring to a compatible crate.
+  Crates are destructible (1 HP) — grenades destroy them, defender
+  structures with no cyborg target fire on crates to deny enemy
+  reloads. See `AmmoBox.ts`.
+
+## Mini Control Center (S18)
+Floating bottom-right widget (`src/ui/MiniControlCenter.ts`,
+"Variant C" dial). Beveled cyan ring + speed arc + 4 inner toggle
+pips at 12/3/6/9 + BATTLE/PAUSE pill at the bottom. Procedural CSS
++ inline SVG. Hidden during loading + pick-side phases.
+
+- **Speed dial** — `RevealSpeed.setRevealSpeed` slow (×5.0),
+  normal (×2.5), fast (×1.0). Persisted localStorage.
+- **BATTLE/PAUSE pill** — starts reveal during BUILD; toggles
+  `RevealPhase.paused` during reveal (engine freezes step
+  advancement but in-flight projectiles keep ticking); PLAY AGAIN
+  full-reloads after game end.
+- **Toggles** — Music / SFX / Speech / Combat log all
+  localStorage-persisted via `AudioSettings.ts`. SFX gates
+  `playGunshot` + `playExplosion`; Speech gates speech bubbles;
+  Combat log toggles `.center-log` display.
 
 ## HUD changes — HARD LOCK protocol (S17.3)
 
@@ -323,10 +406,11 @@ cost was unwarranted.
 - Power Core at (-550, 0) — **2x2 footprint** (size rule), sprite size
   `GRID_CELL * 3` = 150 world units. Centroid sits on a grid intersection,
   4 underlying cells reserved.
-- Start credits: 1000 (testing budget). **AI side gets +50%** via
-  `Config.AI_CREDIT_BONUS = 0.5` (= 1500cr) to compensate for the lack
-  of human positional judgement — applied per-side in `enterBuildPhase`
-  based on which side the player picked. Tune knob for balance.
+- Start credits: 1000 (testing budget). **Equal credits both sides
+  (S18)**. `ATTACKER_CREDIT_BONUS = 0` and `AI_CREDIT_BONUS = 0`.
+  Difficulty selector on the side picker is the only knob: easy =
+  AI gets 0.75x credits, normal 1.0x, hard 1.25x. Player credits
+  never change with difficulty. See `Difficulty.ts`.
 - **All piece costs in multiples of 10** so leftover credits remain
   spendable by the cheapest piece (Wall 20cr / Grenadier 50cr).
 - `STATIONARY_INITIATIVE = 100` (from `TurnTypes.ts`). Defender structures

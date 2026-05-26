@@ -3,10 +3,25 @@
 Living balance document. Update as we tune. Aim: "like chess but not strict" —
 for any strong ability on one side, the other side gets a comparable counter.
 
-**Status:** Single-player D&D-style turn-based grid strategy is LIVE (session 17).
+**Status:** Single-player D&D-style turn-based grid strategy is LIVE (session 18).
 Numbers below are the current Config values. The turn-system transition is
 complete. AP budgets still ship on every piece for future use, but the active
 flow is BUILD then REVEAL (PLAN phase is currently skipped, see Turn flow).
+
+**S18 standardizations to read first:**
+- **Equal credits.** Both sides get the same base pool. `Difficulty.aiCreditMultiplier()` is the only adjustment knob (easy 0.75x, normal 1.0x, hard 1.25x on AI side).
+- **Equal ammo baseline.** Every combat piece is `ammo: 5`. Exceptions held for mechanic reasons: mine 1, signal 2, walls 0, shield 0, Stalker 0 (melee only).
+- **Cardinal-only fire arc.** Structures fire only in their facing lane (forward dot > 0 AND perp ≤ ½ cell). Extra lanes via compass rose.
+- **Unified death explosion.** `Config.DEATH_EXPLOSION = { radius: 75, damage: 25 }` for both robot self-destruct and Hulk death blast.
+- **Phaser beam.** "Cannon" renamed to PHASER in the HUD. Pierces the lane up to range 330; cyborg-only.
+- **Mortar.** Defender Bomber renamed to MORTAR in the HUD. Mechanic unchanged.
+- **Sphere is mobile.** Speed 110. Out-of-ammo spheres suicide-rush the nearest cyborg.
+- **Sentry is mobile.** Speed 40. Stays a Structure (omni-fire turret, compass rose still works).
+- **Shield aura.** Defender Shield (50cr) projects a 25% damage-reduction aura at 2.0 grid-cell radius.
+- **Repair refill mechanic.** Repair bot has 3 refillCharges separate from heal charges; +1 ammo to adjacent friendlies per refill.
+- **Power Core dock.** Repair units adjacent to the core regain +2 heal + +1 refill per turn.
+- **Stalemate guard.** 3 consecutive reveals with zero combat → attrition win for defender (safety net for stuck-loop bugs).
+- **Robots do NOT pick up ammo crates.** They restore via the core dock instead. Crates are cyborg-only.
 
 ---
 
@@ -97,17 +112,32 @@ Each piece spends Action Points (AP) per turn. Default actions:
 - Grenadier grenades **arc over** intervening pieces and land at the target
   cell — they can be lobbed past walls and friendly units.
 
-**Ammo budgets (D&D-style, per game):**
+**Ammo budgets (D&D-style, per game) — S18 baseline = 5:**
 - Every piece that can attack has a per-game ammo pool, NOT a per-turn one.
-  Once spent, the piece is inert (still alive, still a target — just can't
+  Once spent, the piece is inert (still alive, still a target, just can't
   fire). Forces strategic shot allocation rather than RTS spam.
-- Defender: Turret 6, Cannon 4, Bomber 3, Gun(preview) 5, Laser(preview) 5,
-  Sphere 8, Mine 1. Wall / Defense / Signal have 0 (they don't shoot).
-- Cyborg: Scout 6, Tank 5, Bomber 3, Drone 8, Cannon 4, Grenadier 3,
-  Double Gun 5. Dog (defender mobile) 5.
+- S18 baseline is `ammo: 5` for every combat piece (both sides). Goal is
+  parity so balance work isn't fighting an underlying asymmetry.
+- Exceptions held for mechanic reasons:
+  - Mine 1 (single-use trap)
+  - Signal 2 (EMP, designed scarce)
+  - Wall / Shield 0 (no weapon)
+  - Stalker 0 (melee only, unlimited fists)
+  - Hulk fists unlimited (slam uses separate `slamAmmo: 3`)
 - Tuning rule of thumb: ammo budget × damage should be comparable to that
-  piece's "fair share" of damage required to end the game, so a spent
-  piece feels like it did its part.
+  piece's "fair share" of damage required to end the game.
+
+**Universal melee fallback.** When a SpriteUnit hits `ammoRemaining = 0`
+AND an enemy is within ~1.4 cells, swings for `MELEE_FALLBACK_DAMAGE = 10`
+at no ammo cost. Excludes hulk (already unlimited), sniper (retreats), and
+medic + repair (retreat). Keeps combat moving when both sides are dry.
+
+**Firing arc (S18):** Structures fire CARDINAL-ONLY. The target must be in
+the lane the structure faces: forward dot > 0 AND perpendicular distance
+≤ half a cell. Diagonal cells require buying a second facing via the
+compass rose (30cr). Old 120° wedge is gone. Mobile units still face
+their target freely (8-direction). Sentry's omni-fire turret tracks
+freely during combat regardless of placed facing.
 
 **Bomb counterplay (reactive AI):**
 - Direct-fire units automatically check for armed ENEMY bombs in their
@@ -165,42 +195,53 @@ Each piece spends Action Points (AP) per turn. Default actions:
 
 ## Defenders (Robots, blue side)
 
-### Sphere Defender
+### Sphere Defender (MOBILE in S18)
 | Stat | Value |
 |---|---|
 | Cost | 100 |
 | HP | 300 |
-| Damage | **25** (was 10, buffed for defender balance) |
+| Damage | **25** |
 | Attack range | 300 |
 | Sight range | 400 |
-| Speed | (stationary) |
-| Initiative | **100** (stationary fallback; fires before any cyborg) |
-| AP | **3 shots/turn** |
-| Ammo (per game) | **8 shots** |
-| Behavior | Defensive / stationary; auto-fires at nearest cyborg in range until ammo runs out |
+| Speed | **110** (S18, was 35; now the fastest piece in the game) |
+| Initiative | 110 (= speed) |
+| AP | 3 |
+| Ammo (per game) | **5** (S18 baseline, was 8) |
+| Behavior | Mobile, 3-branch AI: fire if in range, roll toward enemy if has ammo, suicide-rush if out |
 
-**Special:** Spherical hero — fires in any direction. Auto-fire (no queued
-action) targets the single nearest cyborg in range; queue up to 3 fire
-actions for finer control. 4-frame death explosion on HP=0.
+**Special (S18):** Sphere is now mobile and the fastest piece in the game.
+AI tree:
+1. With ammo + cyborg in attack range: fire (auto-targets nearest).
+2. With ammo + no cyborg in range: roll toward nearest cyborg.
+3. Out of ammo: **suicide rush** toward nearest cyborg. On adjacency
+   (≤ 1.5 cells), `sphere.takeDamage(hp)` self-destructs and triggers the
+   unified `Config.DEATH_EXPLOSION` (radius 75, damage 25) in the cluster.
 
-### Combat Dog (defender mobile unit — NEW)
+4-frame death explosion plus the unified blast on HP=0.
+
+### Combat Dog (defender mobile unit)
 | Stat | Value |
 |---|---|
 | Cost | 40 |
 | HP | 80 |
-| Speed | 90 (highest mobile speed in the game) |
+| Speed | 90 (second only to Sphere now that Sphere is mobile) |
 | Damage | 15 |
 | Attack range | 150 |
 | Sight range | 280 |
-| Initiative | 90 (= speed; goes before cyborgs but after stationary defenders) |
-| Behavior | Hunts nearest cyborg in sight; wanders if nothing visible |
+| Initiative | 90 (= speed) |
+| Ammo | 5 (S18 baseline) |
+| Behavior | **S18: no sight gate, hunts nearest cyborg from anywhere on the map** |
 
-Placed in the defender zone. First mobile defender — wires through the
+Placed in the defender zone. First mobile defender, wires through the
 same SpriteUnit class as cyborgs, just `side='defender'` and faces east on
 placement. Has its own walking animation; death plays the 4-frame
-explosion (omnidirectional; same frames copied into every dir folder).
+explosion (omnidirectional, same frames copied into every dir folder).
 
-### Robot Repair (defender mobile support — session 16)
+**S18:** Dog pursuit is aggressive. Previously the dog needed cyborgs to
+enter its 280-unit sight before engaging; now it tracks nearest cyborg
+from anywhere on the map (Stalker pattern).
+
+### Robot Repair (defender mobile support — session 16, ammo refill added S18)
 | Stat | Value |
 |---|---|
 | Cost | 70 |
@@ -208,7 +249,8 @@ explosion (omnidirectional; same frames copied into every dir folder).
 | Speed | 65 |
 | Range (tether reach) | 150 |
 | Repair amount | 15/tick (pad) · 20/turn (tether) |
-| Ammo (shared charge pool) | 5 |
+| Heal charges (ammo) | 5 |
+| Refill charges (S18) | **3** |
 | AP | 3 |
 | Diagonal movement | yes (`allowDiagonalMove: true`) |
 
@@ -217,7 +259,18 @@ pool: **deploy repair-pad** (2 charges, drops a wrench-glyph station that
 ticks +15 HP to adjacent defender pieces for 4 ticks or until destroyed)
 and **weld-tether** (1 charge/turn, glowing amber beam pins both endpoints,
 +20 HP/turn). Repairs anything defender-side with HP: towers, walls,
-bombers, cannons, gunwalls, sphere, the Combat Dog, and the Power Core.
+bombers, cannons, sentries, sphere, the Combat Dog, and the Power Core.
+
+**S18 ammo refill mechanic.** Separate pool `refillCharges: 3`. When the
+repair bot ends a move adjacent to a friendly defender with
+`ammoRemaining < max`, it transfers +1 ammo at the cost of one refill
+charge. One target per turn. Walls, shields, and mines skipped (no ammo
+concept). The cost-of-buying-a-non-attacker is justified by the now
+multi-purpose role: heal AND rearm.
+
+**S18 Power Core dock.** Adjacency to the Power Core restores +2 heal
+charges AND +1 refill charge per turn. The round-trip cycle is: deploy
+→ spend → walk back to core → top up.
 
 (The PixelLab export ships a Repair animation but no throw clip, so the
 throw mode the Medic uses isn't replicated here. The welding pose plays
@@ -232,29 +285,32 @@ Sprite assets: 8-direction rotations + 9-frame walking (Moving) anim +
 pad/tether actions and re-fires each tether tick). Death duplicates the
 4-frame explodes anim into every direction folder, same as the Combat Dog.
 
-### Sentry (defender structure — session 16, renamed from "Gunwall")
+### Sentry (defender structure, MOBILE in S18)
 | Stat | Value |
 |---|---|
 | Cost | 60 |
-| HP | **150** (nerfed from 200) |
+| HP | 150 |
 | Damage | 25 |
 | Range | 200 |
 | Ammo | 5 |
+| Speed | **40 (S18)** |
 | AP | 1 |
 | Fire interval | 2 |
 | Sprite size | 84 (matches Hulk) |
-| Fire arc | **Omnidirectional** — sprite auto-rotates to target |
+| Fire arc | Omnidirectional, sprite auto-rotates to target |
 
-Heavy-armor tower on tracks. The art (originally generated as "Robot_Wall"
-but the internal zip folder was "Robot_Tank", closer to its true nature)
-is a tracked vehicle with gun arms. Reads as a tower, not a wall, so we
-renamed `gunwall` to `sentry` after the first deploy. Tankier than a tower
-(HP 150 vs 80) with the same damage but shorter range (200 vs 250). Built
-as a hard point on the front line, eats hits and still bites back. Same
-fire-arc compass-rose mechanic as the tower (default east, pay to add more).
-8-direction static rotations, no animations. Repair-bot priority 8 (tied
-with Bomber). Originally shipped at HP 200; nerfed to 150 because repair-bot
-healing made it effectively unkillable.
+Heavy-armor tower on tracks. The art is a tracked vehicle with gun arms,
+reads as a tower, not a wall. Tankier than a tower (HP 150 vs 80) with
+the same damage but shorter range (200 vs 250). Built as a hard point on
+the front line, eats hits and still bites back. 8-direction static
+rotations, no animations. Repair-bot priority 8 (tied with Bomber).
+
+**S18: now mobile.** Speed 40 (slow tracked vehicle). Stays a Structure
+type (omni-fire turret + compass-rose mechanic preserved) but
+`col / row` are no longer readonly and `moveTo()` is wired. AI: when no
+cyborg in fire range, queue a move toward nearest cyborg. Initiative is
+`max(STATIONARY_INITIATIVE, speed) = 100`. Compass rose still picks the
+default facing during BUILD; combat omni-fire overrides per shot.
 
 ### Wall (procedural laser-wall — redesigned in session 16)
 | Stat | Value |
@@ -285,32 +341,29 @@ way as the in-game piece. **Wall is now buyable from the player's HUD**
 
 ### Structures (production)
 
-Ammo column is per-game shots. Fire interval (in tick units) is in
-Config but omitted here for readability. All directional structures
-default to a single east-facing 120 degree wedge; the player pays
-30cr per additional cardinal facing via the compass rose.
+Ammo column is per-game shots (S18 baseline 5). Fire interval (in tick
+units) is in Config but omitted here for readability. All directional
+structures default to a single east-facing CARDINAL lane (S18, was 120°
+wedge). The player pays 30cr per additional cardinal facing via the
+compass rose.
 
-| Structure | Cost | HP | Damage | Range | AoE | apBudget | Ammo | Sprite |
+| Structure | Cost | HP | Damage | Range | AoE | apBudget | Ammo | Sprite / notes |
 |---|---|---|---|---|---|---|---|---|
-| Turret (Tower) | 30 | 80 | 25 | 250 | 0 | 1 | 6 | Robot_Tower (faces east) |
-| Bomber | 70 | 100 | 20 | 200 | 65 | 1 | 3 | Robot_Bomber. Throws proximity traps onto empty cells. 120 degree east-facing wedge. |
-| Sentry | 60 | 150 | 25 | 200 | 0 | 1 | 5 | Tracked-vehicle turret. Omni-fire (sprite auto-rotates to target). See Sentry section above. |
+| Turret (Tower) | 30 | 80 | 25 | 250 | 0 | 1 | 5 | Robot_Tower (faces east). |
+| Mortar (Bomber) | 70 | 100 | 20 | 200 | 65 | 1 | 5 | Renamed in HUD S18. Throws proximity traps onto empty cells. Cardinal lane only. Sprite size 66 (S18, was 60). |
+| Sentry | 60 | 150 | 25 | 200 | 0 | 1 | 5 | Mobile in S18 (speed 40). Omni-fire turret. See Sentry section. |
 | Wall | 20 | 300 | 0 | 0 | 0 | 0 | 0 | Procedural cyan beam between two metallic emitter plates. Body itself thins as it takes damage. |
-| Laser | 40 | 70 | 25 | 300 | 0 | 1 | 5 | Twin-laser direct-fire turret. Longest direct-fire range on the defender side. Squishier than tower (HP 70 vs 80), needs repair support to last. Promoted out of preview in S17.2. |
-| Signal | 70 | 80 | 0 | 500 | 0 | 1 | 2 | EMP emitter (satellite-dish sprite). No direct damage. Auto-targets the cyborg currently FURTHEST INSIDE the middle map and stuns them for 2 turns (no fire, no move). 2 EMP strikes per game. Designed as a strategic counter to back-line snipers and hulks before they engage. |
-| Cannon | 60 | 120 | 40 | 280 | 45 | 1 | 4 | Type wired in Config but not currently in the shop tile grid. Reserved for re-introduction if the defender side needs another AoE source. |
+| Laser | 40 | 70 | 25 | 300 | 0 | 1 | 5 | Twin-laser direct-fire turret. Longest direct-fire range. Sprite size 44 (S18, was default). |
+| Signal | 70 | 80 | 0 | 500 | 0 | 1 | 2 | EMP emitter. Stuns target cyborg for 2 turns. 2 EMP strikes per game. |
+| Phaser (Cannon) | 60 | 120 | 40 | **330 (S18)** | 0 (beam) | 1 | 5 | Renamed in HUD S18. **Piercing beam** instead of AoE projectile. Damages every cyborg in lane up to range. Skips walls + allies. Visual starts at barrel tip, z=12. |
+| Shield (Defense) | 50 | 80 | 0 | 0 (aura) | 100 (2.0 cells) | 0 | 0 | **S18 aura**: 25% damage reduction to defender pieces in 2.0 grid-cell radius. Translucent cyan dome visual (centered radial gradient). |
 | Mine | 20 | 50 | 60 | 60 | 70 | 0 | 1 | Detonates when a cyborg moves on top. |
 
 ### Structures (preview pieces, dashed border in shop)
-Single south.png each (unknown.png from Meshy export). Placeable so the
-user can preview in-game and decide which to commission full 8-direction
-renders for. Most preview pieces have been promoted to live (Laser,
-Signal); Defense and Gun remain preview-only.
-
 | Preview | Cost | HP | Damage | Range | Notes |
 |---|---|---|---|---|---|
-| Defense | 20 | 80 | 0 | 0 | Geodesic dome. Possible Shield Generator if a shield mechanic ships. |
 | Gun | 30 | 80 | 15 | 200 | Twin-barrel turret. User liked the visual. |
+| Cyborg Mine (S18) | 20 | 50 | 60 | 60 | Cyborg-side mine. Tile in shop, Config entry exists, placement flow + side-aware trigger logic NOT yet implemented (BuildPhase is defender-only). |
 
 ### Power Core (objective, not buyable)
 | Stat | Value |
@@ -327,16 +380,24 @@ Defender loses if Power Core HP reaches 0.
 
 ## Attackers (Cyborgs, red side)
 
-| Unit | Cost | HP | Speed | Damage | Atk range | Sight | AoE | AP | Behavior |
-|---|---|---|---|---|---|---|---|---|---|
-| **Cannon** | 70 | 180 | 55 | 35 | 240 | 320 | — | 3 | Aggressive — advance to attack range, hold, fire |
-| **Grenadier** | **50** | 110 | 75 | 20 | 180 | 280 | **60** | 3 | Standoff. Keep distance, lob proximity grenades. Can DIFFUSE adjacent armed enemy bombs (1 AP). See Grenadier (S17 rules) row below for the side/behind throw constraints and explosive-shielding rule. |
-| **Double Gun** | 90 | 160 | 65 | 45 | 230 | 300 | — | 3 | Aggressive — heavy direct fire from medium range. Warm-orange sprite tint. |
-| **Hulk** | 100 | 280 | **45** | 55 | 70 | 220 | — | 2 | Melee bruiser — heaviest HP / damage, slow speed (bumped 35 → 45 in S17). **Slam (2 AP, 40 dmg, 3 ammo)**: hits all enemies in a 3-cell-wide wedge one tile forward. **Unlimited fists** — no ammo cost for punches (regular ammo=5 is unused for the punch action; only slam consumes slamAmmo). Single-minded core-march: punches if adjacent, marches to core otherwise. |
-| **Sniper** | 90 | 80 | 50 | 150 | **350** | **400** | — | 2 | Precision strike. **Single shot** (ammo 1) at long range — 150 dmg one-shots every defender structure (max HP 120 cannon turret) and most cyborg-tier units. Range trimmed 400 → 350 in S17 (sight 450 → 400). **Crouch rule (S17): can NOT crouch and shoot the same turn** — first turn in range plays the aim pose (no fire), next turn fires. Movement breaks the crouch. After firing the sniper anchors crouched, retreats east if out of ammo. AI build enforces 3-cell sniper spacing. Sprite aim-pose offset is `dx = ±0.10 × size` (measured from PNG bbox). |
-| **Medic** | 70 | 50 | 70 | 30* | 150 | 280 | — | 3 | Support unit, three heal modes sharing a 5-charge pool. **Throw med-pack** (1 charge, 3-cell range), **Deploy medic-pad** (2 charges, 15 HP/tick × 4 ticks), **Tether** (1 charge/turn, 20 HP/turn). AI priority: tether high-value ally first → throw at most-damaged → drop pad on cluster → walk toward wounded. **Diagonal movement allowed** (`allowDiagonalMove: true`). |
-| **Stalker** (S17) | 70 | 130 | 60 | 40 | 70 | 220 | — | 2 | **Cloaked melee bruiser.** Spawns invisible (sprite at 35% opacity, defender targeting AI skips cloaked units; AoE/splash still hits). Cloak drops PERMANENTLY on first damage-dealing action OR on any incoming damage. Unlimited fists (ammo=99). Single-minded front-line charge: melee if adjacent, else march at nearest defender (no sight gate). Sprite size 76 (sub-Hulk). 8-direction art + walking + east/west strike. Folder: `cyborg_stalker/`. |
-| **Grenadier (S17 rules)** | 50 | 110 | 75 | 20 | 180 | 280 | 60 | 3 | **Extra explosive shielding** — AoE damage halved on grenadiers (heavy blast plating). Throws must land BEHIND or to the SIDE of the nearest enemy (never in front where cyborgs cluster). Zero ally hits required. Geometric classification via cos of angle between (thrower→enemy) and (enemy→cell). Can DIFFUSE adjacent armed enemy bombs (1 AP). |
+All combat cyborgs are `ammo: 5` in S18 baseline. Exceptions called out
+inline.
+
+| Unit | Cost | HP | Speed | Damage | Atk range | Sight | AoE | AP | Ammo | Behavior |
+|---|---|---|---|---|---|---|---|---|---|---|
+| **Cannon** | 70 | 180 | 55 | 35 | 240 | 320 | — | 3 | 5 | Aggressive, advance to attack range and fire |
+| **Grenadier** | 50 | 110 | 75 | 20 | 180 | 280 | 60 | 3 | 5 | Standoff. Lobs TIMED grenades behind/side of nearest enemy. **50% AoE shielding** (blast plating). Can DIFFUSE adjacent armed enemy bombs (1 AP). |
+| **Double Gun** | 90 | 160 | 65 | 45 | 230 | 300 | — | 3 | 5 | Aggressive, heavy direct fire from medium range |
+| **Hulk** | 100 | 280 | 45 | 55 | 70 | 220 | — | 2 | unlimited fists (slamAmmo 3) | Melee bruiser. Slam wedge if 2+ clustered, else punch, else march at core. **S18: explodes on death** via unified `DEATH_EXPLOSION` (75 radius / 25 damage, friendly fire on). Chain-guarded. |
+| **Sniper** | 90 | 80 | 50 | 150 | 350 | 400 | — | 2 | **5 (S18, was 1)** | Single-shot precision strike. **Crouch rule:** can NOT crouch + fire the same turn. Movement breaks crouch. Retreats east when empty. AI build enforces 3-cell spacing. |
+| **Medic** | 70 | 50 | 70 | 30* | 150 | 280 | — | 3 | 5 (heal charges) | Three heal modes share the pool: med-pack throw, medic-pad deploy, tether. Diagonal movement. |
+| **Stalker** | 70 | 130 | 60 | 40 | 70 | 220 | — | 2 | **0 (S18, melee only)** | Cloaked melee bruiser. Spawns at 35% opacity; defender AI skips cloaked targets. Cloak drops PERMANENTLY on first damage-dealing action OR on incoming damage. Charges nearest defender, melee on contact (unlimited fists via `meleeUnlimited`). |
+
+**S18 ranged-cyborg core defense avoidance.** `pickStepTowardPoint`
+adds +30 score penalty for cells inside the Power Core electric zone
+when the actor is a non-melee cyborg (skip for hulk + stalker, who need
+to enter for melee). Snipers and grenadiers detour one cell sideways
+instead of taking 20 damage per turn from the core's tickCoreDefense.
 
 Cyborgs spawn in the attacker zone (x > 200) and need to traverse the
 battlefield to reach the Power Core at (-550, 0). All cyborg costs are
@@ -344,19 +405,27 @@ multiples of 10 so leftover credits stay spendable.
 
 ---
 
-## Build-Phase Credit Allocation (session 16)
-Two stacking bonuses on top of `START_CREDITS` (1000):
+## Build-Phase Credit Allocation (S18 — equal credits + difficulty)
+Both sides get the same base. The only adjustment is the AI-side
+multiplier driven by the Difficulty selector on the side picker. Player
+credits never change with difficulty.
 
-| Side | Bonus | Player budget | AI budget |
+| Difficulty | AI multiplier | Player budget | AI budget |
 |---|---|---|---|
-| Defender | base × 1.0 | **1000** | **1500** (× AI_CREDIT_BONUS 1.5) |
-| Attacker | base × 1.3 (ATTACKER_CREDIT_BONUS) | **1300** | **1950** (× 1.5 on top) |
+| Easy | 0.75 | **1000** | **750** |
+| Normal | 1.00 | **1000** | **1000** |
+| Hard | 1.25 | **1000** | **1250** |
 
-Attacker bonus added in session 16 — defender pieces are stationary
-and healable so cyborgs need more bodies to compensate. AI bonus is
-unchanged (0.5).
+`ATTACKER_CREDIT_BONUS = 0` and `AI_CREDIT_BONUS = 0` (both removed in
+S18). Difficulty is persisted in localStorage via `Difficulty.ts`.
 
-## Ammo Crates (session 16)
+**Why the change.** Across 16 prior games the AI side received roughly
+1.95x the player's credit pool (attacker x1.3 stacked with AI x1.5),
+which produced a 0% defender win rate. Equal credits + difficulty
+selector reframes the asymmetry as a player-chosen knob instead of a
+hidden modifier.
+
+## Ammo Crates (cyborgs only, S18)
 Resupply boxes drop in the middle no-build zone every 5 reveals during
 BATTLE (cap 4 on-field). Random cell, weighted bag:
 - 55% ammo
@@ -364,10 +433,14 @@ BATTLE (cap 4 on-field). Random cell, weighted bag:
 - 15% medkit
 - 10% repair_kit
 
-Each pickup grants `+2` to the unit's `ammoRemaining` (capped at the
-Config max). Crates have 1 HP — destroyed by grenades in their AoE or
-by defender direct-fire when no cyborg is in range. Gated by unit
-family via `kitForUnit()`: a medic can't pick up a bullet crate.
+Each pickup grants `+2` to the unit's `ammoRemaining` (capped at Config
+max). Crates have 1 HP, destroyed by grenades in their AoE or by
+defender direct-fire when no cyborg is in range. Gated by unit family
+via `kitForUnit()`: a medic can't pick up a bullet crate.
+
+**S18:** Robots do NOT pick up crates. Cyborg-only mechanic. Defender
+resupply is via the Power Core dock (repair bots regain heal + refill
+charges in core adjacency).
 
 ## Build-Phase Economy (proposed expansion)
 
@@ -452,6 +525,162 @@ built yet.
 | Cyborgs | **Sniper Cyborg** | 65 | Sniper | Cardinal-only, attack range 380, sight 450, single shot per turn. Crouches to aim — visible "crouch" sprite. Soft counter to the Sphere. |
 | Cyborgs | **Assassin** | 75 | Sneaky | High speed, low HP, short range melee. Tries to flank around the front line and hit defenders from the side or back. |
 | Cyborgs | **Berserker** | 50 | Suicide rush | Charges nearest target ignoring fire; detonates on contact for big AoE. |
+
+## S18 mechanics added since the last audit
+
+### Mini Control Center widget
+
+Floating bottom-right dial (`src/ui/MiniControlCenter.ts`, "Variant C"
+beveled-ring design). Hides during loading and pick-side. Procedural
+CSS + inline SVG, no images. Hosts:
+
+- **Speed dial** at the top. Three positions:
+  - Slow: ×5.0 multiplier on RevealPhase step duration (3.0 s per step)
+  - Normal: ×2.5 (1.5 s per step)
+  - Fast: ×1.0 (0.6 s per step)
+- **4 toggle pips** at 12 / 3 / 6 / 9 o'clock: Music, SFX, Speech,
+  Combat Log. All persisted via `AudioSettings.ts` localStorage flags.
+  SFX gates `playGunshot` + `playExplosion`; Speech gates speech
+  bubbles; Combat Log toggles `.center-log` display.
+- **BATTLE / PAUSE pill** at the bottom. Starts reveal during BUILD,
+  toggles `RevealPhase.paused` during reveal (engine freezes step
+  advancement but visuals keep ticking so projectiles finish), PLAY
+  AGAIN full-reloads after game end.
+
+All states persist across Play Again (which is a full page reload).
+
+### Unified death explosion
+
+`Config.DEATH_EXPLOSION = { radius: 75, damage: 25 }`. Used by both
+defender self-destruct AND Hulk death blast for consistency.
+
+- Radius 75 catches all 8 adjacent cells (cardinal at 50, diagonal at
+  ~71). Cells two out (100) are excluded.
+- Friendly fire applies. Cluster placement is a real risk.
+- Chain-reaction guard: a piece dying from another piece's death blast
+  (`killerType === 'self_destruct'` or `'hulk_blast'`) still gets its
+  on-death speech but does NOT trigger a second explosion. Prevents
+  infinite cascades.
+- Visual matches damage area: `Explosion` no longer scales the ring
+  from 1.0 → 2.5x. Stays at the constructed radius, fades opacity 1
+  → 0 over the duration.
+
+### Phaser beam (Cannon)
+
+`Config.STRUCTURES.cannon` keeps the internal type but the HUD label
+is "PHASER 60cr".
+
+- Range bumped 280 → 330.
+- aoeRadius set to 0 (beam, not blast).
+- `firePhaserBeam` picks the facing whose cardinal lane covers the
+  queued target, scans every cyborg in that lane up to range, applies
+  full damage to each.
+- Walls + allies are skipped (cyborg-only piercing).
+- Stacking Phasers in a row: both can contribute to the same cyborg
+  lane since allies don't block.
+- Beam visual is a translucent cyan plane from the barrel tip (cell
+  edge in facing dir) to end of range, z=12, renderOrder=14. Fades
+  over 0.6s.
+
+### Mortar (Bomber rename)
+
+Defender Bomber labelled "MORTAR" in the HUD. Internal type still
+`bomber`. Mechanic unchanged (proximity mine, 3-reveal safety fuse).
+Sprite size 60 → 66.
+
+### Shield aura
+
+Defender Shield structure (`type: 'defense'`, 50cr) now functional.
+
+- Aura radius: 2.0 grid cells.
+- Reduction: 25% (damage scaled to 0.75x at the three main damage
+  sites: direct fire, AoE tick, Hulk slam).
+- Applies only to defender pieces in range of any alive Shield.
+- Visual: translucent cyan dome (Structure child sprite). Centered
+  radial gradient, no top highlight band, no outer rim. Subtle
+  ~0.33 Hz breathing pulse.
+
+### Repair refill mechanic
+
+Separate from heal charges. `Config.UNITS.repair.refillCharges = 3`.
+
+- Trigger: repair bot ends a move adjacent to a friendly defender
+  with `ammoRemaining < ammoMax`.
+- Effect: +1 ammo on target, -1 refill charge.
+- One target per turn.
+- Walls / shields / mines skipped (no ammo concept).
+
+Power Core dock: adjacency to the core restores +2 heal + +1 refill
+per turn.
+
+### Speech triggers (S18 additions)
+
+The previously-pending hooks are all wired in `RevealPhase.attribute`
+and `handleDeath`:
+
+| Trigger | Hook |
+|---|---|
+| `on_kill` | Attacker speaks on non-sniper kill |
+| `on_death` | Dying piece speaks (cyborgs + robots) |
+| `core_hit` | Paired callout when Power Core takes non-fatal damage |
+| `mine_spotted` | Cyborg approaching core sees armed enemy mine within 4 cells, once per unit per game |
+
+The "Mine!" line was previously inside `crate_spotted`, which read as
+ownership; it moved to its own trigger.
+
+Robot voice rewritten to ENERGY-only vocabulary: "CHARGES", "BATTERY",
+"PULSE", "RECHARGE". Kinetic terms ("rounds", "magazine") removed, will
+be reserved for a future Humans faction.
+
+### Stalemate guard
+
+A safety net, NOT a balance rule. RevealPhase tracks
+`combatThisReveal` (false unless any damage/kill/move event fires).
+After 3 consecutive silent reveals, force a defender attrition win
+and log a console warning. Catches stuck-loop bugs (e.g. the
+Turn 393 freeze from S17).
+
+### Telemetry expansion
+
+New `BattleRecord` fields on `BattleStats`:
+
+- `hitsByPieceType` / `missesByPieceType` (accuracy)
+- `friendlyFireByPieceType` / `friendlyFireHits` (AoE targeting bugs;
+  intentional friendly-fire from self_destruct + hulk_blast skipped)
+- `weakeningByPieceType` (target dropped below 50% HP first time)
+- `oneShotsByPieceType` / `oneShotVictimsByType` (full-HP kills)
+- `resupply` (attackerCratePickups vs defenderCoreRecharges)
+- `grenadeThrows` (landing position + nearest enemy per throw)
+- `hulkProgress` (per-Hulk startX vs endX in world coords)
+- `damageReconciliation` (statsDamage vs piecesStats sum, divergence
+  pct, sanity check for damage-attribution bugs)
+- `piecesStats` (side-split: `attacker[type] + defender[type]` each
+  carrying full counter object). Fixes the cannon/bomber type
+  collision where both sides had the same actorType key.
+
+`/stats.html` got matching panels: ERROR-HUNTING TELEMETRY, PER-PIECE
+BY SIDE, PER-PIECE DETAIL dropdown, GRENADIER + BOMBER THROW
+LANDINGS, HULK CORE PROGRESS, plus AVG SECONDS / AVG SEC PER TURN /
+SPEED MIX summary cards.
+
+Core blast attribution fix: `applyCoreBlast` now calls `attribute()`
+with `actorType: 'core_blast'` so cyborgs killed by the final core
+explosion show up in damage + kill telemetry instead of being lost.
+
+### HOW TO PLAY dropdown (5 sections)
+
+Side picker home page has an expandable HOW TO PLAY block with five
+sections: The Basics, Combat Rules, Robot Specials, Cyborg Specials,
+Win Conditions. Memory note saved (`feedback-keep-howto-in-sync`)
+so future balance changes prompt a dropdown audit.
+
+### Sprite size rebalance
+
+- Bomber 60 → 66 (was reading too small for a tower piece).
+- Laser default → explicit 44 (was visually dominant due to chunky
+  sprite art).
+
+---
 
 ## S17 mechanics added since the last audit
 
@@ -618,20 +847,44 @@ Resolved or shipped:
 - ~~Ammo finite vs unlimited?~~ Locked: per-game ammo budget on every
   offensive piece. Crates + Power Core docking provide top-ups.
 
-Still open:
+Still open going into next session:
 
-- **Diagonal movement** for cyborgs broadly. Currently opt-in per unit
-  (`allowDiagonalMove`). Medic and Repair are diagonal-capable.
-- **Turning cost** for cyborgs. Currently free (units pivot before firing
-  with no AP cost). Sphere remains free by design.
-- **Sight range blocking.** Do walls / other pieces block sight the same
-  way they block projectiles? Probably yes for symmetry, but sniper /
-  spotter pieces may need an "elevated sight" exception.
-- **Sneaky / flank routing.** Does a future Assassin pathfind around the
-  enemy line, or just prefer cells away from the highest enemy density?
-- **Robot self-destruct AoE tuning.** Currently 60 radius, 25 damage,
-  friendly fire on. Watch for cluster-deaths that wipe defender lines.
-  Lever: damage value, or restrict friendly-fire to non-defender
-  targets if the cascade feels unfair.
-- **Music system.** The MCC has a music toggle that persists a flag,
-  but no audio source consults it yet. Add a backing track.
+- **Cyborg Mine placement + trigger logic.** Tile is in the cyborg
+  shop with `preview: true`, Config entry exists, but placement
+  flow + side-aware trigger logic NOT yet implemented (BuildPhase
+  is defender-only). Needs an attacker-side structure placement
+  path.
+- **Sniper at 5 ammo.** S18 standardized to 5; the 5 × 150 = 750
+  damage ceiling per sniper is potentially too strong. Watch
+  telemetry for the next 3-5 games; tune down if defender pieces
+  are being vaporized too easily.
+- **Stalker `ammo: 0` field.** Mechanically correct (unlimited
+  fists) but the field is still in Config. Future cleanup could
+  remove or migrate to a dedicated `meleeOnly` flag.
+- **HOW TO PLAY dropdown mentions PLAN phase.** PLAN is currently
+  skipped (BUILD jumps to BATTLE). Either re-enable PLAN for
+  piece-specific targeting (Hulk slam picker, etc.) or rewrite
+  the dropdown to drop the mention. Architecture still supports
+  PLAN.
+- **Defender win rate at parity.** Equal credits + difficulty +
+  all the S18 buffs (mobile sphere, mobile sentry, shield aura,
+  repair refill, core dock) have not been measured against the
+  previous 0% defender win rate. Need 3-5 fresh games post-S17.25
+  to see actual parity.
+- **Robot health tint convention.** Saved as memory
+  (`project_robot_health_tint`). Reuse the repair-pulse pattern
+  as a persistent HP indicator (green / yellow / red). Not wired
+  yet.
+- **Diagonal movement** for cyborgs broadly. Currently opt-in per
+  unit (`allowDiagonalMove`). Medic and Repair are
+  diagonal-capable.
+- **Turning cost** for cyborgs. Currently free (units pivot before
+  firing with no AP cost). Sphere remains free by design.
+- **Sight range blocking.** Do walls / other pieces block sight the
+  same way they block projectiles?
+- **Sneaky / flank routing.** Future Assassin pathfinding.
+- **Death explosion tuning.** S18 unified at 75 radius / 25 damage,
+  friendly fire on. Watch for cluster cascades that wipe defender
+  lines.
+- **Music system.** The MCC has a music toggle that persists a
+  flag, but no audio source consults it yet. Add a backing track.

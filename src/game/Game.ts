@@ -21,6 +21,8 @@ import { recordBattle, BattleRecord, PerPieceCounters } from './BattleStats'
 import { getRevealSpeed } from './RevealSpeed'
 import { aiCreditMultiplier } from './Difficulty'
 import { MiniControlCenter } from '../ui/MiniControlCenter'
+import { setMusicTrack, stopMusic } from '../audio/music'
+import { preloadAllSamples, playEventSfx } from '../audio/sfx'
 import type { CombatLogEntry } from './RevealPhase'
 
 type Phase = 'loading' | 'pick-side' | 'build' | 'planning' | 'reveal' | 'win' | 'lose'
@@ -238,7 +240,9 @@ export class Game {
     })
 
     // Block UI until all sprite atlases are ready so placements never show the
-    // swap from fallback geometry to final sprite.
+    // swap from fallback geometry to final sprite. Sample SFX decode runs in
+    // parallel; we await it so the first weapon fire isn't silent. Sample
+    // failures are non-fatal (synth fallback kicks in per event).
     await Promise.all([
       preloadSphereSprites(),
       preloadSpriteUnit('cannon', 'cannon'),
@@ -252,6 +256,7 @@ export class Game {
       preloadSpriteUnit('stalker', 'cyborg_stalker'),
       preloadPixelPowerCore(),
       preloadStructureSprites(),
+      preloadAllSamples(),
     ])
 
     // Pixel power core — 2x2 footprint stays at 100 world units of cell
@@ -280,6 +285,10 @@ export class Game {
     this.phase = 'pick-side'
     this.hud.onPickSide = (faction, role) => this.onSidePicked(faction, role)
     this.hud.showSidePicker()
+    // Main menu music plays under the side picker. The first click on a
+    // faction card will both pick the side AND satisfy the browser's
+    // autoplay-gesture requirement if the initial play() was blocked.
+    setMusicTrack('menu')
   }
 
   private onSidePicked(faction: Faction, role: Role) {
@@ -298,6 +307,11 @@ export class Game {
     // or AI tint if the player is attacking (the core always sits on the
     // defender side, so it belongs to whoever picked defender).
     this.applyPowerCoreTeamTint(role === 'defender' ? 'player' : 'ai')
+    // Swap menu music for the faction's in-game theme. Stays playing
+    // through build / reveal / win / lose; PLAY AGAIN reloads the page
+    // which brings the menu track back on its own.
+    setMusicTrack(faction === 'robot' ? 'robots' : 'cyborgs')
+    playEventSfx('power_up')
     this.enterBuildPhase()
   }
 
@@ -1224,6 +1238,7 @@ private enterBuildPhase() {
         if (this.isCellOccupied(x, y)) return false   // one piece per cell
         if (!this.buildPhase.spendCredits(SPHERE_COST)) return false
         this.spheres.push(new SphereDefender(this.scene, x, y, 'player'))
+        playEventSfx('structure_placement')
         return false  // multi-place — keep selecting until user cancels or credits run out
       },
     }
@@ -1246,6 +1261,7 @@ private enterBuildPhase() {
         const cost = Config.UNITS.dog.cost
         if (!this.buildPhase || !this.buildPhase.spendCredits(cost)) return false
         this.defenderUnits.push(new SpriteUnit(this.scene, 'dog', x, y, 'defender', 'player'))
+        playEventSfx('structure_placement')
         return false
       },
     }
@@ -1268,6 +1284,7 @@ private enterBuildPhase() {
         const cost = Config.UNITS.repair.cost
         if (!this.buildPhase || !this.buildPhase.spendCredits(cost)) return false
         this.defenderUnits.push(new SpriteUnit(this.scene, 'repair', x, y, 'defender', 'player'))
+        playEventSfx('structure_placement')
         return false
       },
     }
@@ -1294,6 +1311,7 @@ private enterBuildPhase() {
         this.attCredits -= cost
         this.hud.setAttCredits(this.attCredits)
         this.attackerUnits.push(new SpriteUnit(this.scene, type, x, y, 'attacker', 'player'))
+        playEventSfx('structure_placement')
         return false
       },
       onEnd: () => this.hud.setSelectedUnitType(null),
@@ -1775,6 +1793,7 @@ private enterBuildPhase() {
     window.removeEventListener('mouseup', this.onMouseUp)
     window.removeEventListener('contextmenu', this.onContextMenu)
     this.mcc?.dispose()
+    stopMusic()
     this.buildPhase?.cleanup()
     this.endPlacement()
     this.removeZoneTint('att')

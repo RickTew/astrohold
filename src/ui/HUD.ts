@@ -2,6 +2,7 @@ import { Config, StructureType, UnitType } from '../game/GameConfig'
 import type { PlanningSelectionInfo } from '../game/PlanningPhase'
 import type { CombatLogEntry } from '../game/RevealPhase'
 import { Difficulty, getDifficulty, setDifficulty } from '../game/Difficulty'
+import { playEventSfx } from '../audio/sfx'
 
 const SPHERE_COST = 100   // mirrors Game.SPHERE_COST
 
@@ -388,13 +389,13 @@ export class HUD {
     // bind by class selector. data-action covers sphere/dog (unit-based
     // robot pieces); data-type covers structures + cyborg units.
     this.container.querySelectorAll('.hud-tile[data-action="sphere"]').forEach(btn => {
-      btn.addEventListener('click', () => this.onBuySphere?.())
+      btn.addEventListener('click', () => { playEventSfx('button_click'); this.onBuySphere?.() })
     })
     this.container.querySelectorAll('.hud-tile[data-action="dog"]').forEach(btn => {
-      btn.addEventListener('click', () => this.onBuyDog?.())
+      btn.addEventListener('click', () => { playEventSfx('button_click'); this.onBuyDog?.() })
     })
     this.container.querySelectorAll('.hud-tile[data-action="repair"]').forEach(btn => {
-      btn.addEventListener('click', () => this.onBuyRepair?.())
+      btn.addEventListener('click', () => { playEventSfx('button_click'); this.onBuyRepair?.() })
     })
     // Robot structures
     this.container.querySelectorAll<HTMLElement>('#hud-top .hud-tile[data-type]').forEach(btn => {
@@ -402,6 +403,7 @@ export class HUD {
         const type = (e.currentTarget as HTMLElement).dataset.type as StructureType
         this.container.querySelectorAll('#hud-top .hud-tile').forEach(b => b.classList.remove('selected'))
         ;(e.currentTarget as HTMLElement).classList.add('selected')
+        playEventSfx('button_click')
         this.onSelectStructure?.(type)
       })
     })
@@ -411,6 +413,7 @@ export class HUD {
         const type = (e.currentTarget as HTMLElement).dataset.type as UnitType
         this.container.querySelectorAll('#hud-top-att .hud-tile').forEach(b => b.classList.remove('selected'))
         ;(e.currentTarget as HTMLElement).classList.add('selected')
+        playEventSfx('button_click')
         this.onSpawnUnit?.(type)
       })
     })
@@ -443,6 +446,7 @@ export class HUD {
         const d = btn.dataset.difficulty as Difficulty
         setDifficulty(d)
         this.applyDifficultySelection(d)
+        playEventSfx('button_click')
       })
     })
   }

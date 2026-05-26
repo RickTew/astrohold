@@ -3,6 +3,7 @@ import { Config, StructureType } from './GameConfig'
 import { Structure } from '../entities/Structure'
 import { FireArcPreview } from '../entities/FireArcPreview'
 import { HUD } from '../ui/HUD'
+import { playEventSfx } from '../audio/sfx'
 
 const COLS = 8
 const ROWS = 8  // 400 / 50 — used for placement bounds checking, not for any visible grid
@@ -165,6 +166,11 @@ private buildHitPlane(): THREE.Mesh {
         right?.setWallHorizontal(true)
       }
     }
+    // Placement audio. A few structure types get their own dedicated
+    // sound; everything else uses the generic structure_placement pool.
+    if (placed.type === 'signal')                              playEventSfx('signal_placement')
+    else if (placed.type === 'defense' || placed.type === 'wall') playEventSfx('shield_placement')
+    else                                                       playEventSfx('structure_placement')
   }
 
   private showGhost(wx: number, wy: number) {

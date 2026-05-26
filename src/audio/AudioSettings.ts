@@ -43,4 +43,15 @@ export function isMusicOn(): boolean {
 export function setMusicOn(value: boolean) {
   musicOn = value
   writeBool(KEY_MUSIC, value)
+  for (const cb of musicListeners) cb(value)
+}
+
+type MusicListener = (on: boolean) => void
+const musicListeners: MusicListener[] = []
+export function onMusicChange(cb: MusicListener): () => void {
+  musicListeners.push(cb)
+  return () => {
+    const i = musicListeners.indexOf(cb)
+    if (i >= 0) musicListeners.splice(i, 1)
+  }
 }

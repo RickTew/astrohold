@@ -13,7 +13,7 @@ import { Tether } from '../entities/Tether'
 import { RepairPad } from '../entities/RepairPad'
 import { RepairTether, RepairTetherTarget } from '../entities/RepairTether'
 import { AmmoBox, KIT_AMOUNT } from '../entities/AmmoBox'
-import { playGunshot, playExplosion } from '../audio/sfx'
+import { playExplosion, playWeaponSfx, playEventSfx, WeaponSfxId } from '../audio/sfx'
 import { revealSpeedMultiplier } from './RevealSpeed'
 import { spawnSpeechBubble } from '../entities/SpeechBubble'
 
@@ -182,6 +182,36 @@ export class RevealPhase {
   private actorTypeKey(actor: Actor): string {
     if (actor instanceof SphereDefender) return 'sphere'
     return actor.type   // SpriteUnit + Structure both have .type
+  }
+  // Map an actor to its weapon SFX id. Centralized so adding a new
+  // unit/structure only needs one new case. Defaults to 'rifle' for
+  // anything unmapped so the game never goes silent on a fire action.
+  private weaponSfxFor(actor: Actor): WeaponSfxId {
+    if (actor instanceof SphereDefender) return 'sphere'
+    if (actor instanceof Structure) {
+      switch (actor.type) {
+        case 'cannon':   return 'phaser'   // defender Cannon is the Phaser beam
+        case 'sentry':   return 'sentry'
+        case 'bomber':   return 'bomb_throw'  // mortar lob (detonation uses playExplosion)
+        case 'turret':   return 'rifle'
+        case 'gun':      return 'rifle'
+        case 'laser':    return 'phaser'
+        default:         return 'rifle'
+      }
+    }
+    // SpriteUnit
+    switch (actor.type) {
+      case 'sniper':     return 'sniper'
+      case 'doublegun':  return 'doublegun'
+      case 'grenadier':  return 'bomb_throw'
+      case 'hulk':       return 'melee_hit'
+      case 'stalker':    return 'stalker_swing'
+      case 'dog':        return 'melee_hit'
+      case 'medic':      return 'heal'
+      case 'repair':     return 'weld'
+      case 'cannon':     return 'rifle'   // cyborg cannon
+      default:           return 'rifle'
+    }
   }
   // Assist tracking — for each target that has taken damage this match,
   // remember the set of attacker types that hit it. On kill, every non-
@@ -537,6 +567,7 @@ export class RevealPhase {
       this.log('defender',
         `Power Core electric defense — ${hits} hit (−${hits * CORE_DEFENSE_DAMAGE}${kills > 0 ? `, ${kills} killed` : ''})`)
       this.emit({ kind: 'action', actorType: 'core', side: 'defender', action: 'core_pulse' })
+      playEventSfx('core_zap')
     }
   }
 
@@ -2126,7 +2157,7 @@ export class RevealPhase {
     }
     // Beam visual along the full range.
     this.spawnPhaserBeamVisual(ax, ay, fx, fy, range)
-    playGunshot()
+    playWeaponSfx('phaser')
     this.log('defender', hits === 0
       ? `${this.actorLabel(struct)} fires phaser beam (no targets)`
       : `${this.actorLabel(struct)} phaser beam hits ${hits} (${totalDamage} dmg)`)
@@ -2759,7 +2790,9 @@ export class RevealPhase {
         }
       }
     }
-    playExplosion()
+    // Dedicated slam SFX falls back to playExplosion if the sample is
+    // missing so the impact never goes silent.
+    if (!playEventSfx('hulk_slam')) playExplosion()
     // Hit/miss telemetry for the slam. Tracked as one outcome per slam,
     // not per target hit, so /stats.html accuracy reads as "% of slams
     // that landed on at least one target."
@@ -2862,6 +2895,7 @@ export class RevealPhase {
         : 'ammo box'
       this.log(unit.side, `${this.actorLabel(unit)} grabs a ${kitLabel} (+${gained})`)
       unit.announce('rearmed')
+      playEventSfx('ammo_pickup')
       // Parity telemetry. Cyborg-only counter since defender side has no crate path.
       this.emit({ kind: 'crate_pickup', side: 'attacker' })
       return  // only one pickup per move
@@ -2919,6 +2953,7 @@ export class RevealPhase {
     if (refillGained > 0) parts.push(`+${refillGained} refill`)
     this.log('defender', `${this.actorLabel(unit)} docks at the Power Core (${parts.join(', ')})`)
     unit.announce('rearmed')
+    playEventSfx('core_recharge')
     this.emit({ kind: 'core_recharge', side: 'defender' })
   }
 
@@ -2982,6 +3017,7 @@ export class RevealPhase {
     this.combatThisReveal = true
     this.log('defender', `${this.actorLabel(unit)} refills ${this.actorLabel(target.ref)} (+${gained} ammo)`)
     unit.announce('rearmed')
+    playEventSfx('repair_recharged')
   }
 
   private executeAttack(actor: Actor, action: QueuedAction) {
@@ -3153,6 +3189,9 @@ export class RevealPhase {
       // GUARD: only run this branch on actual 'throw' actions. Grenadier
       // melee fallback uses kind:'fire' which has no .cell field.
       proj.silentLanding = true
+      // Soft launch thunk so the throw is audible (the detonation later
+      // uses playExplosion, but the lob itself was silent before).
+      playWeaponSfx('bomb_throw')
       const side = actor.side
       const ownerId = actor.id
       const ownerType = this.actorTypeKey(actor)
@@ -3233,7 +3272,11 @@ export class RevealPhase {
     }
 
     this.projectiles.push(proj)
-    if (!isAoe) playGunshot()
+    // Direct-fire projectile launch sound. AoE projectiles stay silent at
+    // launch (the impact playExplosion is plenty); throws got their own
+    // bomb_throw above. The dispatcher picks the right per-weapon recipe
+    // so phaser, sniper, doublegun, sphere etc. each sound distinct.
+    if (!isAoe) playWeaponSfx(this.weaponSfxFor(actor))
   }
 
   private applyAoe(cx: number, cy: number, radius: number, damage: number, source: Actor): AoeSummary {

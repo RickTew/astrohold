@@ -4,3 +4,8 @@ _zips/
 .DS_Store
 *.local
 .vercel
+
+# Audio: keep the active mp3s in /public/audio/ but exclude the heavy
+# WAV backup folders. The game only references the mp3s; the WAV trees
+# are local-only originals.
+public/audio/**/WAV and Alternatives/
