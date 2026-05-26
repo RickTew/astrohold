@@ -181,7 +181,7 @@ export const SPEECH_LINES: Record<SpeechVoice, Record<SpeechTrigger, string[]>> 
     ],
     sniper_shot: [
       "TARGET ELIMINATED",
-      "PRECISION SHOT CONFIRMED",
+      "PRECISION SHOT",
       "MARK STRUCK",
       "SINGLE-PULSE KILL",
       "TARGET LOCKED",
@@ -208,10 +208,10 @@ export const SPEECH_LINES: Record<SpeechVoice, Record<SpeechTrigger, string[]>> 
       "POWER SURGE",
     ],
     no_repairs_needed: [
-      "ALL SYSTEMS NOMINAL",
-      "NO REPAIRS REQUIRED",
+      "SYSTEMS NOMINAL",
+      "NO REPAIRS NEEDED",
       "STANDING BY",
-      "AWAITING DAMAGE REPORT",
+      "AWAITING DAMAGE",
     ],
     on_kill: [
       "TARGET NEUTRALIZED",
@@ -229,19 +229,19 @@ export const SPEECH_LINES: Record<SpeechVoice, Record<SpeechTrigger, string[]>> 
       // of variety here so a battle full of robot deaths reads as
       // a synchronised dramatic choice rather than identical kills.
       "DETONATION SET",
-      "SELF-DESTRUCT PROTOCOL ENGAGED",
-      "CORE OVERLOAD IN 3, 2, 1",
-      "FINAL DIRECTIVE. ANNIHILATION",
-      "SACRIFICE CONFIRMED",
-      "DETONATION SEQUENCE ACTIVE",
-      "CRITICAL BREACH. INTENTIONAL",
+      "SELF-DESTRUCT",
+      "CORE OVERLOAD",
+      "FINAL DIRECTIVE",
+      "SACRIFICE SET",
+      "DETONATING",
+      "BREACH INTENT",
       "GOODBYE, ENEMY",
-      "SYSTEM COLLAPSE. BY DESIGN",
+      "COLLAPSE BY DESIGN",
     ],
     core_hit: [
       "CORE HIT",
       "CORE BREACH",
-      "CRITICAL TARGET STRUCK",
+      "CRITICAL STRIKE",
     ],
     mine_spotted: [
       "MINE DETECTED",

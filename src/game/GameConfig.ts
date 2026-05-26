@@ -172,8 +172,12 @@ export const Config = {
     drone:     { cost: 30, hp: 20,  speed: 160, damage: 8,  range: 350, sightRange: 420, aoeRadius: 0,  apBudget: 3, ammo: 5, label: 'Drone',     color: 0x44ffff },
     cannon:    { cost: 70, hp: 180, speed: 55,  damage: 35, range: 240, sightRange: 320, aoeRadius: 0,  apBudget: 3, ammo: 5, label: 'Cannon',    color: 0xffaa55 },
     grenadier: { cost: 50, hp: 110, speed: 75,  damage: 20, range: 180, sightRange: 280, aoeRadius: 60, apBudget: 3, ammo: 5, label: 'Grenadier', color: 0x88dd44 },
-    // Double Gun — dual hand-cannons, highest direct-fire damage, costlier and slightly squishier than Cannon.
-    doublegun: { cost: 90, hp: 160, speed: 65,  damage: 45, range: 230, sightRange: 300, aoeRadius: 0,  apBudget: 3, ammo: 5, label: 'Double Gun',color: 0xff8866 },
+    // Double Gun — dual hand-cannons. Fires TWO shots per turn (RevealPhase
+    // schedules the second projectile 80ms after the first). Per-shot damage
+    // is halved (23) so total burst ~46 matches the prior single-shot 45,
+    // i.e. same throughput with a burst-weapon feel. Total game damage budget
+    // is therefore unchanged (5 turns × 2 shots × 23 ≈ 230).
+    doublegun: { cost: 90, hp: 160, speed: 65,  damage: 23, range: 230, sightRange: 300, aoeRadius: 0,  apBudget: 3, ammo: 5, label: 'Double Gun',color: 0xff8866 },
     // Combat Dog — DEFENDER mobile unit. Fast and now armed: the sprite
     // has a gun mounted on top so it should shoot. range 150 + damage 15
     // = short-medium harasser. Closes the gap to flank cyborgs then fires.

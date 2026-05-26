@@ -3291,6 +3291,25 @@ export class RevealPhase {
     // bomb_throw above. The dispatcher picks the right per-weapon recipe
     // so phaser, sniper, doublegun, sphere etc. each sound distinct.
     if (!isAoe) playWeaponSfx(this.weaponSfxFor(actor))
+
+    // Doublegun burst. Cyborg Doublegun fires a 2-shot burst per turn:
+    // schedule a second identical projectile ~80ms after the first so it
+    // visually + audibly reads as a paired pop. Per-shot damage in Config
+    // is halved (23) so the 2-shot total matches the prior single-shot
+    // throughput. Same target, same onHit handler. If the first shot kills
+    // the target the second is wasted (onHit early-returns on isDead).
+    if (!isAoe && actor instanceof SpriteUnit && actor.type === 'doublegun') {
+      const onHitClone = proj.onHit
+      setTimeout(() => {
+        const proj2 = new Projectile(
+          this.scene, muzzle.x, muzzle.y, null, aim.x, aim.y,
+          damage, isAoe, aoeRadius, color, spriteTex,
+        )
+        proj2.onHit = onHitClone
+        this.projectiles.push(proj2)
+        playWeaponSfx('doublegun')
+      }, 80)
+    }
   }
 
   private applyAoe(cx: number, cy: number, radius: number, damage: number, source: Actor): AoeSummary {
