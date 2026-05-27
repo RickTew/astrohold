@@ -982,6 +982,17 @@ export class RevealPhase {
       if (unit.ammoRemaining > 0) {
         const target = this.nearestEnemy(unit, Config.UNITS.sniper.range)
         if (target) {
+          // S20 shoot-and-move: after firing the sniper is flagged for
+          // a forced relocation on its NEXT turn. Take one step toward
+          // the target (closing distance) instead of firing/crouching.
+          // moveTo clears mustRelocate, so the turn after this is a
+          // normal settle/fire cycle from the new cell.
+          if (unit.mustRelocate) {
+            const cell = this.pickStepTowardPoint(unit, target.x, target.y)
+            if (cell) return { kind: 'move', cell }
+            // No legal move (boxed in) — fall through so the sniper can
+            // at least re-fire instead of doing nothing.
+          }
           if (unit.crouched) {
             return { kind: 'fire', target: { kind: target.kind, id: target.id } }
           }
@@ -3196,7 +3207,16 @@ export class RevealPhase {
       actor.faceTarget(aim.x, aim.y)
       actor.playAttackAnim()
       // Sniper one-liner — fires once per battle, on the actual shot.
-      if (actor.type === 'sniper') actor.announceOnce('sniper_shot')
+      if (actor.type === 'sniper') {
+        actor.announceOnce('sniper_shot')
+        // S20 shoot-and-move rule. Sniper must relocate on the next
+        // turn instead of firing again from the same cell. Combined
+        // with the existing "crouch breaks on movement" rule this
+        // forces a settle/fire/move/settle/fire... rhythm (~1 shot
+        // per 3 turns), removing the static-turret pattern that made
+        // snipers the runaway top damage piece.
+        actor.mustRelocate = true
+      }
       // Stalker cloak drops on first damage-dealing action — committing
       // to combat reveals position to defender targeting AI.
       if (actor.cloaked) {

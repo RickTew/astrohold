@@ -373,6 +373,13 @@ export class SpriteUnit {
   // play the intro on the next stalker action, and to know whether
   // to engage cloak afterward.
   introSpoken = false
+  // S20 — sniper "shoot-and-move" rule. After firing, the next turn
+  // forces a relocation (move to a different cell) instead of another
+  // shot from the same spot. Movement breaks the crouch as usual, so
+  // the sniper has to settle in again on the turn after that. Cycle:
+  // settle -> fire -> move -> settle -> fire -> ...
+  // Reset on moveTo (and naturally consumed by the next action).
+  mustRelocate = false
 
   constructor(
     scene: THREE.Scene,
@@ -519,6 +526,10 @@ export class SpriteUnit {
   moveTo(x: number, y: number) {
     // Walking breaks the sniper crouch — must re-settle before next shot.
     this._crouched = false
+    // S20 sniper shoot-and-move: the relocate flag is consumed by
+    // actually moving. Clearing here so the next reveal lets the
+    // sniper settle/fire normally from the new spot.
+    this.mustRelocate = false
     // Remember where we came from so occupancy checks block the source cell
     // until our mesh visually reaches the new logical position.
     this.prevX = this.logicalX

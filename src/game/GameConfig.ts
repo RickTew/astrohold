@@ -51,7 +51,7 @@ export const Config = {
   // not a cell center. With GRID_CELL=50 and WORLD.LEFT=-600 / BOTTOM=-200,
   // (-550, 0) is the corner where cols 0/1 meet rows 3/4, so the core covers
   // cells (0,3), (1,3), (0,4), (1,4).
-  POWER_CORE: { X: -550, Y: 0, HP: 100, RADIUS: 18 },
+  POWER_CORE: { X: -550, Y: 0, HP: 150, RADIUS: 18 },
 
   // S17.21 unified death-explosion AoE. Every piece that detonates on
   // death (defender self-destruct, cyborg Hulk death blast) uses these
@@ -188,7 +188,7 @@ export const Config = {
     // (ammo 1) that one-shots any single defender structure. Squishy and
     // slow — after firing the sniper is just a slow target. Use the shot
     // wisely: the cannon turret (HP 120) is the natural target.
-    sniper:    { cost: 90, hp: 80, speed: 50,  damage: 135, range: 350, sightRange: 400, aoeRadius: 0, apBudget: 2, ammo: 4, label: 'Sniper',     color: 0x99bb66 },
+    sniper:    { cost: 90, hp: 80, speed: 50,  damage: 110, range: 350, sightRange: 400, aoeRadius: 0, apBudget: 2, ammo: 4, label: 'Sniper',     color: 0x99bb66 },
     // Cyborg Hulk — exo-suited melee bruiser. Highest HP and damage in the
     // roster, slowest speed, very short range (must close to melee). Ammo
     // budget is low so each punch matters.
