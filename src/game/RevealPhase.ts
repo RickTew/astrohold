@@ -913,14 +913,39 @@ export class RevealPhase {
     //      cloak is to close distance without being shot, so we
     //      don't want him hanging back.
     if (unit.type === 'stalker') {
-      // S20 dramatic intro. Stalker spawns visible; on its first turn,
-      // it plays a callout ("Going dark", "Bye bye", etc.) and then
-      // cloaks ~2s later with a smooth opacity fade. Subsequent turns
-      // use the existing cloaked-stalker behavior.
+      // S20 dramatic intro. Stalker spawns visible and marches west
+      // uncloaked. The intro callout fires the moment he comes within
+      // ~350 units of ANY defender piece (long enough that the player's
+      // longest-range Phaser at 330 actually has a shot). The cloak
+      // engages 2 seconds after that, giving the defender one full turn
+      // to fire on the visible Stalker. From the next turn onward the
+      // existing cloaked-stalker behavior applies.
       if (!unit.introSpoken) {
-        unit.introSpoken = true
-        unit.announceOnce('intro')
-        setTimeout(() => unit.engageCloak(), 2000)
+        const STALKER_REVEAL_RANGE = 350
+        const sx = unit.worldX
+        const sy = unit.worldY
+        let inRange = false
+        for (const d of this.defenderUnits) {
+          if (d.isDead) continue
+          if (Math.hypot(d.worldX - sx, d.worldY - sy) <= STALKER_REVEAL_RANGE) { inRange = true; break }
+        }
+        if (!inRange) {
+          for (const s of this.structures) {
+            if (s.isDead) continue
+            if (Math.hypot(s.worldX - sx, s.worldY - sy) <= STALKER_REVEAL_RANGE) { inRange = true; break }
+          }
+        }
+        if (!inRange) {
+          for (const sp of this.spheres) {
+            if (sp.isDead) continue
+            if (Math.hypot(sp.worldX - sx, sp.worldY - sy) <= STALKER_REVEAL_RANGE) { inRange = true; break }
+          }
+        }
+        if (inRange) {
+          unit.introSpoken = true
+          unit.announceOnce('intro')
+          setTimeout(() => unit.engageCloak(), 2000)
+        }
       }
       const meleeRange = Config.UNITS.stalker.range
       const melee = this.nearestEnemy(unit, meleeRange)
