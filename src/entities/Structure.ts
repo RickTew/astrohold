@@ -52,6 +52,18 @@ const STRUCTURE_SPRITE_SIZE: Partial<Record<StructureType, number>> = {
   // a footprint trap, not a structure occupying the whole cell.
   mine:   36,
 }
+
+// Per-type foot fraction for shadow placement: the % of PNG height
+// where each sprite's visible content ends. Default in Shadow.ts is
+// 0.74 which works for tower/sentry/bomber/cannon/defense. The
+// short-pedestal pieces below extend much further down — without an
+// override the shadow lands inside the opaque body and disappears.
+// Values measured with PIL on /public/sprites/*/south.png.
+const STRUCTURE_FOOT_FRACTION: Partial<Record<StructureType, number>> = {
+  laser:  0.91,
+  gun:    0.97,
+  signal: 0.98,
+}
 const SPRITE_SIZE = 50   // default — one cell
 // Per-type default facing. Tower has full 8 rotations and ships pointing
 // EAST per the planned directional-arc mechanic (player pays to add more
@@ -318,10 +330,14 @@ export class Structure {
         this.sprite = sprite
         // Grounded side-themed drop shadow. All structures are defender
         // pieces (blue) today; mapping leaves room for cyborg-placed
-        // structures (red) if that mechanic lands later.
+        // structures (red) if that mechanic lands later. Pieces with
+        // pedestals reaching close to the bottom of their PNG need an
+        // explicit foot fraction so the shadow doesn't hide inside
+        // the opaque sprite body.
         this.mesh.add(makeShadowSprite({
           size: sz,
           side: this.team === 'player' ? 'defender' : 'attacker',
+          footFraction: STRUCTURE_FOOT_FRACTION[this.type],
         }))
         break
       }
