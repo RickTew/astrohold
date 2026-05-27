@@ -41,7 +41,9 @@ const STRUCTURE_SPRITE_SIZE: Partial<Record<StructureType, number>> = {
   // sprite art is naturally chunky so the default 50 was over-large
   // on the field; explicit 44 trims it without losing the twin-barrel
   // silhouette.
-  bomber: 66,
+  // S20: Bomber bumped 66 -> 72 so it reads as a real tower-class
+  // structure (between Turret 64 and Sentry 84).
+  bomber: 72,
   laser:  44,
   // Sentry renders as tall as the Hulk (84) so the heavy-tower piece
   // reads as a real bruiser on the field, not a slightly bigger tower.
