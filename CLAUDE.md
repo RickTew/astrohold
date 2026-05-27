@@ -1,6 +1,6 @@
 # AstroHold — Project Rules for Claude
 
-## Status: Single-player D&D-style strategy LIVE (session 19)
+## Status: Single-player D&D-style strategy LIVE (session 20)
 Turn-based grid strategy. **BUILD → REVEAL** is the live flow (PLAN code
 exists but is skipped, see Phase flow). After the first BATTLE click,
 reveals **auto-chain** until win / lose. **NO stalemate rule** in the
@@ -25,6 +25,20 @@ multiplies only the AI's pool: easy 0.75x, normal 1.0x, hard 1.25x.
 shield-aura observability, balance pass (sniper/phaser -10%, cyborg
 combat ammo 4, Hulk HP 400, doublegun 2-shot burst). See
 `project_session_19_wrap` memory for the full log.
+
+**S20 visual pass + balance v2.** Vector-Grid Pixel Hybrid style
+locked in (`docs/VISUAL_STYLE.md`). Dusty Planet procedural floor
+replaces Perlin dirt. Every piece has a soft side-tinted drop shadow
+(blue defender, red cyborg) with per-sprite foot-fraction overrides.
+Sentry walks like a real character (position lerp + walking anim)
+and fires a double shot at N/S targets. Stalker spawns visible and
+plays a dramatic intro callout before cloaking. Defender Bomber HUD
+label MORTAR → BLASTOR. Anti-cluster rule: defender mobile units
+penalty-detour when leaving base, to avoid the death-explosion chain
+wipe. Balance pass: sniper damage 135 → 110, core HP 100 → 150,
+sniper shoot-and-move (relocates between shots). Every speech
+callout capped at 20 chars; `intro` trigger added. Balance retest is
+the **first task next session.** See `project_session_20_wrap` memory.
 
 Mechanics tuned for D&D-style strategy:
 - **Single-player mode (session 13).** Asset preload → side-picker modal
@@ -191,19 +205,23 @@ Mechanics tuned for D&D-style strategy:
   Sprite aim-pose offset is `dx = ±0.10 × size` (measured from the
   source PNG bbox — visible content sits +10px east of canvas center
   because the rifle pulls mass east; shift west to recenter the body).
-- **Cyborg STALKER** (session 17) — cloaked melee bruiser.
-  70cr / 130hp / speed 60 / damage 40 / range 70 (melee, unlimited
-  fists via ammo=99). Sprite size 76 (just under Hulk's 84). Spawns
-  CLOAKED — sprite at 35% opacity, defender targeting AI skips
-  cloaked units (`isCellOccupiedAtBattle` still treats them as
-  solid, AoE/splash still hits — geometry-based). Cloak drops
-  PERMANENTLY on first damage-dealing action (executeAttack hook)
-  OR on any incoming damage via `takeDamage` (direct fire never
-  reaches cloaked targets, so any takeDamage means AoE noise
-  revealed them). Default action: melee if adjacent, else march
-  straight at nearest defender (no sight gate). Sprite:
-  `cyborg_stalker/` with 8 rotations + 8-dir walking + E/W strike.
-  MANIFEST gotcha: keyed by FOLDER name, not unit type.
+- **Cyborg STALKER** (session 17, intro reworked S20) — cloaked
+  melee bruiser. 70cr / 130hp / speed 60 / damage 40 / range 70
+  (melee, unlimited fists via ammo=99). Sprite size 76 (just under
+  Hulk's 84). **S20: spawns VISIBLE** and plays a dramatic intro
+  callout (cyborg `intro` SpeechTrigger: "Going dark", "Bye bye",
+  "Cloak in 3, 2, 1", etc.) the moment he closes within 350 world
+  units of any defender piece. `engageCloak()` then fades opacity
+  from 1.0 to 0.35 over 700ms about 2 seconds after the intro
+  fires, giving the defender one real turn to fire on the visible
+  Stalker before he goes dark. Cloak still drops PERMANENTLY on
+  first damage-dealing action OR on any incoming damage. While
+  cloaked, defender targeting AI skips him (`isCellOccupiedAtBattle`
+  still treats him as solid, AoE/splash still hits — geometry-based).
+  Default action: melee if adjacent, else march straight at nearest
+  defender (no sight gate). Sprite: `cyborg_stalker/` with 8
+  rotations + 8-dir walking + E/W strike. MANIFEST gotcha: keyed by
+  FOLDER name, not unit type.
 - **Power Core electric defense** (session 17) — 4×4 zone centered
   on the 2×2 core (12 outer-ring cells, off-map cells clipped).
   Persistent translucent-blue overlay + bordering ring shows the

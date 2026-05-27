@@ -3,10 +3,22 @@
 Living balance document. Update as we tune. Aim: "like chess but not strict" —
 for any strong ability on one side, the other side gets a comparable counter.
 
-**Status:** Single-player D&D-style turn-based grid strategy is LIVE (session 19).
+**Status:** Single-player D&D-style turn-based grid strategy is LIVE (session 20).
 Numbers below are the current Config values. The turn-system transition is
 complete. AP budgets still ship on every piece for future use, but the active
 flow is BUILD then REVEAL (PLAN phase is currently skipped, see Turn flow).
+
+**S20 changes since S19 (unvalidated — retest first task next session):**
+- **Sniper damage 135 → 110** (-19%). Snipers were averaging ~821 damage / 5 kills per game across 6-game losing streak.
+- **Power Core HP 100 → 150** (+50%). Defender often outdamaged cyborgs but still lost to a single core-hit one-shot.
+- **Sniper shoot-and-move.** After firing, the sniper is flagged for forced relocation. Next default action moves toward the target instead of firing again; movement breaks the crouch (existing rule), so the turn after that is a fresh settle/fire cycle. Cycle: settle → fire → move → settle → fire (~1 shot per 3 turns vs 1 shot per turn pre-S20). Snipers now have to relocate between shots — the player knows where they are and the sniper "runs to a new spot."
+- **Sentry double-shot at N/S targets.** When the Sentry's target has `|dy| > |dx|`, a second identical projectile fires 180ms after the first. E/W targets keep the single shot. Mirrors the PixelLab south-anim where the top gun swivels R→L→R.
+- **Sentry walks like a SpriteUnit.** Position lerp + walking-frame animation now applies to mobile structures with `STRUCTURE_HAS_WALK[type]` (sentry only today). New PixelLab walking + explosion frames shipped.
+- **MORTAR → BLASTOR** rename in the HUD (internal type still `bomber`).
+- **Robot anti-cluster rule.** Defender mobile units outside base (`x ≥ DEFENDER_MAX_X`) take a 40-point detour penalty per adjacent live defender piece, to dodge the death-explosion chain.
+- **Stalker dramatic intro.** Spawns visible; plays `intro` SpeechTrigger callout when within 350 of any defender; engages cloak 2s later. Gives the defender one real turn to fire on a visible Stalker.
+- **Visual overhaul.** Dusty Planet procedural floor replaces Perlin dirt. Side-tinted soft drop shadows on every piece (per-sprite footFraction overrides). Phaser/Bomber/Laser/Signal sprite sizes rebalanced. Phaser beam Y offset recalibrated against the actual cyan barrel.
+- **Speech callouts** capped at 20 chars/line. `intro` trigger added. `core_hit` expanded to 12 lines per side.
 
 **S19 changes since S18:**
 - **Phaser damage 40 → 36** and **Sniper damage 150 → 135** (-10% each; both were dominating their sides in the data).
