@@ -1322,64 +1322,10 @@
         rgba(35, 18, 8, 0.6) 0%, rgba(60, 30, 10, 0) 70%);
     }
 
-    /* ─── Shadow base intensity variants ───
-       All three use the same side-tinted "miniature base" pattern.
-       Vary the alpha plateau and disk size only. The MEDIUM tier
-       mirrors src/scene/Shadow.ts (live game). */
-
-    /* 1. SUBTLE — softer disk, fades earlier. */
-    .floor-lab .piece-shadow.base-subtle { width: 56%; height: 17%; }
-    .floor-lab .piece-shadow.base-subtle-blue {
-      background: radial-gradient(ellipse at center,
-        rgba(12, 20, 38, 0.70) 0%,
-        rgba(12, 20, 38, 0.45) 50%,
-        rgba(50, 95, 160, 0.20) 78%,
-        rgba(50, 95, 160, 0) 100%);
-    }
-    .floor-lab .piece-shadow.base-subtle-red {
-      background: radial-gradient(ellipse at center,
-        rgba(40, 12, 15, 0.70) 0%,
-        rgba(40, 12, 15, 0.45) 50%,
-        rgba(160, 55, 65, 0.20) 78%,
-        rgba(160, 55, 65, 0) 100%);
-    }
-
-    /* 2. MEDIUM (LIVE) — current shipping settings. Mirrors
-       src/scene/Shadow.ts: soft disk that stays inside the cell. */
-    .floor-lab .piece-shadow.base-medium { width: 55%; height: 13%; }
-    .floor-lab .piece-shadow.base-medium-blue {
-      background: radial-gradient(ellipse at center,
-        rgba(12, 20, 38, 0.78) 0%,
-        rgba(12, 20, 38, 0.50) 50%,
-        rgba(50, 95, 160, 0.22) 78%,
-        rgba(50, 95, 160, 0) 100%);
-    }
-    .floor-lab .piece-shadow.base-medium-red {
-      background: radial-gradient(ellipse at center,
-        rgba(40, 12, 15, 0.78) 0%,
-        rgba(40, 12, 15, 0.50) 50%,
-        rgba(160, 55, 65, 0.22) 78%,
-        rgba(160, 55, 65, 0) 100%);
-    }
-
-    /* 3. STRONG — biggest disk, hardest edge, fuller plateau. */
-    .floor-lab .piece-shadow.base-strong { width: 70%; height: 22%; }
-    .floor-lab .piece-shadow.base-strong-blue {
-      background: radial-gradient(ellipse at center,
-        rgba(8, 14, 28, 0.96) 0%,
-        rgba(8, 14, 28, 0.85) 60%,
-        rgba(50, 95, 160, 0.50) 85%,
-        rgba(50, 95, 160, 0.15) 96%,
-        rgba(50, 95, 160, 0) 100%);
-    }
-    .floor-lab .piece-shadow.base-strong-red {
-      background: radial-gradient(ellipse at center,
-        rgba(28, 8, 10, 0.96) 0%,
-        rgba(28, 8, 10, 0.85) 60%,
-        rgba(160, 55, 65, 0.50) 85%,
-        rgba(160, 55, 65, 0.15) 96%,
-        rgba(160, 55, 65, 0) 100%);
-    }
+    /* Shadow base intensity variants removed — live game ships the
+       simple single-tint .tint-blue / .tint-red used by the DUSTY
+       PLANET REAL TEST row. Keep src/scene/Shadow.ts in sync with
+       those base classes. */
     .floor-lab .lab-callout {
       position: absolute;
       left: 8px;
@@ -1694,94 +1640,10 @@
         </div>
       </div>
 
-      <!-- ── SHADOW BASE INTENSITY LAB ──
-           Direction is locked: side-tinted elliptical "piece base"
-           (board-game miniature feel, single sprite per unit, instant
-           load). Three intensities to pick the right strength. Strategy
-           game style, not a long cast shadow. -->
-      <h2 style="font-family:'Orbitron',monospace;font-size:13px;letter-spacing:4px;color:#d4a3ff;margin:30px 4px 14px;padding-bottom:6px;border-bottom:1px solid rgba(212,163,255,0.3);">
-        SHADOW BASE INTENSITY LAB <span class="lab-tag" style="font-size:9px;">PICK A STRENGTH</span>
-      </h2>
-      <p style="color:#cce8ff; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.6; max-width: 920px; margin: 0 4px 14px;">
-        Same side-tinted elliptical "piece base" shadow at three intensities.
-        Strategy-board feel — the shadow doubles as the miniature's base.
-        Live game currently uses MEDIUM (variant 2).
-      </p>
-      <div class="lab-row" style="grid-template-columns: repeat(3, 1fr);">
-
-        <div class="lab-card">
-          <h3>1. SUBTLE</h3>
-          <div class="lab-note">Softer disk, lower alpha plateau. Atmospheric, but blue defenders can disappear on warm floor.</div>
-          <div class="lab-stage stage-floor-warm">
-            <div class="lab-grid">
-              <div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div>
-              <div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div>
-              <div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div>
-              <div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div>
-              <div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div>
-              <div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div>
-            </div>
-            <div class="lab-piece size-1" data-grounded="true" style="left: 25%; top: 25%;">
-              <div class="piece-shadow base-subtle base-subtle-blue"></div>
-              <img src="./sprites/tower/south.png" alt="tower">
-            </div>
-            <div class="lab-piece size-1-5" data-grounded="true" style="left: 75%; top: 41.667%;">
-              <div class="piece-shadow base-subtle base-subtle-red"></div>
-              <img src="./sprites/hulk/south.png" alt="hulk">
-            </div>
-            <div class="lab-callout">SOFT</div>
-          </div>
-        </div>
-
-        <div class="lab-card">
-          <h3>2. MEDIUM (LIVE)</h3>
-          <div class="lab-note">Current live setting. Dark plateau through mid-radius for a "solid base disk" feel, with side tint at the rim. Reads from any zoom.</div>
-          <div class="lab-stage stage-floor-warm">
-            <div class="lab-grid">
-              <div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div>
-              <div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div>
-              <div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div>
-              <div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div>
-              <div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div>
-              <div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div>
-            </div>
-            <div class="lab-piece size-1" data-grounded="true" style="left: 25%; top: 25%;">
-              <div class="piece-shadow base-medium base-medium-blue"></div>
-              <img src="./sprites/tower/south.png" alt="tower">
-            </div>
-            <div class="lab-piece size-1-5" data-grounded="true" style="left: 75%; top: 41.667%;">
-              <div class="piece-shadow base-medium base-medium-red"></div>
-              <img src="./sprites/hulk/south.png" alt="hulk">
-            </div>
-            <div class="lab-callout">CURRENT</div>
-          </div>
-        </div>
-
-        <div class="lab-card">
-          <h3>3. STRONG</h3>
-          <div class="lab-note">Heaviest base: bigger disk, fuller plateau, harder edge. Boldest miniature-base read; might feel too "stamped" in dense scenes.</div>
-          <div class="lab-stage stage-floor-warm">
-            <div class="lab-grid">
-              <div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div>
-              <div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div>
-              <div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div>
-              <div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div>
-              <div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div>
-              <div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div>
-            </div>
-            <div class="lab-piece size-1" data-grounded="true" style="left: 25%; top: 25%;">
-              <div class="piece-shadow base-strong base-strong-blue"></div>
-              <img src="./sprites/tower/south.png" alt="tower">
-            </div>
-            <div class="lab-piece size-1-5" data-grounded="true" style="left: 75%; top: 41.667%;">
-              <div class="piece-shadow base-strong base-strong-red"></div>
-              <img src="./sprites/hulk/south.png" alt="hulk">
-            </div>
-            <div class="lab-callout">HEAVY</div>
-          </div>
-        </div>
-
-      </div>
+      <!-- SHADOW BASE INTENSITY LAB removed — direction locked to the
+           simple single-tint ellipse used in the DUSTY PLANET REAL TEST
+           above (.tint-blue / .tint-red CSS). That's the source of truth
+           for src/scene/Shadow.ts. -->
     </div>
   </div>
 
