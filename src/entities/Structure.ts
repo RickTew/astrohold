@@ -26,11 +26,34 @@ const STRUCTURE_SPRITE_FOLDERS: Partial<Record<StructureType, string>> = {
   signal:  'signal',   // satellite dish — EMP emitter
   mine:    'robot_mine',  // spiky proximity mine (matches the HUD tile sprite)
 }
-// Structures that ship with a 4-frame explosion sequence (folder/explosion/).
+// Structures that ship with an explosion sequence (folder/explosion/).
+// Frame count defaults to 4; override per type via STRUCTURE_EXPLOSION_FRAMES
+// for pieces that ship more frames (sentry's PixelLab export is 9 frames).
 const STRUCTURE_HAS_EXPLOSION: Partial<Record<StructureType, true>> = {
   turret: true,
   bomber: true,
+  sentry: true,
 }
+const DEFAULT_EXPLOSION_FRAMES = 4
+const STRUCTURE_EXPLOSION_FRAMES: Partial<Record<StructureType, number>> = {
+  sentry: 9,
+}
+function explosionFrameCountFor(type: StructureType): number {
+  return STRUCTURE_EXPLOSION_FRAMES[type] ?? DEFAULT_EXPLOSION_FRAMES
+}
+
+// Structures that ship with a walking animation. Frames live at
+// /sprites/<folder>/walking/<dir>/frame_NNN.png. Only the sentry today —
+// it's the one mobile structure with proper walk anim assets.
+const STRUCTURE_HAS_WALK: Partial<Record<StructureType, true>> = {
+  sentry: true,
+}
+const WALK_FRAMES = 9
+const WALK_FRAME_INTERVAL = 0.06   // seconds per frame (~540ms total)
+// Walking frames keyed by (type → direction → frame[]).
+const structureWalkTextures: Map<StructureType, Map<string, THREE.Texture[]>> = new Map()
+const WALK_DIRS = ['north', 'south', 'east', 'west'] as const
+type WalkDir = (typeof WALK_DIRS)[number]
 // Per-type sprite size override. Default = 50 (one cell). Towers render
 // slightly bigger so they read as the dominant defender pieces; Gun preview
 // is smaller per user feedback (sprite was overflowing its cell).
@@ -86,7 +109,6 @@ const STRUCTURE_DEFAULT_DIR: Partial<Record<StructureType, string>> = {
   // by default; the compass-rose buys extra fire arcs.
   sentry: 'east',
 }
-const EXPLOSION_FRAME_COUNT = 4
 const EXPLOSION_FRAME_INTERVAL = 0.09
 
 const structureTextures: Map<StructureType, THREE.Texture> = new Map()
@@ -169,8 +191,9 @@ export async function preloadStructureSprites(): Promise<void> {
       const dir = STRUCTURE_DEFAULT_DIR[type] ?? 'south'
       structureTextures.set(type, await loadTex(`/sprites/${folder}/${dir}.png`))
       if (STRUCTURE_HAS_EXPLOSION[type]) {
+        const count = explosionFrameCountFor(type)
         const frames: THREE.Texture[] = []
-        for (let i = 0; i < EXPLOSION_FRAME_COUNT; i++) {
+        for (let i = 0; i < count; i++) {
           const num = String(i).padStart(3, '0')
           frames.push(await loadTex(`/sprites/${folder}/explosion/frame_${num}.png`))
         }
@@ -185,6 +208,21 @@ export async function preloadStructureSprites(): Promise<void> {
           rotMap.set(d, await loadTex(`/sprites/${folder}/${d}.png`))
         }))
         structureRotationTextures.set(type, rotMap)
+      }
+      // S20 — walking animation preload. Sentry only today. 4 cardinal
+      // directions × 9 frames each. Cycled in Structure.update while
+      // the unit is in its "walking" state (set by moveTo).
+      if (STRUCTURE_HAS_WALK[type]) {
+        const dirMap = new Map<string, THREE.Texture[]>()
+        await Promise.all(WALK_DIRS.map(async d => {
+          const frames: THREE.Texture[] = []
+          for (let i = 0; i < WALK_FRAMES; i++) {
+            const num = String(i).padStart(3, '0')
+            frames.push(await loadTex(`/sprites/${folder}/walking/${d}/frame_${num}.png`))
+          }
+          dirMap.set(d, frames)
+        }))
+        structureWalkTextures.set(type, dirMap)
       }
     }),
     loadTex('/sprites/grenade.png').then(tex => { grenadeTexture = tex }),
@@ -263,6 +301,13 @@ export class Structure {
   // row at a single row index. Toggled by right-click during BUILD, also
   // auto-set on placement based on neighbor cells.
   private wallHorizontal = false
+  // S20 walk animation state (sentry only today). Set when moveTo runs;
+  // cleared when the WALK_FRAMES * WALK_FRAME_INTERVAL duration elapses
+  // in update(), at which point the static rotation texture is restored.
+  private walking = false
+  private walkTime = 0
+  private walkFrame = 0
+  private walkDir: WalkDir = 'south'
   // For sprite structures: kept so the death animation can swap textures.
   private sprite: THREE.Sprite | null = null
   // Death/explosion state — for sprite structures with an explosion sequence.
@@ -698,18 +743,47 @@ export class Structure {
       this.wallParts.socketMats[1].opacity = socketBase * socketK
       this.wallParts.socketMats[2].opacity = haloBase   * socketK
     }
+    // S20 walking animation playback. Cycle through WALK_FRAMES of the
+    // current direction; when the sequence ends, snap back to the
+    // static rotation texture and exit walking state.
+    if (this.walking && this.sprite && !this.dying && !this.removed) {
+      const dirMap = structureWalkTextures.get(this.type)
+      const frames = dirMap?.get(this.walkDir)
+      if (frames) {
+        this.walkTime += delta
+        const idx = Math.floor(this.walkTime / WALK_FRAME_INTERVAL)
+        if (idx >= WALK_FRAMES) {
+          this.walking = false
+          // Restore the static rotation that matched the most recent
+          // facing. For pieces with rotation textures we let the next
+          // setSingleFacing handle re-orientation; here we just snap
+          // to the type's default rotation as a safe fallback.
+          const baseTex = structureTextures.get(this.type)
+          if (baseTex) {
+            this.sprite.material.map = baseTex
+            this.sprite.material.needsUpdate = true
+          }
+        } else if (idx !== this.walkFrame) {
+          this.walkFrame = idx
+          this.sprite.material.map = frames[idx]
+          this.sprite.material.needsUpdate = true
+        }
+      } else {
+        this.walking = false
+      }
+    }
     if (!this.dying || this.removed) return
     const frames = structureExplosionTextures.get(this.type)
     if (!frames || !this.sprite) return
+    const fc = frames.length
     this.dyingTime += delta
-    const next = Math.min(EXPLOSION_FRAME_COUNT - 1, Math.floor(this.dyingTime / EXPLOSION_FRAME_INTERVAL))
+    const next = Math.min(fc - 1, Math.floor(this.dyingTime / EXPLOSION_FRAME_INTERVAL))
     if (next !== this.dyingFrame) {
       this.dyingFrame = next
       this.sprite.material.map = frames[next]
       this.sprite.material.needsUpdate = true
     }
-    if (this.dyingFrame === EXPLOSION_FRAME_COUNT - 1
-        && this.dyingTime > EXPLOSION_FRAME_COUNT * EXPLOSION_FRAME_INTERVAL + 0.3) {
+    if (this.dyingFrame === fc - 1 && this.dyingTime > fc * EXPLOSION_FRAME_INTERVAL + 0.3) {
       this.mesh.removeFromParent()
       this.removed = true
     }
@@ -731,11 +805,31 @@ export class Structure {
   // lerp; the structure's mesh + col/row update in one frame and the
   // initiative cycle handles the per-turn cadence. Mirror of the
   // sphere mobility pattern.
+  //
+  // S20: if the type has walking frames preloaded (sentry today), kick
+  // off a short in-place walk animation. Cycles through WALK_FRAMES of
+  // the directional walking texture and reverts to the static rotation
+  // when done. Direction is derived from the (col, row) delta.
   moveTo(col: number, row: number) {
     if (this.isDead) return
+    const prevCol = this.col
+    const prevRow = this.row
     this.col = col
     this.row = row
     this.mesh.position.set(this.worldX, this.worldY, this.mesh.position.z)
+    if (STRUCTURE_HAS_WALK[this.type] && structureWalkTextures.has(this.type)) {
+      const dCol = col - prevCol
+      const dRow = row - prevRow
+      // Cardinal-only walking anims, pick the dominant axis. Row+ is
+      // north (top-down camera Y is up), col+ is east.
+      let dir: WalkDir = 'south'
+      if (Math.abs(dRow) >= Math.abs(dCol)) dir = dRow > 0 ? 'north' : 'south'
+      else dir = dCol > 0 ? 'east' : 'west'
+      this.walking = true
+      this.walkTime = 0
+      this.walkFrame = 0
+      this.walkDir = dir
+    }
   }
 
   clearPlan() {
