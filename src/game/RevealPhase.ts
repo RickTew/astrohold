@@ -3416,6 +3416,32 @@ export class RevealPhase {
         playWeaponSfx('doublegun')
       }, 80)
     }
+    // Sentry N/S double-shot (S20). The Robot_Sentry south animation
+    // shows the top-mounted gun swiveling right -> fire -> left -> fire.
+    // Replicate the mechanic when the sentry's target is roughly NORTH
+    // or SOUTH (so the swivel motion makes spatial sense). East/West
+    // facing keeps the single-shot since the art can't show the swivel
+    // from that angle. Full damage each shot — small defender buff
+    // gated on positioning. ~180ms gap is slower than doublegun's 80ms
+    // so the paired shots read as a swivel sweep, not a burst.
+    if (!isAoe && actor instanceof Structure && actor.type === 'sentry') {
+      const dx = aim.x - actor.worldX
+      const dy = aim.y - actor.worldY
+      const targetIsNS = Math.abs(dy) > Math.abs(dx)
+      if (targetIsNS) {
+        const onHitClone = proj.onHit
+        setTimeout(() => {
+          if (actor.isDead) return
+          const proj2 = new Projectile(
+            this.scene, muzzle.x, muzzle.y, null, aim.x, aim.y,
+            damage, isAoe, aoeRadius, color, spriteTex,
+          )
+          proj2.onHit = onHitClone
+          this.projectiles.push(proj2)
+          playWeaponSfx(this.weaponSfxFor(actor))
+        }, 180)
+      }
+    }
   }
 
   private applyAoe(cx: number, cy: number, radius: number, damage: number, source: Actor): AoeSummary {

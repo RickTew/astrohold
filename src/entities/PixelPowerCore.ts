@@ -263,10 +263,14 @@ export class PixelPowerCore {
         this.sprite.material.needsUpdate = true
       }
     }
-    // Hide the sprite once we've held the final frame for a beat.
+    // Hide the entire mesh once the explosion animation has held its
+    // final frame for a beat. Hiding the whole group instead of just
+    // the sprite is important so the drop shadow (separate sprite,
+    // child of mesh) disappears too — otherwise the shadow lingers on
+    // the floor after the core is destroyed.
     if (this.dyingFrame === EXPLOSION_FRAME_COUNT - 1
         && this.dyingTime > EXPLOSION_FRAME_COUNT * EXPLOSION_FRAME_INTERVAL + 0.4) {
-      this.sprite.visible = false
+      this.mesh.visible = false
     }
   }
 }
