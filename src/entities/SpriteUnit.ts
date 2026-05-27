@@ -33,6 +33,18 @@ function spriteSizeFor(type: UnitType): number {
   return SPRITE_SIZE_OVERRIDE[type] ?? SPRITE_SIZE
 }
 
+// Per-unit shadow foot fraction override. Default 0.74 in Shadow.ts
+// matches the bulk of the cyborg roster. Overrides land the shadow at
+// each piece's actual visible feet:
+//   - Dog visible feet sit higher than 74% (legs splay near the
+//     middle of the sprite), so 0.68 pulls the shadow up.
+//   - Hulk's stance puts feet right at the PNG bottom, so 0.78 pushes
+//     the shadow down a touch.
+const UNIT_FOOT_FRACTION: Partial<Record<UnitType, number>> = {
+  dog:  0.68,
+  hulk: 0.78,
+}
+
 // Per-type colour tints — kept empty so cyborgs render with their natural
 // sprite-art colours instead of the previous Grenadier-green / Doublegun-
 // orange / Sniper-olive multiplicative washes. Removed at user request:
@@ -425,6 +437,7 @@ export class SpriteUnit {
     this.mesh.add(makeShadowSprite({
       size: spriteSizeFor(this.type),
       side: this._side,
+      footFraction: UNIT_FOOT_FRACTION[this.type],
     }))
 
     const { group, fill } = this.buildHpBar()
