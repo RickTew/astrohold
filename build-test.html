@@ -846,25 +846,30 @@
     //   Robots  ENERGY ONLY (charge / cell / capacitor / pulse / recharge).
     //   Cyborgs MIX (most kinetic, a few energy).
     //   Humans  kinetic ONLY (future faction).
+    // ⚠ KEEP IN SYNC with src/entities/SpeechBubble.ts SPEECH_LINES.
+    // Every line capped at 20 chars (user rule, S20). Variable
+    // templates ({n}/{s}/{S}) also must stay <= 20 at the worst-case
+    // substitution. When you change one, change both.
     const SPEECH_LINES = {
       cyborg: {
         low_hp: [
           "MEDIC!!", "Where's the medic?", "I'm hit, cover me!", "Need a patch!", "Bleeding out!",
-          "Still alive... barely.", "I'm melting!", "Patch me up!", "Rebooting brain...", "That hurt!",
+          "Still alive… barely.", "I'm melting!", "Patch me up!", "Rebooting brain…", "That hurt!",
           "Losing fluid!", "More cy in my borg!", "Damn wires!", "Neuroleak!",
           "Sparks flying!", "Servo's failing!", "Coolant low!", "My arm's twitching!",
         ],
         low_ammo:         ["{n} shot{s} left!", "Down to {n}!", "Almost dry!", "Last few rounds!", "Charge low!", "Running on fumes!", "Stretching it!"],
         out_of_ammo:      ["I'm out!", "Down to fists!", "Need ammo, now!", "Click click!", "Throwing punches!", "Magazine empty!"],
         sniper_shot:      ["One shot, one kill.", "Target down.", "Headshot.", "Eagle eye.", "Take the shot!", "Aim for the CPU.", "Crosshairs locked.", "Lights out."],
-        medic_low_packs:  ["{n} pack{s} left!", "Running low on supplies!", "Down to {n} kit{s}!", "Save the rest!", "Patches running thin!", "Out of stims!"],
+        medic_low_packs:  ["{n} pack{s} left!", "Kits running low!", "Down to {n} kit{s}!", "Save the rest!", "Patches thin!", "Out of stims!"],
         crate_spotted:    ["Crate spotted!", "Resupply incoming!", "Ammo drop, on me!", "Loot!", "Goodies!", "Free swag!"],
         rearmed:          ["Reloaded!", "Locked and loaded!", "Fresh clip!", "Back in the fight!", "Going in!", "Topped off!", "Got the goods!", "Back to work!"],
         no_repairs_needed: [],
         on_kill:          ["Who's next?", "Got one!", "Take that!", "Down!", "Tag and bag!", "Hardware downgrade!", "Scrap that one!"],
-        on_death:         ["Aaargh!", "Tell my mom...", "Never go full bot.", "Wires cut!", "Boot sector failure!", "Going dark.", "Should have stayed human...", "Final patch."],
-        core_hit:         ["Core's ours!", "Crack that thing!", "Almost there!"],
+        on_death:         ["Aaargh!", "Tell my mom…", "Never go full bot.", "Wires cut!", "Boot sector failure!", "Going dark.", "Stayed human…", "Final patch."],
+        core_hit:         ["Boot that!", "Core's ours!", "Crack that thing!", "Almost there!", "Crash the system!", "Reboot denied!", "Power down!", "Wreck it!", "Hammer the core!", "Burn it down!", "Pop the cap!", "Crack the core!"],
         mine_spotted:     ["Mine!", "Mine spotted!", "Watch the ground!", "Trap!", "Tread careful!"],
+        intro:            ["Going dark.", "Now you see me...", "Bye bye.", "Cloak in 3, 2, 1.", "Watch closely.", "And now... gone.", "Catch me if you can."],
       },
       robot: {
         low_hp: [
@@ -873,22 +878,21 @@
         ],
         low_ammo:         ["{n} CHARGE{S} LEFT", "POWER CELLS: {n}", "RESERVES LOW", "BATTERY DEPLETING", "RECALIBRATING"],
         out_of_ammo:      ["POWER CELL DEPLETED", "WEAPON OFFLINE", "RECHARGE REQUIRED", "CAPACITOR EMPTY", "ENERGY EXHAUSTED"],
-        sniper_shot:      ["TARGET ELIMINATED", "PRECISION SHOT CONFIRMED", "MARK STRUCK", "SINGLE-PULSE KILL", "TARGET LOCKED", "EXECUTING STRIKE"],
+        sniper_shot:      ["TARGET ELIMINATED", "PRECISION SHOT", "MARK STRUCK", "SINGLE-PULSE KILL", "TARGET LOCKED", "EXECUTING STRIKE"],
         medic_low_packs:  ["REPAIR CHARGES: {n}", "{n} CHARGE{S} LEFT", "WELD MATERIAL LOW", "SUPPLIES DEPLETING"],
         crate_spotted:    ["RESUPPLY DETECTED", "CRATE ON MAP", "TARGETING SUPPLY", "CACHE LOCKED", "DATA CONFIRMED"],
         rearmed:          ["POWER RESTORED", "RECHARGE COMPLETE", "ENERGY REPLENISHED", "CELL CYCLED", "POWER SURGE"],
-        no_repairs_needed: ["ALL SYSTEMS NOMINAL", "NO REPAIRS REQUIRED", "STANDING BY", "AWAITING DAMAGE REPORT"],
+        no_repairs_needed: ["SYSTEMS NOMINAL", "NO REPAIRS NEEDED", "STANDING BY", "AWAITING DAMAGE"],
         on_kill:          ["TARGET NEUTRALIZED", "KILL CONFIRMED", "MARK DOWN", "ENEMY TERMINATED"],
         on_death: [
           "UNIT OFFLINE", "SIGNAL LOST", "TERMINATING", "FATAL ERROR",
-          "DETONATION SET", "SELF-DESTRUCT PROTOCOL ENGAGED",
-          "CORE OVERLOAD IN 3, 2, 1", "FINAL DIRECTIVE. ANNIHILATION",
-          "SACRIFICE CONFIRMED", "DETONATION SEQUENCE ACTIVE",
-          "CRITICAL BREACH. INTENTIONAL", "GOODBYE, ENEMY",
-          "SYSTEM COLLAPSE. BY DESIGN",
+          "DETONATION SET", "SELF-DESTRUCT", "CORE OVERLOAD", "FINAL DIRECTIVE",
+          "SACRIFICE SET", "DETONATING", "BREACH INTENT", "GOODBYE, ENEMY",
+          "COLLAPSE BY DESIGN",
         ],
-        core_hit:         ["CORE HIT", "CORE BREACH", "CRITICAL TARGET STRUCK"],
+        core_hit:         ["CODED FOR COMBAT", "CORE HIT", "CORE BREACH", "CRITICAL STRIKE", "PROTECT THE CORE", "DEFEND THE CORE", "REPEL ATTACKERS", "MAIN POWER HIT", "CORE COMPROMISED", "HOLD THE LINE", "BREACH IMMINENT", "REINFORCE NOW"],
         mine_spotted:     ["MINE DETECTED", "EXPLOSIVE HAZARD", "OBSTRUCTION FLAGGED", "TRAP IN PATH"],
+        intro:            ["ONLINE.", "SYSTEMS NOMINAL.", "DEPLOYED."],
       },
     }
 
@@ -907,6 +911,8 @@
       { id: 'core_hit',          label: 'CORE HIT',          when: 'Power Core takes damage. Robot side reports the breach. Cyborg side celebrates approaching the objective. Once per reveal.' },
       // S17.11. Declared but not yet wired.
       { id: 'mine_spotted',      label: 'MINE SPOTTED',      when: 'Unit sights an armed enemy mine in its path. Warning callout, not ownership.', pending: true },
+      // S20. Stalker fires this on first proximity to a defender.
+      { id: 'intro',             label: 'INTRO',             when: 'Stalker comes within 350 of any defender piece, plays a dramatic intro callout, then cloaks 2s later. Other unit types pending.' },
     ]
 
     function expand(template, n) {
