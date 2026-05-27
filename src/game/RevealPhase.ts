@@ -1708,16 +1708,45 @@ export class RevealPhase {
   // to an existing same-side sniper; the step picker will route the
   // moving sniper toward a less-crowded angle.
   private cellTypeClusterPenalty(unit: SpriteUnit, x: number, y: number): number {
-    if (unit.type !== 'sniper') return 0
-    const SPACING = Config.GRID_CELL * 3   // want >=3 cells between snipers
-    const pool = unit.side === 'attacker' ? this.units : this.defenderUnits
-    let penalty = 0
-    for (const other of pool) {
-      if (other === unit || other.isDead || other.type !== 'sniper') continue
-      const od = Math.hypot(other.worldX - x, other.worldY - y)
-      if (od < SPACING) penalty += (SPACING - od) * 0.6
+    // Sniper 3-cell spacing rule (existing).
+    if (unit.type === 'sniper') {
+      const SPACING = Config.GRID_CELL * 3   // want >=3 cells between snipers
+      const pool = unit.side === 'attacker' ? this.units : this.defenderUnits
+      let penalty = 0
+      for (const other of pool) {
+        if (other === unit || other.isDead || other.type !== 'sniper') continue
+        const od = Math.hypot(other.worldX - x, other.worldY - y)
+        if (od < SPACING) penalty += (SPACING - od) * 0.6
+      }
+      return penalty
     }
-    return penalty
+    // S20 robot anti-cluster rule. Every robot piece detonates a death
+    // AoE (Config.DEATH_EXPLOSION radius 75, damage 25) when killed, so
+    // a mobile robot standing next to another robot can chain-wipe
+    // half the team in one cyborg kill. Once a defender unit LEAVES
+    // base (candidate cell at or past Config.DEFENDER_MAX_X), penalise
+    // candidate cells that sit adjacent to any other live defender
+    // piece. Inside base the clustering is unavoidable (pieces are
+    // packed around the core) and not penalised here.
+    if (unit.side === 'defender' && x >= Config.DEFENDER_MAX_X) {
+      const ADJ = Config.GRID_CELL * 1.2   // a hair over one cell
+      const CLUSTER_PENALTY = 40           // ~0.8 cells of detour per adjacency
+      let penalty = 0
+      for (const other of this.defenderUnits) {
+        if (other === unit || other.isDead) continue
+        if (Math.hypot(other.worldX - x, other.worldY - y) < ADJ) penalty += CLUSTER_PENALTY
+      }
+      for (const s of this.structures) {
+        if (s.isDead) continue
+        if (Math.hypot(s.worldX - x, s.worldY - y) < ADJ) penalty += CLUSTER_PENALTY
+      }
+      for (const sp of this.spheres) {
+        if (sp.isDead) continue
+        if (Math.hypot(sp.worldX - x, sp.worldY - y) < ADJ) penalty += CLUSTER_PENALTY
+      }
+      return penalty
+    }
+    return 0
   }
 
   // How much armed-bomb damage would a unit standing at (x, y) absorb if
