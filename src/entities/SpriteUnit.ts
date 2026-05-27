@@ -34,14 +34,12 @@ function spriteSizeFor(type: UnitType): number {
 }
 
 // Per-unit shadow foot fraction override. Default 0.74 in Shadow.ts
-// matches the bulk of the cyborg roster. Overrides land the shadow at
-// each piece's actual visible feet:
-//   - Dog visible feet sit higher than 74% (legs splay near the
-//     middle of the sprite), so 0.68 pulls the shadow up.
-//   - Hulk's stance puts feet right at the PNG bottom, so 0.78 pushes
-//     the shadow down a touch.
+// matches the bulk of the cyborg roster. Small per-piece nudges only.
+// Going further than +/-0.04 from the default produces visible
+// shadow-sprite misalignment (0.68 pulled the dog shadow off-piece
+// in S20 testing).
 const UNIT_FOOT_FRACTION: Partial<Record<UnitType, number>> = {
-  dog:  0.68,
+  dog:  0.72,
   hulk: 0.78,
 }
 
