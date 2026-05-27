@@ -34,18 +34,19 @@ function shadowTexture(side: ShadowSide): THREE.Texture {
   c.height = H
   const ctx = c.getContext('2d')!
 
-  // Shadow base must be DARKER than the floor, otherwise blending on a
-  // warm Dusty-Planet floor brightens the B/G channels instead of
-  // darkening — the shadow disappears. So the core of each tint is a
-  // very dark color with a side-tinted ring that fades out. The dark
-  // center does the "darkening" work; the colored ring carries
-  // side identity.
-  const core = side === 'defender' ? '15, 25, 45' : '45, 15, 18'
-  const ring = side === 'defender' ? '40, 80, 140' : '140, 50, 60'
+  // Strategy-board feel: the shadow reads as the piece's BASE (like a
+  // miniature standing on a token). Dark core holds a plateau through
+  // mid-radius for a "solid disk" look, then a tinted ring fades to
+  // transparent at the rim. The dark core must be darker than the
+  // floor to actually darken (blue ring alone on warm dust brightens
+  // B/G channels instead of darkening — shadow vanishes).
+  const core = side === 'defender' ? '12, 20, 38' : '40, 12, 15'
+  const ring = side === 'defender' ? '50, 95, 160' : '160, 55, 65'
   const grad = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, W / 2)
-  grad.addColorStop(0,    `rgba(${core}, 0.85)`)
-  grad.addColorStop(0.45, `rgba(${core}, 0.55)`)
-  grad.addColorStop(0.75, `rgba(${ring}, 0.25)`)
+  grad.addColorStop(0,    `rgba(${core}, 0.92)`)
+  grad.addColorStop(0.55, `rgba(${core}, 0.72)`)
+  grad.addColorStop(0.80, `rgba(${ring}, 0.38)`)
+  grad.addColorStop(0.94, `rgba(${ring}, 0.10)`)
   grad.addColorStop(1,    `rgba(${ring}, 0)`)
   ctx.fillStyle = grad
   ctx.fillRect(0, 0, W, H)
@@ -72,7 +73,10 @@ export function makeShadowSprite({ size, side, floating }: ShadowOpts): THREE.Sp
     opacity: 0.95,
   })
   const sprite = new THREE.Sprite(mat)
-  sprite.scale.set(size * 0.6, size * 0.16, 1)
+  // Slightly wider + taller than the soft-shadow look so the base disk
+  // reads from any zoom level. Still narrower than the cell so adjacent
+  // pieces don't have overlapping bases.
+  sprite.scale.set(size * 0.62, size * 0.20, 1)
   const yOffset = floating ? -0.45 : -0.24
   sprite.position.set(0, size * yOffset, 4)
   sprite.renderOrder = 9

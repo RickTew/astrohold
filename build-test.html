@@ -1322,42 +1322,64 @@
         rgba(35, 18, 8, 0.6) 0%, rgba(60, 30, 10, 0) 70%);
     }
 
-    /* ─── Shadow style lab variants ─── */
-    /* A. SIDE-TINTED: dark core for actual darkening + side-tint ring. */
-    .floor-lab .piece-shadow.style-tinted-blue {
+    /* ─── Shadow base intensity variants ───
+       All three use the same side-tinted "miniature base" pattern.
+       Vary the alpha plateau and disk size only. The MEDIUM tier
+       mirrors src/scene/Shadow.ts (live game). */
+
+    /* 1. SUBTLE — softer disk, fades earlier. */
+    .floor-lab .piece-shadow.base-subtle { width: 56%; height: 17%; }
+    .floor-lab .piece-shadow.base-subtle-blue {
       background: radial-gradient(ellipse at center,
-        rgba(15, 25, 45, 0.85) 0%,
-        rgba(15, 25, 45, 0.55) 45%,
-        rgba(40, 80, 140, 0.25) 75%,
-        rgba(40, 80, 140, 0) 100%);
+        rgba(12, 20, 38, 0.70) 0%,
+        rgba(12, 20, 38, 0.45) 50%,
+        rgba(50, 95, 160, 0.20) 78%,
+        rgba(50, 95, 160, 0) 100%);
     }
-    .floor-lab .piece-shadow.style-tinted-red {
+    .floor-lab .piece-shadow.base-subtle-red {
       background: radial-gradient(ellipse at center,
-        rgba(45, 15, 18, 0.85) 0%,
-        rgba(45, 15, 18, 0.55) 45%,
-        rgba(140, 50, 60, 0.25) 75%,
-        rgba(140, 50, 60, 0) 100%);
+        rgba(40, 12, 15, 0.70) 0%,
+        rgba(40, 12, 15, 0.45) 50%,
+        rgba(160, 55, 65, 0.20) 78%,
+        rgba(160, 55, 65, 0) 100%);
     }
-    /* B. NEUTRAL DARK: pure black, no tint. */
-    .floor-lab .piece-shadow.style-neutral {
+
+    /* 2. MEDIUM (LIVE) — current shipping settings. */
+    .floor-lab .piece-shadow.base-medium { width: 62%; height: 20%; }
+    .floor-lab .piece-shadow.base-medium-blue {
       background: radial-gradient(ellipse at center,
-        rgba(0, 0, 0, 0.85) 0%,
-        rgba(0, 0, 0, 0.5) 50%,
-        rgba(0, 0, 0, 0) 100%);
+        rgba(12, 20, 38, 0.92) 0%,
+        rgba(12, 20, 38, 0.72) 55%,
+        rgba(50, 95, 160, 0.38) 80%,
+        rgba(50, 95, 160, 0.10) 94%,
+        rgba(50, 95, 160, 0) 100%);
     }
-    /* C. SILHOUETTE: sprite-shaped shadow cast offset behind the unit. */
-    .floor-lab .lab-piece.silhouette-host > img.silhouette {
-      position: absolute;
-      width: 100%;
-      height: 100%;
-      top: 0;
-      left: 0;
-      image-rendering: pixelated;
-      image-rendering: crisp-edges;
-      transform: translate(8%, 8%);
-      filter: brightness(0) opacity(0.55) blur(0.3px);
-      z-index: 1;
-      pointer-events: none;
+    .floor-lab .piece-shadow.base-medium-red {
+      background: radial-gradient(ellipse at center,
+        rgba(40, 12, 15, 0.92) 0%,
+        rgba(40, 12, 15, 0.72) 55%,
+        rgba(160, 55, 65, 0.38) 80%,
+        rgba(160, 55, 65, 0.10) 94%,
+        rgba(160, 55, 65, 0) 100%);
+    }
+
+    /* 3. STRONG — biggest disk, hardest edge, fuller plateau. */
+    .floor-lab .piece-shadow.base-strong { width: 70%; height: 22%; }
+    .floor-lab .piece-shadow.base-strong-blue {
+      background: radial-gradient(ellipse at center,
+        rgba(8, 14, 28, 0.96) 0%,
+        rgba(8, 14, 28, 0.85) 60%,
+        rgba(50, 95, 160, 0.50) 85%,
+        rgba(50, 95, 160, 0.15) 96%,
+        rgba(50, 95, 160, 0) 100%);
+    }
+    .floor-lab .piece-shadow.base-strong-red {
+      background: radial-gradient(ellipse at center,
+        rgba(28, 8, 10, 0.96) 0%,
+        rgba(28, 8, 10, 0.85) 60%,
+        rgba(160, 55, 65, 0.50) 85%,
+        rgba(160, 55, 65, 0.15) 96%,
+        rgba(160, 55, 65, 0) 100%);
     }
     .floor-lab .lab-callout {
       position: absolute;
@@ -1673,23 +1695,24 @@
         </div>
       </div>
 
-      <!-- ── SHADOW STYLE LAB ──
-           Three shadow approaches on the same Dusty Planet floor with
-           the same defender + cyborg pair. Pure CSS mockups so we can
-           pick a direction before changing src/scene/Shadow.ts. -->
+      <!-- ── SHADOW BASE INTENSITY LAB ──
+           Direction is locked: side-tinted elliptical "piece base"
+           (board-game miniature feel, single sprite per unit, instant
+           load). Three intensities to pick the right strength. Strategy
+           game style, not a long cast shadow. -->
       <h2 style="font-family:'Orbitron',monospace;font-size:13px;letter-spacing:4px;color:#d4a3ff;margin:30px 4px 14px;padding-bottom:6px;border-bottom:1px solid rgba(212,163,255,0.3);">
-        SHADOW STYLE LAB <span class="lab-tag" style="font-size:9px;">PICK A STYLE</span>
+        SHADOW BASE INTENSITY LAB <span class="lab-tag" style="font-size:9px;">PICK A STRENGTH</span>
       </h2>
       <p style="color:#cce8ff; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.6; max-width: 920px; margin: 0 4px 14px;">
-        Side-tinted ellipse, neutral dark ellipse, and silhouette
-        (mirrored-darkened copy of the sprite cast at the feet). All on
-        the live Dusty Planet floor with the same Tower + Hulk pair.
+        Same side-tinted elliptical "piece base" shadow at three intensities.
+        Strategy-board feel — the shadow doubles as the miniature's base.
+        Live game currently uses MEDIUM (variant 2).
       </p>
       <div class="lab-row" style="grid-template-columns: repeat(3, 1fr);">
 
         <div class="lab-card">
-          <h3>A. SIDE-TINTED ELLIPSE</h3>
-          <div class="lab-note">What ships now. Dark core for actual darkening + side-tinted ring fading out. Reads as "blue/red shadow" at a glance.</div>
+          <h3>1. SUBTLE</h3>
+          <div class="lab-note">Softer disk, lower alpha plateau. Atmospheric, but blue defenders can disappear on warm floor.</div>
           <div class="lab-stage stage-floor-warm">
             <div class="lab-grid">
               <div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div>
@@ -1700,20 +1723,20 @@
               <div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div>
             </div>
             <div class="lab-piece size-1" data-grounded="true" style="left: 25%; top: 25%;">
-              <div class="piece-shadow style-tinted-blue"></div>
+              <div class="piece-shadow base-subtle base-subtle-blue"></div>
               <img src="./sprites/tower/south.png" alt="tower">
             </div>
             <div class="lab-piece size-1-5" data-grounded="true" style="left: 75%; top: 41.667%;">
-              <div class="piece-shadow style-tinted-red"></div>
+              <div class="piece-shadow base-subtle base-subtle-red"></div>
               <img src="./sprites/hulk/south.png" alt="hulk">
             </div>
-            <div class="lab-callout">SIDE TINT</div>
+            <div class="lab-callout">SOFT</div>
           </div>
         </div>
 
         <div class="lab-card">
-          <h3>B. NEUTRAL DARK</h3>
-          <div class="lab-note">Pure black ellipse, no tint. Maximum darkening contrast on any floor color. Side identity comes from the sprite alone.</div>
+          <h3>2. MEDIUM (LIVE)</h3>
+          <div class="lab-note">Current live setting. Dark plateau through mid-radius for a "solid base disk" feel, with side tint at the rim. Reads from any zoom.</div>
           <div class="lab-stage stage-floor-warm">
             <div class="lab-grid">
               <div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div>
@@ -1724,20 +1747,20 @@
               <div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div>
             </div>
             <div class="lab-piece size-1" data-grounded="true" style="left: 25%; top: 25%;">
-              <div class="piece-shadow style-neutral"></div>
+              <div class="piece-shadow base-medium base-medium-blue"></div>
               <img src="./sprites/tower/south.png" alt="tower">
             </div>
             <div class="lab-piece size-1-5" data-grounded="true" style="left: 75%; top: 41.667%;">
-              <div class="piece-shadow style-neutral"></div>
+              <div class="piece-shadow base-medium base-medium-red"></div>
               <img src="./sprites/hulk/south.png" alt="hulk">
             </div>
-            <div class="lab-callout">PURE BLACK</div>
+            <div class="lab-callout">CURRENT</div>
           </div>
         </div>
 
         <div class="lab-card">
-          <h3>C. SILHOUETTE</h3>
-          <div class="lab-note">A darkened mirrored copy of the sprite cast slightly down + right, like a real sun-cast shadow. More expensive (one extra sprite per unit) but unmistakable.</div>
+          <h3>3. STRONG</h3>
+          <div class="lab-note">Heaviest base: bigger disk, fuller plateau, harder edge. Boldest miniature-base read; might feel too "stamped" in dense scenes.</div>
           <div class="lab-stage stage-floor-warm">
             <div class="lab-grid">
               <div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div>
@@ -1747,16 +1770,15 @@
               <div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div>
               <div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div><div class="lab-cell"></div>
             </div>
-            <!-- Silhouette: a brightness:0 + opacity copy of the same sprite, offset down + right. -->
-            <div class="lab-piece size-1 silhouette-host" data-grounded="true" style="left: 25%; top: 25%;">
-              <img class="silhouette" src="./sprites/tower/south.png" alt="tower-shadow" aria-hidden="true">
+            <div class="lab-piece size-1" data-grounded="true" style="left: 25%; top: 25%;">
+              <div class="piece-shadow base-strong base-strong-blue"></div>
               <img src="./sprites/tower/south.png" alt="tower">
             </div>
-            <div class="lab-piece size-1-5 silhouette-host" data-grounded="true" style="left: 75%; top: 41.667%;">
-              <img class="silhouette" src="./sprites/hulk/south.png" alt="hulk-shadow" aria-hidden="true">
+            <div class="lab-piece size-1-5" data-grounded="true" style="left: 75%; top: 41.667%;">
+              <div class="piece-shadow base-strong base-strong-red"></div>
               <img src="./sprites/hulk/south.png" alt="hulk">
             </div>
-            <div class="lab-callout">SPRITE-SHAPED</div>
+            <div class="lab-callout">HEAVY</div>
           </div>
         </div>
 
