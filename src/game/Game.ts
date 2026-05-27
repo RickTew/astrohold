@@ -213,7 +213,7 @@ export class Game {
 
   constructor(private canvas: HTMLCanvasElement) {
     this.scene = new THREE.Scene()
-    this.scene.background = new THREE.Color(0x201b14)  // matches terrain darkest tone
+    this.scene.background = new THREE.Color(0x322820)  // matches Dusty Planet darkest stop
     this.placementArcPreview = new FireArcPreview(this.scene)
 
     const halfH = 600 / (window.innerWidth / window.innerHeight)

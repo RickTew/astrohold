@@ -93,10 +93,10 @@ What already follows the style:
 - Shield aura, electric core zone, heal VFX, death explosion, and the Mini Control Center are all procedural.
 - Side-picker modal is procedural with crisp role-themed cards.
 - Speech bubbles use canvas-drawn modern type (cyan mono robots, peach italic cyborgs).
+- **Floor is Dusty Planet** (S20). Three layered procedural gradients (vertical fade plus two soft warm pools) replace the old Perlin dust texture. Pure vector-clean per the style guide; no noise, no specks. See `src/scene/Background.ts`. Source-of-truth color stops live in the FLOOR COLOR LAB variant 2 of `/build-test.html`.
 
 What still needs to move toward the style:
-- Floor / ground grid is currently a flat plane. Upgrade to subtle per-cell gradients with light-source response.
-- No drop shadows under pixel sprites yet. Add a procedural soft-ellipse shadow per unit.
+- No drop shadows under pixel sprites yet. Add a procedural soft-ellipse shadow per unit (grounded pieces sit at feet, only Sphere floats with offset shadow).
 - Grid lines do not react to hover during BUILD or player actions. Add cyan hover-glow on the cell under the placement ghost.
 - Combat log row styling is functional but could pick up the same gradient + border treatment as the panels.
 
