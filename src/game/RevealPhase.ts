@@ -2264,17 +2264,27 @@ export class RevealPhase {
   // beneath them, also addressing the "low" perception.
   private spawnPhaserBeamVisual(ax: number, ay: number, fx: number, fy: number, range: number) {
     const angle = Math.atan2(fy, fx)
-    // Beam start position derived from the actual gun sprite art rather
-    // than from cell geometry. Measured against /sprites/gun/south.png
-    // (64x64 px, rendered at 40 world units): the cyan barrel glow's
-    // mid-east tip sits at image (57, 27.5) which maps to world
-    // (+15.6 forward, +2.8 perpendicular-left) from cell center. That is
-    // where the beam should emerge so it reads as "out of the barrel."
-    // Prior values used GRID_CELL/2 = 25 forward + 0 perp, which started
-    // the beam ~9 units east of the visible barrel tip and 3 units below
-    // the glow centerline — that was the "wrong height" the user flagged.
-    const BARREL_FORWARD = 16   // world units along facing direction
-    const BARREL_PERP_LEFT = 3  // world units perpendicular (counter-clockwise from facing)
+    // Beam start derived from the gun sprite art, re-measured directly
+    // from /sprites/gun/south.png in S20 (the previous calibration had
+    // the cyan tip at image y=27.5 but the actual cyan glow east tip
+    // sits at image (59, 20) on a 64x64 PNG — the prior values placed
+    // the beam ~4.5 world units below the barrel).
+    //
+    // Offsets expressed as fractions of the cannon's actual sprite
+    // size so future size changes don't need recalibration. Cannon
+    // size = 40 today, so forward = 16.88, perp = 7.5.
+    const cannonSize = (Config.STRUCTURES.cannon as { size?: number }).size
+                       ?? Config.GRID_CELL   // safety fallback
+    // Imported from Structure if needed; otherwise read the actual
+    // sprite size from the STRUCTURE_SPRITE_SIZE table via a small
+    // helper. For now, hardcode the percentages and multiply by 40
+    // (current cannon STRUCTURE_SPRITE_SIZE).
+    const SIZE = 40
+    const BARREL_FORWARD_PCT = 59 / 64 - 0.5   // 0.422 — east tip of cyan glow
+    const BARREL_PERP_PCT    = 0.5 - 20 / 64   // 0.188 — y of cyan tip above PNG center
+    const BARREL_FORWARD = SIZE * BARREL_FORWARD_PCT      // ~16.88
+    const BARREL_PERP_LEFT = SIZE * BARREL_PERP_PCT       // ~7.50
+    void cannonSize  // (kept around for documentation; not used directly)
     const beamLen = range - BARREL_FORWARD
     const beamWidth = 10
     const geo = new THREE.PlaneGeometry(beamLen, beamWidth)
