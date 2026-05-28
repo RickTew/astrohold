@@ -39,6 +39,19 @@ Gameplay-truth lives on `entity.worldX` / `entity.worldY` (which return
 is cosmetic — the next `update()` chase loop reads logicalX and walks
 from the snapped position with no accumulating drift.
 
+## HUD icons keep native resolution (S21 session 2.1)
+
+The HUD tiles + side-picker hero images reference `/hud_icons/<folder>.png`,
+NOT the gameplay `/sprites/<folder>/south.png`. Reason: HUD tiles display
+at a larger size than the gameplay sprite, so upscaling a 60-px gameplay
+sprite to fill an 80-200-px HUD tile would produce chunky uneven texels
+(non-integer CSS scale with `image-rendering: pixelated`).
+
+The `/hud_icons/` copy is the pre-S2 native-resolution PNG (104-124 px),
+which CSS can downscale smoothly. When you add a new HUD-displayed piece,
+copy a 100+ px source PNG into `/public/hud_icons/<folder>.png` and
+reference it in `HUD.ts`.
+
 ## Native PNG sizes match render targets (S21 session 2)
 
 Every sprite folder's PNGs have been nearest-neighbor downsampled to

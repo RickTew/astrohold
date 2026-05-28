@@ -83,20 +83,20 @@ export class HUD {
     // uses the existing class). Same applies to Mine/Signal/Shield
     // sprites that ship at larger native sizes.
     const robotLeftTiles: Tile[] = [
-      { label: 'PHASER', cost:  60, icon: '/sprites/gun/south.png',     dataType: 'cannon', preview: true },
-      { label: 'TOWER',  cost:  30, icon: '/sprites/tower/south.png',   dataType: 'turret' },
-      { label: 'BLASTOR', cost: 70, icon: '/sprites/bomber/south.png',  dataType: 'bomber' },
-      { label: 'LASER',  cost:  40, icon: '/sprites/laser/south.png',   dataType: 'laser', preview: true },
-      { label: 'SPHERE', cost: 100, icon: '/sprites/sphere/south.png',  action: 'sphere'   },
-      { label: 'SENTRY', cost:  60, icon: '/sprites/sentry/south.png',  dataType: 'sentry' },
-      { label: 'DOG',    cost:  40, icon: '/sprites/dog/south.png',     action: 'dog'      },
-      { label: 'REPAIR', cost:  70, icon: '/sprites/repair/south.png',  action: 'repair'   },
+      { label: 'PHASER', cost:  60, icon: '/hud_icons/gun.png',     dataType: 'cannon', preview: true },
+      { label: 'TOWER',  cost:  30, icon: '/hud_icons/tower.png',   dataType: 'turret' },
+      { label: 'BLASTOR', cost: 70, icon: '/hud_icons/bomber.png',  dataType: 'bomber' },
+      { label: 'LASER',  cost:  40, icon: '/hud_icons/laser.png',   dataType: 'laser', preview: true },
+      { label: 'SPHERE', cost: 100, icon: '/hud_icons/sphere.png',  action: 'sphere'   },
+      { label: 'SENTRY', cost:  60, icon: '/hud_icons/sentry.png',  dataType: 'sentry' },
+      { label: 'DOG',    cost:  40, icon: '/hud_icons/dog.png',     action: 'dog'      },
+      { label: 'REPAIR', cost:  70, icon: '/hud_icons/repair.png',  action: 'repair'   },
     ]
     const robotRightTiles: Tile[] = [
-      { label: 'MINE',   cost: 20, icon: '/sprites/robot_mine/south.png', dataType: 'mine',    preview: true },
+      { label: 'MINE',   cost: 20, icon: '/hud_icons/robot_mine.png', dataType: 'mine',    preview: true },
       { label: 'WALL',   cost: 20, icon: 'wall',                           dataType: 'wall' },
-      { label: 'SIGNAL', cost: 70, icon: '/sprites/signal/south.png',     dataType: 'signal',  preview: true },
-      { label: 'SHIELD', cost: 50, icon: '/sprites/defense/south.png',    dataType: 'defense', preview: true },
+      { label: 'SIGNAL', cost: 70, icon: '/hud_icons/signal.png',     dataType: 'signal',  preview: true },
+      { label: 'SHIELD', cost: 50, icon: '/hud_icons/defense.png',    dataType: 'defense', preview: true },
       { label: '', cost: 0, icon: '', empty: true },
       { label: '', cost: 0, icon: '', empty: true },
       { label: '', cost: 0, icon: '', empty: true },
@@ -109,16 +109,16 @@ export class HUD {
     // mechanic exists, so a clickable tile would route to a missing
     // unit type. Add when the mechanic ships.
     const cyborgTiles: Tile[] = [
-      { label: 'CANNON',   cost:  70, icon: '/sprites/cannon/south.png',    dataType: 'cannon' },
-      { label: 'GRENADIER',cost:  50, icon: '/sprites/grenadier/south.png', dataType: 'grenadier' },
-      { label: 'DOUBLEGUN',cost:  90, icon: '/sprites/doublegun/south.png', dataType: 'doublegun' },
-      { label: 'HULK',     cost: 100, icon: '/sprites/hulk/south.png',      dataType: 'hulk' },
-      { label: 'SNIPER',   cost:  90, icon: '/sprites/sniper/south.png',    dataType: 'sniper' },
-      { label: 'MEDIC',    cost:  70, icon: '/sprites/medic/south.png',     dataType: 'medic' },
+      { label: 'CANNON',   cost:  70, icon: '/hud_icons/cannon.png',    dataType: 'cannon' },
+      { label: 'GRENADIER',cost:  50, icon: '/hud_icons/grenadier.png', dataType: 'grenadier' },
+      { label: 'DOUBLEGUN',cost:  90, icon: '/hud_icons/doublegun.png', dataType: 'doublegun' },
+      { label: 'HULK',     cost: 100, icon: '/hud_icons/hulk.png',      dataType: 'hulk' },
+      { label: 'SNIPER',   cost:  90, icon: '/hud_icons/sniper.png',    dataType: 'sniper' },
+      { label: 'MEDIC',    cost:  70, icon: '/hud_icons/medic.png',     dataType: 'medic' },
       // S17.16: Stalker is now a placeable cyborg piece (was AI-only).
-      { label: 'STALKER',  cost:  70, icon: '/sprites/cyborg_stalker/south.png', dataType: 'stalker' },
+      { label: 'STALKER',  cost:  70, icon: '/hud_icons/cyborg_stalker.png', dataType: 'stalker' },
       // Cyborg mine. Tile shows up; placement flow + trigger are PENDING.
-      { label: 'CYBORG MINE', cost: 20, icon: '/sprites/cyborg_mine/south.png', dataType: 'cyborg_mine', preview: true },
+      { label: 'CYBORG MINE', cost: 20, icon: '/hud_icons/cyborg_mine.png', dataType: 'cyborg_mine', preview: true },
     ]
     const tileHtml = (t: Tile, sideTag: 'def' | 'att') => {
       if (t.empty) {
@@ -300,14 +300,14 @@ export class HUD {
             <button class="sp-card defender" data-faction="robot" data-role="defender">
               <div class="sp-role-label">DEFENDER</div>
               <div class="sp-team-name">Robots</div>
-              <div class="sp-hero"><img src="/sprites/sphere/south.png" alt=""/></div>
+              <div class="sp-hero"><img src="/hud_icons/sphere.png" alt=""/></div>
               <div class="sp-tagline">Hold the line. Protect the Power Core.</div>
               <div class="sp-cta">PLAY</div>
             </button>
             <button class="sp-card attacker" data-faction="cyborg" data-role="attacker">
               <div class="sp-role-label">ATTACKER</div>
               <div class="sp-team-name">Cyborgs</div>
-              <div class="sp-hero"><img src="/sprites/hulk/south.png" alt=""/></div>
+              <div class="sp-hero"><img src="/hud_icons/hulk.png" alt=""/></div>
               <div class="sp-tagline">Break through. Reach the Power Core.</div>
               <div class="sp-cta">PLAY</div>
             </button>
