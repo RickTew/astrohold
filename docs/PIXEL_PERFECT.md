@@ -86,31 +86,12 @@ Gameplay-truth lives on `entity.worldX` / `entity.worldY` (return
 is cosmetic — the next update() walks from the snapped position with
 no accumulating drift.
 
-## Discrete integer-PPWU zoom
-
-Mouse-wheel zoom snaps to integer effective PPWU levels: 1 (zoom out
-2x), 2 (default — whole world fits), 3-8 (zoom in). Each scroll tick
-steps the level by one. No smooth interpolation, no fractional PPWU.
-
-Why: at zoom level N, on-screen PPWU = `internalCanvasWidth /
-cameraFrustumWidth` must be integer for the pixel-perfect contract to
-hold. Continuous smooth zoom produces fractional PPWU which makes
-grid lines shimmer and sprite texels vary in size during zoom. The
-discrete model keeps every zoom level pixel-perfect by construction.
-
-The snap step (`Game.snapForRender`) uses the LIVE effectivePPWU, so
-zoomed-in views snap to tighter sub-pixel positions (1/4 wu at PPWU=4)
-than the default (1/2 wu at PPWU=2). Movement stays smooth at all
-zoom levels.
-
-Tradeoff: zoom jumps in discrete steps rather than smoothly. Players
-who want a specific in-between zoom can't get it. If this becomes a
-UX problem, the fix is to smoothly animate the camera frustum from
-the current discrete level to the next, settling on integer PPWU at
-the rest position.
-
 ## What S21 did NOT do
 
+- **Zoom-aware PPWU.** Mouse-wheel zoom changes the camera frustum
+  continuously, breaking the integer PPWU contract at non-default
+  zoom levels. The grid lines shimmer slightly during zoom. Fix:
+  snap zoom factor to discrete integer-PPWU steps (1x, 2x, 0.5x).
 - **Integer-multiple canvas upscale.** The browser stretches the
   2400-px-wide internal canvas to whatever CSS width the window is
   (e.g. 1920 = 0.8x). With `imageRendering: pixelated` this is

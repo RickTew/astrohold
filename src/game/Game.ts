@@ -214,17 +214,7 @@ export class Game {
   // Camera pan/zoom state
   private isPanning = false
   private lastPan = { x: 0, y: 0 }
-
-  // S21 discrete-integer-PPWU zoom. The internal canvas is locked to
-  // Config.WORLD_WIDTH_WU * Config.PPWU pixels; effective on-screen PPWU
-  // at any zoom level == internalWidth / cameraFrustumWidth. For the
-  // pixel-perfect contract to hold at every zoom level, that ratio must
-  // be an integer. We therefore restrict zoom to discrete integer PPWU
-  // levels: 1 (zoom out 2x), 2 (default - whole world fits), 3-8 (in).
-  // Mouse wheel steps the level by one; no smooth interpolation.
-  private effectivePPWU: number = Config.PPWU
-  private readonly ZOOM_MIN_PPWU = 1
-  private readonly ZOOM_MAX_PPWU = 8
+  private zoomVelocity = 0
 
   constructor(private canvas: HTMLCanvasElement) {
     this.scene = new THREE.Scene()
@@ -1545,8 +1535,19 @@ private enterBuildPhase() {
     this.revealPhase?.update(delta)
     this.revealPhase?.faceCamera(this.camera)
 
-    // Zoom is discrete (see effectivePPWU); changes happen instantly in
-    // onWheel via applyZoom(), so the render loop has nothing to do here.
+    // Smooth zoom with damping
+    if (Math.abs(this.zoomVelocity) > 0.0002) {
+      const factor = 1 + this.zoomVelocity
+      const newWidth = (this.camera.right - this.camera.left) * factor
+      if (newWidth >= 200 && newWidth <= 2800) {
+        this.camera.left   *= factor
+        this.camera.right  *= factor
+        this.camera.top    *= factor
+        this.camera.bottom *= factor
+        this.camera.updateProjectionMatrix()
+      }
+      this.zoomVelocity *= 0.82
+    }
 
     // S21 pixel-perfect snap. Quantize every top-level scene child + the
     // camera to the nearest 1/PPWU wu so sprite billboards land on integer
@@ -1562,10 +1563,10 @@ private enterBuildPhase() {
   // nested objects (shadows, HP bars, child sprites) ride along on their
   // parent's snapped local transform, so we don't need to descend. Camera
   // is snapped too so the world-to-screen mapping never drifts by half a
-  // pixel between frames. Step matches the LIVE effectivePPWU so zoom
-  // levels keep their integer-pixel-alignment (zoomed in = tighter snap).
+  // pixel between frames.
+  private readonly snapStep = 1 / Config.PPWU
   private snapForRender() {
-    const step = 1 / this.effectivePPWU
+    const step = this.snapStep
     for (const child of this.scene.children) {
       if (child instanceof THREE.Sprite || child instanceof THREE.Mesh || child instanceof THREE.Group) {
         child.position.x = Math.round(child.position.x / step) * step
@@ -1580,10 +1581,21 @@ private enterBuildPhase() {
     const { innerWidth: w, innerHeight: h } = window
     if (w === 0 || h === 0) return
     this.applyInternalCanvasSize()
-    // applyZoom recomputes the camera frustum from the current effectivePPWU
-    // + the new aspect ratio. It also re-applies the HUD-aware Y offset and
-    // preserves any user pan delta.
-    this.applyZoom()
+    const halfW = Config.WORLD_WIDTH_WU / 2
+    const halfH = halfW / (w / h)
+    this.camera.left   = -halfW
+    this.camera.right  =  halfW
+    this.camera.top    =  halfH
+    this.camera.bottom = -halfH
+    // Re-apply the HUD-aware Y offset on resize. We preserve any user pan
+    // offset by computing the DELTA between the new and old base offsets
+    // and shifting the camera by that delta — so a panned camera stays
+    // visually anchored relative to the world.
+    const oldBase = this.cameraBaseY
+    const newBase = this.computeCameraYOffset(halfH)
+    this.camera.position.y += (newBase - oldBase)
+    this.cameraBaseY = newBase
+    this.camera.updateProjectionMatrix()
   }
 
   // S21 pixel-perfect internal canvas sizing. Internal pixels are locked to
@@ -1640,37 +1652,7 @@ private enterBuildPhase() {
     // here blocks the browser's native scroll on every HUD overlay.
     if ((e.target as HTMLElement | null)?.closest?.('#hud')) return
     e.preventDefault()
-    // Discrete step: scroll up = zoom in (+1 PPWU), scroll down = zoom out.
-    // Clamp to [ZOOM_MIN_PPWU, ZOOM_MAX_PPWU]. No-op when already at limit.
-    const dir = e.deltaY < 0 ? +1 : -1
-    const next = Math.max(this.ZOOM_MIN_PPWU,
-                 Math.min(this.ZOOM_MAX_PPWU, this.effectivePPWU + dir))
-    if (next === this.effectivePPWU) return
-    this.effectivePPWU = next
-    this.applyZoom()
-  }
-
-  // Recompute the camera frustum from the current effectivePPWU. Internal
-  // canvas width is fixed at WORLD_WIDTH_WU * PPWU; the visible-world width
-  // is internalWidth / effectivePPWU, which is integer pixel-aligned by
-  // construction (effectivePPWU is integer). Camera center stays put — zoom
-  // pivots on the current view center, not the cursor.
-  private applyZoom() {
-    const internalW = Config.WORLD_WIDTH_WU * Config.PPWU
-    const halfW = (internalW / this.effectivePPWU) / 2
-    const halfH = halfW * window.innerHeight / window.innerWidth
-    this.camera.left   = -halfW
-    this.camera.right  =  halfW
-    this.camera.top    =  halfH
-    this.camera.bottom = -halfH
-    // Recompute the HUD-aware Y offset for the new halfH so the world top
-    // still aligns with the HUD bottom at the new zoom level. Preserve any
-    // existing user pan by carrying the delta.
-    const oldBase = this.cameraBaseY
-    const newBase = this.computeCameraYOffset(halfH)
-    this.camera.position.y += (newBase - oldBase)
-    this.cameraBaseY = newBase
-    this.camera.updateProjectionMatrix()
+    this.zoomVelocity += Math.max(-0.015, Math.min(0.015, e.deltaY * 0.00015))
   }
 
   private onMouseDown = (e: MouseEvent) => {
