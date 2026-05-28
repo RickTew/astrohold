@@ -235,6 +235,67 @@ export class RevealPhase {
     if (target instanceof PixelPowerCore) return 'core'
     return target.id ?? '?'
   }
+
+  // Diminishing-returns heal scaling. Each successive heal on the same
+  // target multiplies by HEAL_DR_FACTORS[count]; count 5+ means zero
+  // healing applied (loop dies). Streak resets in two places:
+  //   1. A single damage event >= HEAL_DR_RESET_PCT of maxHp lands on
+  //      the target (handled in attribute()).
+  //   2. The target sat unhealed for HEAL_DR_QUIET_TURNS reveals (gated
+  //      below when looking up the streak).
+  // healStreaks Map is owned by Game so it survives RevealPhase rebuilds.
+  private readonly HEAL_DR_FACTORS = [1.0, 0.75, 0.5, 0.25, 0]
+  private readonly HEAL_DR_QUIET_TURNS = 5
+  private readonly HEAL_DR_RESET_PCT = 0.25
+
+  // Scaled heal application. Computes the streak factor, applies it,
+  // then calls target.heal() with the scaled amount. Returns the actual
+  // amount healed (after scaling + target.heal's full-HP clamp) so
+  // callers can log it. A scaled amount of 0 means "loop is dying" and
+  // the heal is skipped entirely (no VFX, no log).
+  private applyHeal(
+    target: { id?: string; hp: number; maxHp: number; isDead: boolean;
+             heal(n: number, v?: 'number' | 'plus' | 'bubble'): boolean }
+            | PixelPowerCore,
+    amount: number,
+    vfxVariant?: 'number' | 'plus' | 'bubble',
+  ): { healed: boolean; scaled: number } {
+    if (target.isDead) return { healed: false, scaled: 0 }
+    if (target.hp >= target.maxHp) return { healed: false, scaled: 0 }
+    const id = this.targetId(target)
+    let entry = this.healStreaks.get(id)
+    // Quiet-turns reset: if the target hasn't been healed in N reveals,
+    // forget the streak and start fresh at full strength.
+    if (entry && this.currentTurn - entry.lastHealTurn >= this.HEAL_DR_QUIET_TURNS) {
+      entry = undefined
+      this.healStreaks.delete(id)
+    }
+    const count = entry?.count ?? 0
+    const factor = this.HEAL_DR_FACTORS[Math.min(count, this.HEAL_DR_FACTORS.length - 1)]
+    const scaled = Math.max(0, Math.round(amount * factor))
+    if (scaled <= 0) return { healed: false, scaled: 0 }
+    const healed = target.heal(scaled, vfxVariant)
+    if (healed) {
+      if (!entry) {
+        entry = { count: 0, lastHealTurn: this.currentTurn }
+        this.healStreaks.set(id, entry)
+      }
+      entry.count = count + 1
+      entry.lastHealTurn = this.currentTurn
+    }
+    return { healed, scaled }
+  }
+
+  // Bound version for callers that want a single-arg heal(target, amount, vfx)
+  // function pointer (pad.tick() takes a callback so the pad doesn't need to
+  // know about heal scaling).
+  private boundApplyHeal = (
+    target: { id?: string; hp: number; maxHp: number; isDead: boolean;
+             heal(n: number, v?: 'number' | 'plus' | 'bubble'): boolean }
+            | PixelPowerCore,
+    amount: number,
+    vfxVariant?: 'number' | 'plus' | 'bubble',
+  ): boolean => this.applyHeal(target, amount, vfxVariant).healed
   // Centralized damage attribution. Emits damage, kill, and assist events
   // and updates damageHistory. Call this whenever takeDamage is applied
   // by a known attacker (skip for unattributed sources like wall self-damage).
@@ -253,6 +314,13 @@ export class RevealPhase {
     this.emit({ kind: 'damage', actorType: attackerType, side, amount })
     const id = this.targetId(target)
     const wasInHistory = this.damageHistory.has(id)
+    // Big hit resets the diminishing-returns heal streak. If a chunk of HP
+    // gets blown off in one event, the target genuinely needs the next heal
+    // at full strength, not the decayed loop value.
+    const hpInfo = this.targetHpInfo(target)
+    if (hpInfo && amount >= hpInfo.maxHp * this.HEAL_DR_RESET_PCT) {
+      this.healStreaks.delete(id)
+    }
     if (killed) {
       this.emit({ kind: 'kill', actorType: attackerType, side })
       // ONE-SHOT detection. If target had no prior damageHistory entries
@@ -539,6 +607,8 @@ export class RevealPhase {
     private repairPads: RepairPad[] = [],
     private repairTethers: RepairTether[] = [],
     private ammoBoxes: AmmoBox[] = [],
+    private healStreaks: Map<string, { count: number; lastHealTurn: number }> = new Map(),
+    private currentTurn: number = 0,
   ) {
     this.steps = this.buildSteps()
     // Force-detonate bombs that have outlived their fuse. Done before any
@@ -616,10 +686,10 @@ export class RevealPhase {
     const allies = this.units.filter(u => !u.isDead)
     for (const pad of [...this.medicPads]) {
       if (pad.isDead) continue
-      const result = pad.tick(allies)
+      const result = pad.tick(allies, this.boundApplyHeal)
       if (result.healed > 0) {
         this.combatThisReveal = true
-        this.log('attacker', `Medic-pad pulses (+${result.healed * 15} across ${result.healed})`)
+        this.log('attacker', `Medic-pad pulses across ${result.healed}`)
       }
       if (result.expired) {
         pad.kill()
@@ -654,12 +724,22 @@ export class RevealPhase {
         this.log('attacker', `${this.actorLabel(medic)} releases the tether on ${this.actorLabel(target)}`)
         continue
       }
-      // Heal + burn ammo + tick counter.
-      target.heal(t.healPerTick)
+      // Heal + burn ammo + tick counter. applyHeal scales by streak.
+      const { scaled } = this.applyHeal(target, t.healPerTick, 'plus')
+      if (scaled <= 0) {
+        // Streak exhausted — release the tether instead of pinning both
+        // endpoints for zero benefit.
+        medic.tether = null
+        target.tether = null
+        target.hideHpBar()
+        t.end()
+        this.log('attacker', `${this.actorLabel(medic)} releases the tether on ${this.actorLabel(target)} (saturated)`)
+        continue
+      }
       medic.ammoRemaining = Math.max(0, medic.ammoRemaining - 1)
       t.ticksActive++
       this.combatThisReveal = true
-      this.log('attacker', `${this.actorLabel(medic)} channels heal to ${this.actorLabel(target)} (+${t.healPerTick})`)
+      this.log('attacker', `${this.actorLabel(medic)} channels heal to ${this.actorLabel(target)} (+${scaled})`)
     }
     for (let i = this.tethers.length - 1; i >= 0; i--) {
       if (this.tethers[i].isDead) this.tethers.splice(i, 1)
@@ -673,10 +753,10 @@ export class RevealPhase {
     if (this.repairPads.length === 0) return
     for (const pad of [...this.repairPads]) {
       if (pad.isDead) continue
-      const result = pad.tick(this.structures, this.defenderUnits, this.spheres, this.core)
+      const result = pad.tick(this.structures, this.defenderUnits, this.spheres, this.core, this.boundApplyHeal)
       if (result.healed > 0) {
         this.combatThisReveal = true
-        this.log('defender', `Repair-pad pulses (+${result.healed * 15} across ${result.healed})`)
+        this.log('defender', `Repair-pad pulses across ${result.healed}`)
       }
       if (result.expired) {
         pad.kill()
@@ -708,7 +788,18 @@ export class RevealPhase {
         this.log('defender', `${this.actorLabel(bot)} releases the weld on ${this.targetLabel(target)}`)
         continue
       }
-      target.heal(t.healPerTick)
+      const { scaled } = this.applyHeal(target, t.healPerTick, 'plus')
+      if (scaled <= 0) {
+        // Streak exhausted — drop the weld so the bot can re-target
+        // (or be ranged-down by the cyborg that the loop was protecting
+        // against). Prevents repair + cannon stalemate.
+        bot.tether = null
+        if (target instanceof SpriteUnit) target.tether = null
+        target.hideHpBar()
+        t.end()
+        this.log('defender', `${this.actorLabel(bot)} releases the weld on ${this.targetLabel(target)} (saturated)`)
+        continue
+      }
       bot.ammoRemaining = Math.max(0, bot.ammoRemaining - 1)
       t.ticksActive++
       // Replay the weld pose each tick so the bot keeps "working" while
@@ -721,7 +812,7 @@ export class RevealPhase {
       bot.faceTarget(tx, ty)
       bot.playRepairAnim()
       this.combatThisReveal = true
-      this.log('defender', `${this.actorLabel(bot)} welds ${this.targetLabel(target)} (+${t.healPerTick})`)
+      this.log('defender', `${this.actorLabel(bot)} welds ${this.targetLabel(target)} (+${scaled})`)
     }
     for (let i = this.repairTethers.length - 1; i >= 0; i--) {
       if (this.repairTethers[i].isDead) this.repairTethers.splice(i, 1)
@@ -2702,13 +2793,13 @@ export class RevealPhase {
     // sees the bar climb as repair ticks land. Hidden again on release.
     target.showHpBar()
 
-    target.heal(tether.healPerTick)
+    const { scaled: weldScaled } = this.applyHeal(target, tether.healPerTick, 'plus')
     actor.ammoRemaining = Math.max(0, actor.ammoRemaining - 1)
     tether.ticksActive++
     actor.faceTarget(tp.x, tp.y)
     actor.playRepairAnim()
     this.combatThisReveal = true
-    this.log('defender', `${this.actorLabel(actor)} welds ${this.targetLabel(target)} (+${tether.healPerTick})`)
+    this.log('defender', `${this.actorLabel(actor)} welds ${this.targetLabel(target)} (+${weldScaled})`)
   }
 
   // Medic tether — creates a sustained Tether between the medic and a
@@ -2736,12 +2827,12 @@ export class RevealPhase {
     target.showHpBar()
 
     // First tick happens NOW so the player sees an immediate heal + spend.
-    target.heal(tether.healPerTick)
+    const { scaled: tetherScaled } = this.applyHeal(target, tether.healPerTick, 'plus')
     actor.ammoRemaining = Math.max(0, actor.ammoRemaining - 1)
     tether.ticksActive++
     actor.faceTarget(target.worldX, target.worldY)
     this.combatThisReveal = true
-    this.log(actor.side, `${this.actorLabel(actor)} tethers ${this.targetLabel(target)} (+${tether.healPerTick})`)
+    this.log(actor.side, `${this.actorLabel(actor)} tethers ${this.targetLabel(target)} (+${tetherScaled})`)
   }
 
   // Medic-pad deployment. Burns 2 of the medic's heal charges and drops a
@@ -2819,9 +2910,9 @@ export class RevealPhase {
       // 'number' VFX — med-pack throw shows the exact amount restored
       // (the player wanted a clear number on the impact, distinct from
       // the sustained 'plus' tether ticks).
-      const healed = target.heal(healAmount, 'number')
+      const { healed, scaled } = this.applyHeal(target, healAmount, 'number')
       this.log(side, healed
-        ? `${sourceLabel} heals ${targetLabel} (+${healAmount})`
+        ? `${sourceLabel} heals ${targetLabel} (+${scaled})`
         : `${sourceLabel}'s med-pack lands but ${targetLabel} is already full`)
     }
     this.projectiles.push(proj)

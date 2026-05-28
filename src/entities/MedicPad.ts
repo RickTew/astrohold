@@ -101,20 +101,26 @@ export class MedicPad {
   // Tick from the reveal loop — heal every damaged ally inside the heal
   // radius, then burn one charge. Returns { healed, killed-by-charges }
   // counts so the caller can log a summary. Self-destructs when charges
-  // hit zero (caller removes the pad from the array).
-  tick(allies: SpriteUnit[]): { healed: number; expired: boolean } {
+  // hit zero (caller removes the pad from the array). Optional healFn lets
+  // the caller route through the diminishing-returns scaler in RevealPhase;
+  // defaults to a direct heal call for tests / standalone use.
+  tick(
+    allies: SpriteUnit[],
+    healFn?: (target: SpriteUnit, amount: number, vfxVariant?: 'number' | 'bubble' | 'plus') => boolean,
+  ): { healed: number; expired: boolean } {
     if (this.isDead || this.chargesRemaining <= 0) {
       return { healed: 0, expired: true }
     }
     const radius = HEAL_RADIUS_CELLS * Config.GRID_CELL
     let healed = 0
+    const heal = healFn ?? ((t, n, v) => t.heal(n, v))
     for (const a of allies) {
       if (a.isDead || a.hp >= a.maxHp) continue
       const d = Math.hypot(a.worldX - this.worldX, a.worldY - this.worldY)
       if (d > radius) continue
       // 'bubble' VFX so pad pulses read as zone-aura heals — visually
       // distinct from tether 'plus' stamps and throw 'number' floats.
-      if (a.heal(HEAL_PER_CYCLE, 'bubble')) healed++
+      if (heal(a, HEAL_PER_CYCLE, 'bubble')) healed++
     }
     this.chargesRemaining--
     const expired = this.chargesRemaining <= 0

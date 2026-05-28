@@ -8,6 +8,9 @@ Numbers below are the current Config values. The turn-system transition is
 complete. AP budgets still ship on every piece for future use, but the active
 flow is BUILD then REVEAL (PLAN phase is currently skipped, see Turn flow).
 
+**S21 changes since S20 (unvalidated):**
+- **Diminishing-returns heal scaling.** Repeated heals on the same target decay: 100% / 75% / 50% / 25% / 0%. Streak resets if (a) the target takes a single hit >=25% of maxHp, or (b) 5 reveals pass without a heal landing on it. Applies to BOTH sides (Repair tether/pad/refill on defender; Medic tether/pad/throw on attacker). Fixes the cannon vs Repair stalemate where 10 dmg/turn was being cancelled by 20 heal/turn forever. Multi-repair emergency stacks still cover real damage spikes (5+ uncapped heals across multiple bots), light chip-damage loops decay away. Tether/weld auto-releases when the streak hits 0 so the bot can re-target.
+
 **S20 changes since S19 (unvalidated — retest first task next session):**
 - **Sniper damage 135 → 110** (-19%). Snipers were averaging ~821 damage / 5 kills per game across 6-game losing streak.
 - **Power Core HP 100 → 150** (+50%). Defender often outdamaged cyborgs but still lost to a single core-hit one-shot.
@@ -293,6 +296,12 @@ multi-purpose role: heal AND rearm.
 **S18 Power Core dock.** Adjacency to the Power Core restores +2 heal
 charges AND +1 refill charge per turn. The round-trip cycle is: deploy
 → spend → walk back to core → top up.
+
+**S21 diminishing returns.** Every heal applied to the same target
+decays: 100% / 75% / 50% / 25% / 0% per consecutive hit. Resets on
+big damage (>=25% maxHp in one event) or 5 quiet reveals. Saturated
+tethers auto-release so the bot can re-target rather than channel for
+zero benefit. Same rule applies to the Medic side.
 
 (The PixelLab export ships a Repair animation but no throw clip, so the
 throw mode the Medic uses isn't replicated here. The welding pose plays

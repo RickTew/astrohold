@@ -106,6 +106,11 @@ export class Game {
   // game — Play Again is a full reload.
   private revealTurn = 1
 
+  // Diminishing-returns heal streak per target. Owned by Game so it
+  // survives RevealPhase rebuilds (one RevealPhase per turn). Cleared on
+  // Play Again via full page reload. RevealPhase.applyHeal reads + writes.
+  private healStreaks = new Map<string, { count: number; lastHealTurn: number }>()
+
   // Running per-side battle stats. Updated each reveal in onComplete by
   // parsing the combat log; flushed to localStorage on game end via
   // recordBattleEnd. Resets on Play Again (full page reload).
@@ -839,6 +844,7 @@ private enterBuildPhase() {
       this.scene, this.powerCore, this.attackerUnits, this.structures, this.spheres, this.defenderUnits,
       this.pendingGrenades, this.medicPads, this.tethers, this.repairPads, this.repairTethers,
       this.ammoBoxes,
+      this.healStreaks, this.revealTurn,
     )
     this.revealPhase.onWin = () => {
       this.phase = 'win'; this.hud.setPhase('win'); this.mcc?.setPhase('win')

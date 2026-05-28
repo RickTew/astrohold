@@ -21,9 +21,12 @@ const REPAIR_RADIUS_CELLS = 1.6     // ~adjacent + diagonal
 const PAD_SPRITE_SIZE = 38
 
 export interface RepairTarget {
+  readonly id?: string
   readonly isDead: boolean
   readonly worldX: number
   readonly worldY: number
+  readonly hp: number
+  readonly maxHp: number
   heal(amount: number, vfxVariant?: 'number' | 'bubble' | 'plus'): boolean
 }
 
@@ -124,18 +127,20 @@ export class RepairPad {
     defenderUnits: SpriteUnit[],
     spheres: SphereDefender[],
     core: PixelPowerCore,
+    healFn?: (target: RepairTarget | PixelPowerCore, amount: number, vfxVariant?: 'number' | 'bubble' | 'plus') => boolean,
   ): { healed: number; expired: boolean } {
     if (this.isDead || this.chargesRemaining <= 0) {
       return { healed: 0, expired: true }
     }
     const radius = REPAIR_RADIUS_CELLS * Config.GRID_CELL
     let healed = 0
+    const heal = healFn ?? ((t, n, v) => t.heal(n, v))
     const tryHeal = (t: RepairTarget) => {
       if (t.isDead) return
       const d = Math.hypot(t.worldX - this.worldX, t.worldY - this.worldY)
       if (d > radius) return
       // 'bubble' VFX — area-aura look, matches MedicPad styling.
-      if (t.heal(REPAIR_PER_CYCLE, 'bubble')) healed++
+      if (heal(t, REPAIR_PER_CYCLE, 'bubble')) healed++
     }
     for (const s of structures)    tryHeal(s)
     for (const u of defenderUnits) tryHeal(u)
@@ -149,7 +154,7 @@ export class RepairPad {
         const d = Math.hypot(cc.x - this.worldX, cc.y - this.worldY)
         if (d < nearest) nearest = d
       }
-      if (nearest <= radius && core.heal(REPAIR_PER_CYCLE, 'bubble')) healed++
+      if (nearest <= radius && heal(core, REPAIR_PER_CYCLE, 'bubble')) healed++
     }
     this.chargesRemaining--
     const expired = this.chargesRemaining <= 0
