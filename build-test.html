@@ -1349,6 +1349,107 @@
     }
   </style>
 
+  <!-- ─── NATIVE SPRITE QUALITY LAB (S22) ──────────────────────────────
+       Every in-game piece at its true native PNG size next to integer
+       upscales, all with image-rendering:pixelated (the path the game
+       uses). Lets us confirm scaling the Power Core 2x (and any future
+       integer-scaled piece) loses zero pixel quality. Self-contained:
+       own .nsl-scoped CSS + a tiny inline script that reads each PNG's
+       naturalWidth so the size labels are always accurate. -->
+  <style>
+    .nsl { max-width: 1200px; margin: 32px auto 0; }
+    .nsl > h2 {
+      font-family: 'Orbitron', monospace; font-size: 18px; letter-spacing: 3px;
+      color: #d8ecff; text-shadow: 0 0 14px rgba(60,140,220,0.55); margin-bottom: 8px;
+    }
+    .nsl .nsl-intro {
+      color: #cce8ff; font-family: 'Courier New', monospace; font-size: 12px;
+      line-height: 1.6; max-width: 940px; margin-bottom: 18px;
+    }
+    .nsl .nsl-intro code { color: #9fe6c0; }
+    .nsl .nsl-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 14px;
+    }
+    .nsl .nsl-card {
+      background: linear-gradient(180deg, #1c2433 0%, #141a26 100%);
+      border: 1px solid rgba(120,160,200,0.25); border-radius: 6px; padding: 12px 14px 14px;
+    }
+    .nsl .nsl-name { font-family: 'Courier New', monospace; font-size: 12px; letter-spacing: 1px; color: #8fc7ff; }
+    .nsl .nsl-dim  { font-family: 'Courier New', monospace; font-size: 10px; color: rgba(200,230,255,0.5); margin: 2px 0 12px; }
+    .nsl .nsl-scales { display: flex; align-items: flex-end; gap: 18px; flex-wrap: wrap; }
+    .nsl .nsl-scale { text-align: center; }
+    .nsl .nsl-scale img {
+      image-rendering: pixelated; image-rendering: crisp-edges;
+      display: block; background:
+        repeating-conic-gradient(rgba(255,255,255,0.04) 0% 25%, transparent 0% 50%) 0 0 / 16px 16px,
+        rgba(40,50,65,0.5);
+      border-radius: 3px;
+    }
+    .nsl .nsl-scale span { font-family: 'Courier New', monospace; font-size: 9px; color: rgba(200,230,255,0.5); display: block; margin-top: 5px; letter-spacing: 1px; }
+    .nsl .nsl-scale.is-game span { color: #9fe6c0; }
+  </style>
+  <section class="nsl">
+    <h2>NATIVE SPRITE QUALITY LAB</h2>
+    <p class="nsl-intro">
+      Every in-game piece at its true native PNG size (<strong>1x</strong>) beside integer
+      upscales (<strong>2x</strong>, <strong>4x</strong>), all with <code>image-rendering: pixelated</code> &mdash;
+      the exact nearest-neighbor path the game uses. <strong>2x is tagged IN-GAME</strong> because
+      that is how a piece reads at default zoom (PPWU=2). Integer scales keep one source texel = a
+      whole square block of screen pixels, so the pixel art stays razor-sharp at any size with zero
+      quality loss. If a sprite looks soft here it is the source PNG, not our render path. Sizes are
+      read live from each PNG.
+    </p>
+    <div class="nsl-grid" id="nsl-grid"></div>
+  </section>
+  <script>
+    (function () {
+      // Real in-game pieces (folder name under /public/sprites/<name>/south.png).
+      var PIECES = [
+        'powercore', 'sphere', 'tower', 'sentry', 'dog', 'repair',
+        'cannon', 'grenadier', 'doublegun', 'hulk', 'sniper', 'medic', 'cyborg_stalker',
+        'bomber', 'laser', 'gun', 'signal', 'defense', 'robot_mine'
+      ];
+      var grid = document.getElementById('nsl-grid');
+      if (!grid) return;
+      PIECES.forEach(function (name) {
+        var card = document.createElement('div');
+        card.className = 'nsl-card';
+        var head = document.createElement('div');
+        head.innerHTML = '<div class="nsl-name">' + name.toUpperCase() + '</div>' +
+                         '<div class="nsl-dim" data-dim>loading…</div>';
+        var scales = document.createElement('div');
+        scales.className = 'nsl-scales';
+        card.appendChild(head);
+        card.appendChild(scales);
+        grid.appendChild(card);
+
+        // Probe natural size once, then build 1x/2x/4x at exact integer sizes.
+        var probe = new Image();
+        probe.onload = function () {
+          var nw = probe.naturalWidth, nh = probe.naturalHeight;
+          card.querySelector('[data-dim]').textContent = nw + '×' + nh + ' px native';
+          [1, 2, 4].forEach(function (m) {
+            var wrap = document.createElement('div');
+            wrap.className = 'nsl-scale' + (m === 2 ? ' is-game' : '');
+            var img = document.createElement('img');
+            img.src = './sprites/' + name + '/south.png';
+            img.width = nw * m; img.height = nh * m;
+            img.alt = name + ' ' + m + 'x';
+            var cap = document.createElement('span');
+            cap.textContent = m + 'x · ' + (nw * m) + 'px' + (m === 2 ? ' · IN-GAME' : '');
+            wrap.appendChild(img); wrap.appendChild(cap);
+            scales.appendChild(wrap);
+          });
+        };
+        probe.onerror = function () {
+          card.querySelector('[data-dim]').textContent = 'missing south.png';
+        };
+        probe.src = './sprites/' + name + '/south.png';
+      });
+    })();
+  </script>
+
   <div class="floor-lab">
     <h2>FLOOR &amp; GRID STYLE LAB <span class="lab-tag">VECTOR-GRID PIXEL HYBRID</span></h2>
     <div class="preview-frame" style="padding: 16px; height: auto; overflow: visible;">
