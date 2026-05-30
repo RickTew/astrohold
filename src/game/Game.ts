@@ -75,8 +75,8 @@ export class Game {
   private structures: Structure[] = []
 
   private attCredits: number = Config.START_CREDITS
-  private attZoneMesh: THREE.LineSegments | null = null
-  private defZoneMesh: THREE.LineSegments | null = null
+  private attZoneMesh: THREE.Object3D | null = null
+  private defZoneMesh: THREE.Object3D | null = null
 
   // Multi-sphere: now sprite-based (8 directional pixel-art PNGs, ~24 KB total
   // instead of the 60 MB GLB). Pre-loaded in preloadSphereSprites().
@@ -1467,9 +1467,21 @@ private enterBuildPhase() {
 
   // Thin outline rectangle marking the playable zone. Replaces the old
   // semi-transparent tint plane, which covered sprites and washed them out.
-  private makeZoneBorder(xMin: number, xMax: number, color: number): THREE.LineSegments {
+  private makeZoneBorder(xMin: number, xMax: number, color: number): THREE.Object3D {
     const yMin = Config.WORLD.BOTTOM
     const yMax = Config.WORLD.TOP
+    const group = new THREE.Group()
+
+    // Translucent fill over the whole zone so the base reads as a tinted
+    // region. The grid lines (z=0.3) draw ON TOP, so each cell shows as a
+    // tinted square. z=0.2 keeps it above the floor, below the grid + sprites.
+    const fillGeo = new THREE.PlaneGeometry(xMax - xMin, yMax - yMin)
+    const fillMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.13 })
+    const fill = new THREE.Mesh(fillGeo, fillMat)
+    fill.position.set((xMin + xMax) / 2, (yMin + yMax) / 2, 0.2)
+    group.add(fill)
+
+    // Bright outline around the base.
     const z = 0.4
     const verts = [
       xMin, yMin, z, xMax, yMin, z,
@@ -1480,17 +1492,22 @@ private enterBuildPhase() {
     const geo = new THREE.BufferGeometry()
     geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3))
     const mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.7 })
-    const lines = new THREE.LineSegments(geo, mat)
-    this.scene.add(lines)
-    return lines
+    group.add(new THREE.LineSegments(geo, mat))
+
+    this.scene.add(group)
+    return group
   }
 
   private removeZoneTint(side: 'att' | 'def') {
     const m = side === 'att' ? this.attZoneMesh : this.defZoneMesh
     if (!m) return
     this.scene.remove(m)
-    m.geometry.dispose()
-    ;(m.material as THREE.Material).dispose()
+    m.traverse(obj => {
+      if (obj instanceof THREE.Mesh || obj instanceof THREE.LineSegments) {
+        obj.geometry.dispose()
+        ;(obj.material as THREE.Material).dispose()
+      }
+    })
     if (side === 'att') this.attZoneMesh = null
     else this.defZoneMesh = null
   }
