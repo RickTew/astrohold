@@ -462,12 +462,21 @@ export class Game {
 
   private makeMapGrid(): THREE.LineSegments {
     const verts: number[] = []
-    const left = Config.WORLD.LEFT
-    const right = Config.WORLD.RIGHT
-    const top = Config.WORLD.TOP
-    const bottom = Config.WORLD.BOTTOM
     const cell = Config.GRID_CELL
-    const z = 0.3   // just below fence borders (z=0.4), above terrain
+    const z = 0.3   // just below base borders (z=0.4), above the floor
+    // S22c: the grid spans the WHOLE visible map, not just the playable board,
+    // so the flat floor reads as one continuous gridded surface. Extent is a
+    // generous cell-aligned box that covers any zoom-out/pan (camera width
+    // clamps at 2800 -> halfW 1400). The board origin (WORLD.LEFT/BOTTOM) is a
+    // multiple of `cell`, so lines at k*cell pass exactly through the board's
+    // cell boundaries; the blue/red base borders mark the playable zones on
+    // top of this larger grid.
+    const halfCols = 40   // 40 cells each side of center horizontally
+    const halfRows = 28   // 28 cells each side vertically
+    const left = -halfCols * cell
+    const right = halfCols * cell
+    const bottom = -halfRows * cell
+    const top = halfRows * cell
     // Vertical lines
     for (let x = left; x <= right + 0.5; x += cell) {
       verts.push(x, bottom, z, x, top, z)
