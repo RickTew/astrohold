@@ -20,18 +20,21 @@ export type Faction = 'robot' | 'cyborg'
 export type Role = 'defender' | 'attacker'
 
 export const Config = {
-  WORLD: { LEFT: -600, RIGHT: 600, TOP: 200, BOTTOM: -200 },
-  DEFENDER_MAX_X: -200,
-  ATTACKER_MIN_X: 200,
-  // S22: cell bumped 50 -> 100 so the placement boxes read as proper tile
-  // containers (units stopped overflowing 2x). 100 is the only "bigger"
-  // value that still evenly divides the fixed 1200x400 world AND keeps a
-  // grid line on y=0, which the Power Core's centered 2x2 footprint needs.
-  // 75 (a literal 50% bump) would leave 5.33 rows with no line at y=0, so
-  // the core couldn't stay a centered 2x2. World/ranges/speeds/units are
-  // deliberately UNCHANGED per "only the bigger grid" — reach is still in
-  // raw wu, so it now spans fewer (bigger) cells. Grid is 12 cols x 4 rows.
-  GRID_CELL: 100,
+  WORLD: { LEFT: -600, RIGHT: 600, TOP: 225, BOTTOM: -225 },
+  DEFENDER_MAX_X: -225,
+  ATTACKER_MIN_X: 225,
+  // S22b: cell 100 -> 75 ("cell 75 + map nudge"). 75 fills the placement
+  // boxes noticeably better than 100 while keeping the Power Core a
+  // perfectly centered 2x2. Making 75 tile cleanly took a small map nudge:
+  //   field height 400 -> 450  =>  (TOP - BOTTOM) / 75 = 6 rows (even, with
+  //                                a grid line on y=0 the centered core needs)
+  //   zone dividers +/-200 -> +/-225  =>  each side zone is 375 / 75 = 5 cols
+  // World stays 1200 wide: 1200 / 75 = 16 cols (5 defender + 6 middle +
+  // 5 attacker). Ranges/speeds/units are UNCHANGED (still raw wu, now
+  // spanning more, smaller cells). Grid is 16 cols x 6 rows. The camera
+  // frames by WORLD_WIDTH_WU + window aspect (not WORLD.TOP/BOTTOM), so the
+  // taller field needs no camera change and does not clip.
+  GRID_CELL: 75,
 
   // S21 pixel-perfect contract. PPWU = pixels per world unit at base zoom.
   // The internal renderer canvas is sized so 1 wu = PPWU integer pixels,
@@ -72,11 +75,13 @@ export const Config = {
   EXTRA_FACING_COST: 30,
   // Power Core uses a 2x2 footprint (4 cells) per the size rule: small pieces
   // get one cell, large pieces step up to the next tier (4 cells). The (X, Y)
-  // here is the CENTROID of the 2x2 block — it sits on a grid INTERSECTION,
-  // not a cell center. With GRID_CELL=100 and WORLD.LEFT=-600 / BOTTOM=-200,
-  // (-500, 0) is the corner where cols 0/1 meet rows 1/2, so the core covers
-  // cells (0,1), (1,1), (0,2), (1,2). X moved -550 -> -500 when the cell grew
-  // so the centroid stays on a vertical grid line (one cell in from the edge).
+  // here is the CENTROID of the 2x2 block. It sits on a grid INTERSECTION,
+  // not a cell center. With GRID_CELL=75 and WORLD.LEFT=-600 / BOTTOM=-225,
+  // (-525, 0) is the corner where cols 0/1 meet rows 2/3, so the core covers
+  // cells (0,2), (1,2), (0,3), (1,3), the two CENTER rows of 6 (vertically
+  // centered on y=0). X tracked the cell size as it changed (-550 at 50,
+  // -500 at 100, -525 at 75) so the centroid stays one cell in from the left
+  // edge and lands on a vertical grid line.
   // RENDER_SCALE: the core's billboard renders at native PNG width * this
   // factor. Kept an INTEGER so one source texel maps to a whole block of
   // screen pixels (stays pixel-perfect crisp, identical pixel look, just
@@ -84,7 +89,7 @@ export const Config = {
   // a 124 canvas), so native 1:1 renders it smaller than any unit. 2x makes
   // it read as the dominant 2x2 objective. Visual only -- occupancy/footprint
   // math reads GRID_CELL, not this, so the core still occupies a clean 2x2.
-  POWER_CORE: { X: -500, Y: 0, HP: 150, RADIUS: 18, RENDER_SCALE: 2 },
+  POWER_CORE: { X: -525, Y: 0, HP: 150, RADIUS: 18, RENDER_SCALE: 2 },
 
   // S17.21 unified death-explosion AoE. Every piece that detonates on
   // death (defender self-destruct, cyborg Hulk death blast) uses these

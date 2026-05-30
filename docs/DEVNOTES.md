@@ -493,8 +493,22 @@ Per-state per-direction frame sequences for every cyborg type. Folder layout:
 - SphereDefender sprite shrunk 50% (90 → 45 world units) per user request.
 
 ### Grid + placement
-- Map-wide grid: 50×50 cells, 24 cols × 8 rows = 192 cells. Drawn as subtle
-  gray line segments at z=0.3 (under fence borders).
+- Map-wide grid: **75×75 cells, 16 cols × 6 rows = 96 cells** (S22b). Drawn as
+  subtle gray line segments at z=0.3 (under fence borders). History: 50 (24×8)
+  → 100 (12×4, S22) → 75 (16×6, S22b).
+- **S22b "cell 75 + map nudge."** Goal was smaller cells (units fill the box
+  better than at 100) WITHOUT the core going off-center. 75 only tiles cleanly
+  if the map is nudged: field height 400→450 (`WORLD.TOP/BOTTOM` ±200→±225)
+  so 450/75 = 6 even rows with a grid line on y=0, and zone dividers ±200→±225
+  (`DEFENDER_MAX_X`/`ATTACKER_MIN_X`) so each side zone is a clean 375/75 = 5
+  cols. Width stays 1200 (16 cols: 5 def + 6 middle + 5 att). Core X −500→−525
+  to stay one cell in from the edge on a 75 line; now covers cells
+  (0,2)(1,2)(0,3)(1,3), the two center rows. Pure constants change in
+  `GameConfig` — everything (camera, grid mesh, occupancy, placement, AI
+  `cellsInZoneSorted` remap) derives from `Config` so it adapted with no other
+  code edits. Camera frames by `WORLD_WIDTH_WU` + window aspect (not
+  `WORLD.TOP/BOTTOM`), so the taller field needs no camera change and does not
+  clip. Ranges/speeds/units unchanged (raw wu, now span more, smaller cells).
 - `Game.snapToGridCell(x, y, zoneXMin, zoneXMax)` snaps cursor to cell center,
   restricted to active placement zone. Ghost ring jumps cell-to-cell.
 - `Game.isCellOccupied(x, y)` blocks placement if a piece already sits there.

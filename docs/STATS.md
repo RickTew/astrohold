@@ -54,11 +54,12 @@ flow is BUILD then REVEAL (PLAN phase is currently skipped, see Turn flow).
 
 ## Map & Grid
 
-- World extent: x [-600, +600], y [-200, +200] = 1200 × 400 world units
-- Grid cell: **50 × 50** world units → **24 columns × 8 rows = 192 cells**
-- Defender zone (Robots): x < -200 (8 columns)
-- Battlefield (no-build zone): -200 ≤ x ≤ 200 (8 columns)
-- Attacker zone (Cyborgs): x > 200 (8 columns)
+- World extent: x [-600, +600], y [-225, +225] = 1200 × 450 world units
+  (S22b nudged height 400 → 450 so cell 75 yields 6 even rows)
+- Grid cell: **75 × 75** world units → **16 columns × 6 rows = 96 cells**
+- Defender zone (Robots): x < -225 (5 columns)
+- Battlefield (no-build zone): -225 ≤ x ≤ 225 (6 columns)
+- Attacker zone (Cyborgs): x > 225 (5 columns)
 - **One piece per cell.** Strict. No stacking. Enforced at placement;
   movement will enforce it once the turn system lands.
 - Placement snaps to cell centers automatically. Cell centers are at
@@ -403,8 +404,8 @@ compass rose.
 |---|---|
 | HP | 100 |
 | Footprint | **2x2 cells** (size rule: small=1, large=4) |
-| Sprite size | GRID_CELL * 3 = 150 world units (visually dominates) |
-| Position | (-550, 0) — centroid sits on the grid intersection between cols 0/1 and rows 3/4 |
+| Sprite size | native PNG width × POWER_CORE.RENDER_SCALE (= 2); pixel-perfect integer scale, not tied to GRID_CELL |
+| Position | (-525, 0); centroid on the grid intersection between cols 0/1 and the two center rows 2/3 (cells (0,2)(1,2)(0,3)(1,3)) |
 | Death | 9-frame explosion + 180-unit AoE blast that wipes nearby cyborgs |
 
 Defender loses if Power Core HP reaches 0.

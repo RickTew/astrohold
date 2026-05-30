@@ -45,7 +45,7 @@ export class BuildPhase {
     this.credits = startCredits
 
     // Power Core has a 2x2 footprint. Its (X, Y) is the centroid (a grid
-    // intersection), so the 4 cells are at (X ± 25, Y ± 25).
+    // intersection), so the 4 cells are at (X +/- GRID_CELL/2, Y +/- GRID_CELL/2).
     const half = Config.GRID_CELL / 2
     for (const cx of [Config.POWER_CORE.X - half, Config.POWER_CORE.X + half]) {
       for (const cy of [Config.POWER_CORE.Y - half, Config.POWER_CORE.Y + half]) {

@@ -25,10 +25,11 @@ export interface OpponentAIApi {
 type Cell = { col: number; row: number; x: number; y: number }
 
 // The colMin/colMax ranges at every cellsInZoneSorted call site were authored
-// against an 8-column-per-side zone (cell 50). S22 bumped GRID_CELL to 100, so
-// each zone is now 4 cols. Rather than rewrite every call site, cellsInZoneSorted
-// remaps the authored 0..7 indices into the live zone via this basis. Row count
-// is likewise derived from the world + cell so it tracks future cell changes.
+// against an 8-column-per-side zone (cell 50). The cell has since changed
+// (S22 -> 100, S22b -> 75), so each side zone is now 5 cols. Rather than
+// rewrite every call site, cellsInZoneSorted remaps the authored 0..7 indices
+// into the live zone via this basis. Row count is likewise derived from the
+// world + cell so it tracks future cell changes.
 const AUTHORED_ZONE_COLS = 8
 
 /**
@@ -136,8 +137,8 @@ export class OpponentAI {
     // defender and attacker zones), NOT in defender's own backyard.
     // Cyborgs walk through middle map en route to the core, so mines
     // there pay off. cellsInZoneSorted uses local cols + zoneXMin to
-    // compute world coords; middle map starts at DEFENDER_MAX_X with
-    // 8 local cols (cols 8..15 globally).
+    // compute world coords; middle map starts at DEFENDER_MAX_X (global
+    // col 5) and the local cols are offset up into it by colOffset below.
     {
       const cost = Config.STRUCTURES.mine.cost
       const slots = this.cellsInZoneSorted({
