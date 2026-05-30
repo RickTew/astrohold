@@ -461,43 +461,56 @@ export class Game {
   }
 
   private makeMapGrid(): THREE.Object3D {
-    const cell = Config.GRID_CELL
-    // S22c: the grid is BAKED into a repeating texture instead of world-space
-    // GL lines. World-space 1px lines round onto whole screen pixels unevenly
-    // at fractional zoom, so cells looked slightly different sizes and shimmered
-    // while zooming. As a texture, every cell is the SAME texel block, so the
-    // grid stays consistent and scales smoothly with zoom (lines soften a touch
-    // when zoomed way in, the accepted trade for "always looks the same").
+    // S22c: PROCEDURAL grid shader. Earlier tries (world-space GL lines, then a
+    // baked repeating texture) both showed uneven cell widths + shimmer at
+    // fractional zoom -- thin lines rounding/beating against the pixel grid.
+    // This computes each line analytically from WORLD coordinates with
+    // derivative-based (fwidth) anti-aliasing, so every cell is mathematically
+    // identical and the line holds a consistent ~1px at ANY zoom. Smooth zoom
+    // and grab-drag pan are unaffected (the line math is independent of them).
     //
-    // One transparent cell tile, RepeatWrapping across a large plane. The plane
-    // is a multiple of cell and centered at 0, so a tile boundary lands on world
-    // 0 (a real board cell boundary, since the board origin is a multiple of
-    // cell). Lines therefore align with where pieces snap.
-    const TILE = 150   // px per cell (2 px / wu at PPWU=2)
-    const LW = 2
-    const canvas = document.createElement('canvas')
-    canvas.width = TILE
-    canvas.height = TILE
-    const ctx = canvas.getContext('2d')!
-    const c = STAGE.theme.grid
-    ctx.fillStyle = `rgba(${(c >> 16) & 0xff}, ${(c >> 8) & 0xff}, ${c & 0xff}, 0.55)`
-    ctx.fillRect(0, 0, LW, TILE)        // left edge -> vertical boundary line
-    ctx.fillRect(0, TILE - LW, TILE, LW) // bottom edge -> horizontal boundary line
-
-    const tex = new THREE.CanvasTexture(canvas)
-    tex.wrapS = THREE.RepeatWrapping
-    tex.wrapT = THREE.RepeatWrapping
-    tex.magFilter = THREE.LinearFilter
-    // Mipmaps so the thin lines don't moire/shimmer when zoomed out (they just
-    // soften and fade, which reads fine). magFilter Linear keeps zoom-in smooth.
-    tex.minFilter = THREE.LinearMipmapLinearFilter
-    tex.generateMipmaps = true
-
-    const PLANE = 9000           // 9000 / 75 = 120 cells (integer -> aligns to 0)
-    tex.repeat.set(PLANE / cell, PLANE / cell)
-
-    const geo = new THREE.PlaneGeometry(PLANE, PLANE)
-    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false })
+    // Lines land where worldXY / cell is an integer = multiples of cell. The
+    // board origin is a multiple of cell, so they align with where pieces snap.
+    const cell = Config.GRID_CELL
+    const mat = new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      extensions: { derivatives: true } as any,  // fwidth on a WebGL1 fallback
+      uniforms: {
+        uCell:      { value: cell },
+        uColor:     { value: new THREE.Color(STAGE.theme.grid) },
+        uOpacity:   { value: 0.5 },
+        uThickness: { value: 1.0 },   // line half-width, in screen pixels
+      },
+      vertexShader: `
+        varying vec2 vWorld;
+        void main() {
+          vec4 wp = modelMatrix * vec4(position, 1.0);
+          vWorld = wp.xy;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        precision highp float;
+        varying vec2 vWorld;
+        uniform float uCell;
+        uniform float uOpacity;
+        uniform float uThickness;
+        uniform vec3 uColor;
+        void main() {
+          vec2 coord = vWorld / uCell;
+          vec2 d = 0.5 - abs(fract(coord) - 0.5);   // distance to nearest line
+          vec2 g = d / (fwidth(coord) * uThickness);
+          float line = min(g.x, g.y);
+          float a = (1.0 - clamp(line, 0.0, 1.0)) * uOpacity;
+          if (a <= 0.002) discard;
+          gl_FragColor = vec4(uColor, a);
+        }
+      `,
+    })
+    // Large plane so the grid covers the view at any zoom/pan; the shader only
+    // paints the lines (everything else discards), so the size is cheap.
+    const geo = new THREE.PlaneGeometry(16000, 16000)
     const mesh = new THREE.Mesh(geo, mat)
     mesh.position.set(0, 0, 0.3)   // above zone tints (0.2), below base borders (0.4)
     mesh.renderOrder = 1
