@@ -13,9 +13,15 @@ const SPHERE_DIRECTIONS = [
   'north', 'north-west', 'west', 'south-west',
 ] as const
 const SPHERE_FRAME_INTERVAL = 0.4    // seconds per direction = ~3.2 s per full spin
-// S21 native 1:1. Sphere renders at its source PNG's native pixel size
-// as world units. Cached from the south.png texture after preload.
-let SPHERE_SCREEN_SIZE = 108         // default; overwritten by preloadSphereSprites
+// S22b: sphere read too large next to the other pieces, so it renders at
+// 1x (source texel = 1 screen pixel) instead of the default 2x. This is the
+// only crisp step BELOW 2x at PPWU=2, so it stays pixel-perfect. Keep this an
+// integer / PPWU value (0.5 -> 1x, 1.0 -> 2x); other fractions resample and
+// soften the art. Applied to the cached native width below.
+const SPHERE_RENDER_SCALE = 0.5
+// Sphere renders at its source PNG's native pixel size (world units) times
+// SPHERE_RENDER_SCALE. Cached from the south.png texture after preload.
+let SPHERE_SCREEN_SIZE = 108 * SPHERE_RENDER_SCALE   // default; overwritten by preloadSphereSprites
 
 const sphereTextures: THREE.Texture[] = []
 const sphereExplosionTextures: THREE.Texture[] = []
@@ -45,9 +51,11 @@ export async function preloadSphereSprites(): Promise<void> {
     }),
   ])
   sphereTexturesLoaded = true
-  // S21: cache the source PNG's native size so the renderer can scale at
-  // 1:1. Read off the first loaded direction (all 8 are same size).
-  SPHERE_SCREEN_SIZE = (sphereTextures[0]?.image as HTMLImageElement | undefined)?.width ?? SPHERE_SCREEN_SIZE
+  // S21: cache the source PNG's native size. S22b: times SPHERE_RENDER_SCALE
+  // (0.5 = render at 1x instead of 2x). Read off the first loaded direction
+  // (all 8 are same size).
+  const sphereNativeW = (sphereTextures[0]?.image as HTMLImageElement | undefined)?.width
+  if (sphereNativeW) SPHERE_SCREEN_SIZE = sphereNativeW * SPHERE_RENDER_SCALE
 }
 
 export class SphereDefender {

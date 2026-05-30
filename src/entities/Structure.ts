@@ -60,8 +60,17 @@ type WalkDir = (typeof WALK_DIRS)[number]
 // per piece, not from runtime scale multiplication. Defaults to 64 for
 // any type whose texture hasn't loaded yet (defensive only).
 const NATIVE_SIZE = new Map<StructureType, number>()
+// S22b: a few sprites read too large next to the rest because their source
+// art has almost no transparent padding (e.g. robot_mine fills 62 of its 64
+// canvas). Render those at a smaller, still pixel-perfect step. At PPWU=2 the
+// only crisp step below the default 2x is 1x, so the only value that keeps
+// the art razor-sharp is 0.5 (source texel = 1 screen pixel). Keep entries
+// at integer / PPWU values; other fractions resample and soften the pixels.
+const STRUCTURE_RENDER_SCALE: Partial<Record<StructureType, number>> = {
+  mine: 0.5,
+}
 function structureSizeFor(type: StructureType): number {
-  return NATIVE_SIZE.get(type) ?? 64
+  return (NATIVE_SIZE.get(type) ?? 64) * (STRUCTURE_RENDER_SCALE[type] ?? 1)
 }
 
 // Per-type foot fraction for shadow placement: the % of PNG height
