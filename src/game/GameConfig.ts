@@ -77,7 +77,14 @@ export const Config = {
   // (-500, 0) is the corner where cols 0/1 meet rows 1/2, so the core covers
   // cells (0,1), (1,1), (0,2), (1,2). X moved -550 -> -500 when the cell grew
   // so the centroid stays on a vertical grid line (one cell in from the edge).
-  POWER_CORE: { X: -500, Y: 0, HP: 150, RADIUS: 18 },
+  // RENDER_SCALE: the core's billboard renders at native PNG width * this
+  // factor. Kept an INTEGER so one source texel maps to a whole block of
+  // screen pixels (stays pixel-perfect crisp, identical pixel look, just
+  // bigger). The core PNG is ~73% transparent padding (art is 34x59 inside
+  // a 124 canvas), so native 1:1 renders it smaller than any unit. 2x makes
+  // it read as the dominant 2x2 objective. Visual only -- occupancy/footprint
+  // math reads GRID_CELL, not this, so the core still occupies a clean 2x2.
+  POWER_CORE: { X: -500, Y: 0, HP: 150, RADIUS: 18, RENDER_SCALE: 2 },
 
   // S17.21 unified death-explosion AoE. Every piece that detonates on
   // death (defender self-destruct, cyborg Hulk death blast) uses these

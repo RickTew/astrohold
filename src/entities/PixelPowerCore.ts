@@ -63,10 +63,13 @@ export class PixelPowerCore {
   private dyingFrame = 0
 
   constructor(scene: THREE.Scene, x: number, y: number, size?: number, team: 'player' | 'ai' = 'player') {
-    // S21 native 1:1. If no explicit size is passed, render at the source
-    // PNG's native pixel width. Falls back to 130 if textures haven't
-    // finished loading (defensive only).
-    this.size = size ?? (loaded ? ((rotTextures[0]?.image as HTMLImageElement | undefined)?.width ?? 130) : 130)
+    // S21 native 1:1, S22 large-piece exception. If no explicit size is
+    // passed, render at the source PNG's native pixel width times an INTEGER
+    // RENDER_SCALE (pixel-perfect preserved) so the heavily-padded core PNG
+    // reads as the dominant 2x2 objective instead of the smallest piece on
+    // the board. Falls back to 130 if textures haven't loaded (defensive).
+    const nativeW = loaded ? ((rotTextures[0]?.image as HTMLImageElement | undefined)?.width ?? 130) : 130
+    this.size = size ?? nativeW * Config.POWER_CORE.RENDER_SCALE
     size = this.size
     this.hp = this.maxHp = Config.POWER_CORE.HP
     this.mesh = new THREE.Group()
