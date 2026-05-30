@@ -24,8 +24,12 @@ export interface OpponentAIApi {
 
 type Cell = { col: number; row: number; x: number; y: number }
 
-const ZONE_COLS = 8     // each side's playable column count
-const TOTAL_ROWS = 8
+// The colMin/colMax ranges at every cellsInZoneSorted call site were authored
+// against an 8-column-per-side zone (cell 50). S22 bumped GRID_CELL to 100, so
+// each zone is now 4 cols. Rather than rewrite every call site, cellsInZoneSorted
+// remaps the authored 0..7 indices into the live zone via this basis. Row count
+// is likewise derived from the world + cell so it tracks future cell changes.
+const AUTHORED_ZONE_COLS = 8
 
 /**
  * Lightweight opponent that handles the AI side's BUILD phase. PLAN-phase
@@ -373,8 +377,18 @@ export class OpponentAI {
   }): Cell[] {
     const cells: Cell[] = []
     const cell = Config.GRID_CELL
-    for (let col = opts.colMin; col <= opts.colMax; col++) {
-      for (let row = 0; row < TOTAL_ROWS; row++) {
+    // Live zone dimensions. Both sides are symmetric 400-wide zones, so the
+    // defender-zone width gives the per-side column count for either side.
+    const zoneCols = Math.floor((Config.DEFENDER_MAX_X - Config.WORLD.LEFT) / cell)
+    const rows = Math.floor((Config.WORLD.TOP - Config.WORLD.BOTTOM) / cell)
+    // Remap authored 0..AUTHORED_ZONE_COLS-1 ranges onto the live column count
+    // (e.g. cell 100 -> 4 cols -> "front cols 5-7" compresses to cols 2-3).
+    const scale = zoneCols / AUTHORED_ZONE_COLS
+    const clampCol = (c: number) => Math.max(0, Math.min(zoneCols - 1, Math.floor(c * scale)))
+    const colMin = clampCol(opts.colMin)
+    const colMax = clampCol(opts.colMax)
+    for (let col = colMin; col <= colMax; col++) {
+      for (let row = 0; row < rows; row++) {
         const x = opts.zoneXMin + col * cell + cell / 2
         const y = Config.WORLD.BOTTOM + row * cell + cell / 2
         if (this.api.isCellOccupied(x, y)) continue
@@ -383,12 +397,12 @@ export class OpponentAI {
     }
 
     if (opts.rowPreference === 'center') {
-      // Rows closest to the vertical midpoint (rows 3/4) first.
-      const mid = (TOTAL_ROWS - 1) / 2
+      // Rows closest to the vertical midpoint first.
+      const mid = (rows - 1) / 2
       cells.sort((a, b) => Math.abs(a.row - mid) - Math.abs(b.row - mid))
     } else if (opts.rowPreference === 'edges') {
       // Top and bottom rows first — covers flanks.
-      const mid = (TOTAL_ROWS - 1) / 2
+      const mid = (rows - 1) / 2
       cells.sort((a, b) => Math.abs(b.row - mid) - Math.abs(a.row - mid))
     } else {
       // shuffle / random — Fisher-Yates so successive games don't look identical.

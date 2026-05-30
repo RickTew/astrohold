@@ -5,8 +5,11 @@ import { FireArcPreview } from '../entities/FireArcPreview'
 import { HUD } from '../ui/HUD'
 import { playEventSfx } from '../audio/sfx'
 
-const COLS = 8
-const ROWS = 8  // 400 / 50 — used for placement bounds checking, not for any visible grid
+// Derived from the world + cell size so a GRID_CELL change (S22: 50 -> 100)
+// doesn't need a hand edit here. COLS = defender-zone width / cell, ROWS =
+// world height / cell. Used for placement bounds checking, not a visible grid.
+const COLS = Math.floor((Config.DEFENDER_MAX_X - Config.WORLD.LEFT) / Config.GRID_CELL)
+const ROWS = Math.floor((Config.WORLD.TOP - Config.WORLD.BOTTOM) / Config.GRID_CELL)
 
 export class BuildPhase {
   private structures: Structure[] = []

@@ -23,7 +23,15 @@ export const Config = {
   WORLD: { LEFT: -600, RIGHT: 600, TOP: 200, BOTTOM: -200 },
   DEFENDER_MAX_X: -200,
   ATTACKER_MIN_X: 200,
-  GRID_CELL: 50,
+  // S22: cell bumped 50 -> 100 so the placement boxes read as proper tile
+  // containers (units stopped overflowing 2x). 100 is the only "bigger"
+  // value that still evenly divides the fixed 1200x400 world AND keeps a
+  // grid line on y=0, which the Power Core's centered 2x2 footprint needs.
+  // 75 (a literal 50% bump) would leave 5.33 rows with no line at y=0, so
+  // the core couldn't stay a centered 2x2. World/ranges/speeds/units are
+  // deliberately UNCHANGED per "only the bigger grid" — reach is still in
+  // raw wu, so it now spans fewer (bigger) cells. Grid is 12 cols x 4 rows.
+  GRID_CELL: 100,
 
   // S21 pixel-perfect contract. PPWU = pixels per world unit at base zoom.
   // The internal renderer canvas is sized so 1 wu = PPWU integer pixels,
@@ -65,10 +73,11 @@ export const Config = {
   // Power Core uses a 2x2 footprint (4 cells) per the size rule: small pieces
   // get one cell, large pieces step up to the next tier (4 cells). The (X, Y)
   // here is the CENTROID of the 2x2 block — it sits on a grid INTERSECTION,
-  // not a cell center. With GRID_CELL=50 and WORLD.LEFT=-600 / BOTTOM=-200,
-  // (-550, 0) is the corner where cols 0/1 meet rows 3/4, so the core covers
-  // cells (0,3), (1,3), (0,4), (1,4).
-  POWER_CORE: { X: -550, Y: 0, HP: 150, RADIUS: 18 },
+  // not a cell center. With GRID_CELL=100 and WORLD.LEFT=-600 / BOTTOM=-200,
+  // (-500, 0) is the corner where cols 0/1 meet rows 1/2, so the core covers
+  // cells (0,1), (1,1), (0,2), (1,2). X moved -550 -> -500 when the cell grew
+  // so the centroid stays on a vertical grid line (one cell in from the edge).
+  POWER_CORE: { X: -500, Y: 0, HP: 150, RADIUS: 18 },
 
   // S17.21 unified death-explosion AoE. Every piece that detonates on
   // death (defender self-destruct, cyborg Hulk death blast) uses these
