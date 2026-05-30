@@ -1349,13 +1349,16 @@
     }
   </style>
 
-  <!-- ─── NATIVE SPRITE QUALITY LAB (S22) ──────────────────────────────
-       Every in-game piece at its true native PNG size next to integer
-       upscales, all with image-rendering:pixelated (the path the game
-       uses). Lets us confirm scaling the Power Core 2x (and any future
-       integer-scaled piece) loses zero pixel quality. Self-contained:
-       own .nsl-scoped CSS + a tiny inline script that reads each PNG's
-       naturalWidth so the size labels are always accurate. -->
+  <!-- ─── SPRITE DIRECTION LAB (S22b) ──────────────────────────────────
+       Every in-game piece at its true in-game render scale across the four
+       cardinal facings (N / S / E / W), all with image-rendering:pixelated
+       (the path the game uses). Lets us compare a piece against itself
+       across directions and against the rest of the roster, as they read
+       when placed at default zoom. In-game texel scale per piece: most are
+       2x (native world units * PPWU 2); sphere + robot_mine are 1x (0.5
+       render scale); powercore is 4x (2x render scale). Self-contained:
+       own .nsl CSS + an inline script that reads each PNG's naturalWidth
+       so labels stay accurate. -->
   <style>
     .nsl { max-width: 1200px; margin: 32px auto 0; }
     .nsl > h2 {
@@ -1367,10 +1370,7 @@
       line-height: 1.6; max-width: 940px; margin-bottom: 18px;
     }
     .nsl .nsl-intro code { color: #9fe6c0; }
-    .nsl .nsl-grid {
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 14px;
-    }
+    .nsl .nsl-grid { display: flex; flex-direction: column; gap: 12px; }
     .nsl .nsl-card {
       background: linear-gradient(180deg, #1c2433 0%, #141a26 100%);
       border: 1px solid rgba(120,160,200,0.25); border-radius: 6px; padding: 12px 14px 14px;
@@ -1387,32 +1387,44 @@
       border-radius: 3px;
     }
     .nsl .nsl-scale span { font-family: 'Courier New', monospace; font-size: 9px; color: rgba(200,230,255,0.5); display: block; margin-top: 5px; letter-spacing: 1px; }
-    .nsl .nsl-scale.is-game span { color: #9fe6c0; }
   </style>
   <section class="nsl">
-    <h2>NATIVE SPRITE QUALITY LAB</h2>
+    <h2>SPRITE DIRECTION LAB</h2>
     <p class="nsl-intro">
-      Every in-game piece at its true native PNG size (<strong>1x</strong>) beside integer
-      upscales (<strong>2x</strong>, <strong>4x</strong>), all with <code>image-rendering: pixelated</code> &mdash;
-      the exact nearest-neighbor path the game uses. <strong>2x is tagged IN-GAME</strong> because
-      that is how a piece reads at default zoom (PPWU=2). Integer scales keep one source texel = a
-      whole square block of screen pixels, so the pixel art stays razor-sharp at any size with zero
-      quality loss. If a sprite looks soft here it is the source PNG, not our render path. Sizes are
-      read live from each PNG.
+      Every in-game piece across the four cardinal facings (<strong>N / S / E / W</strong>), each at
+      its real in-game render scale with <code>image-rendering: pixelated</code>, the same
+      nearest-neighbor path the game uses. Most pieces are 2x (default zoom, PPWU=2); sphere and
+      robot_mine are 1x; powercore is 4x. The checkerboard shows each PNG's transparent padding, so
+      you can see how much of a box is empty (this is why a small-art piece like the dog reads tiny).
+      Compare a piece against itself across facings, or against the rest of the roster. Sizes read
+      live from each PNG; missing facings (preview-only pieces with just a south sprite) are hidden.
     </p>
     <div class="nsl-grid" id="nsl-grid"></div>
   </section>
   <script>
     (function () {
-      // Real in-game pieces (folder name under /public/sprites/<name>/south.png).
+      // Real in-game pieces (folder name under /public/sprites/<name>/<dir>.png).
       var PIECES = [
         'powercore', 'sphere', 'tower', 'sentry', 'dog', 'repair',
         'cannon', 'grenadier', 'doublegun', 'hulk', 'sniper', 'medic', 'cyborg_stalker',
         'bomber', 'laser', 'gun', 'signal', 'defense', 'robot_mine'
       ];
+      // In-game texel scale = render-size-in-world-units / native-px * PPWU.
+      // Most pieces render at native world units (2x at PPWU=2). Sphere and
+      // robot_mine use a 0.5 render scale (1x). Powercore uses a 2x render
+      // scale (4x). Keep in sync with SPHERE_RENDER_SCALE (SphereDefender.ts),
+      // STRUCTURE_RENDER_SCALE (Structure.ts), POWER_CORE.RENDER_SCALE (Config).
+      var GAME_SCALE = { sphere: 1, robot_mine: 1, powercore: 4 };
+      var DIRS = [
+        { key: 'north', label: 'N' },
+        { key: 'south', label: 'S' },
+        { key: 'east',  label: 'E' },
+        { key: 'west',  label: 'W' }
+      ];
       var grid = document.getElementById('nsl-grid');
       if (!grid) return;
       PIECES.forEach(function (name) {
+        var scale = GAME_SCALE[name] || 2;
         var card = document.createElement('div');
         card.className = 'nsl-card';
         var head = document.createElement('div');
@@ -1424,28 +1436,38 @@
         card.appendChild(scales);
         grid.appendChild(card);
 
-        // Probe natural size once, then build 1x/2x/4x at exact integer sizes.
-        var probe = new Image();
-        probe.onload = function () {
-          var nw = probe.naturalWidth, nh = probe.naturalHeight;
-          card.querySelector('[data-dim]').textContent = nw + '×' + nh + ' px native';
-          [1, 2, 4].forEach(function (m) {
-            var wrap = document.createElement('div');
-            wrap.className = 'nsl-scale' + (m === 2 ? ' is-game' : '');
-            var img = document.createElement('img');
-            img.src = './sprites/' + name + '/south.png';
-            img.width = nw * m; img.height = nh * m;
-            img.alt = name + ' ' + m + 'x';
-            var cap = document.createElement('span');
-            cap.textContent = m + 'x · ' + (nw * m) + 'px' + (m === 2 ? ' · IN-GAME' : '');
-            wrap.appendChild(img); wrap.appendChild(cap);
-            scales.appendChild(wrap);
-          });
-        };
-        probe.onerror = function () {
-          card.querySelector('[data-dim]').textContent = 'missing south.png';
-        };
-        probe.src = './sprites/' + name + '/south.png';
+        var dimSet = false;
+        function setDim(nw, nh) {
+          if (dimSet) return;
+          dimSet = true;
+          card.querySelector('[data-dim]').textContent =
+            nw + '×' + nh + ' px native · ' + scale + 'x in-game = ' + (nw * scale) + 'px';
+        }
+
+        // One cell per cardinal facing, at the piece's real in-game scale.
+        // Missing direction files (preview-only pieces) drop their cell.
+        DIRS.forEach(function (d) {
+          var wrap = document.createElement('div');
+          wrap.className = 'nsl-scale';
+          var img = document.createElement('img');
+          var cap = document.createElement('span');
+          wrap.appendChild(img);
+          wrap.appendChild(cap);
+          scales.appendChild(wrap);
+          img.onload = function () {
+            img.width = img.naturalWidth * scale;
+            img.height = img.naturalHeight * scale;
+            cap.textContent = d.label + ' · ' + (img.naturalWidth * scale) + 'px';
+            setDim(img.naturalWidth, img.naturalHeight);
+          };
+          img.onerror = function () { wrap.remove(); };
+          img.alt = name + ' ' + d.label;
+          img.src = './sprites/' + name + '/' + d.key + '.png';
+        });
+
+        setTimeout(function () {
+          if (!dimSet) card.querySelector('[data-dim]').textContent = 'no N/S/E/W facing found';
+        }, 1500);
       });
     })();
   </script>
