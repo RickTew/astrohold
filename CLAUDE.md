@@ -7,15 +7,21 @@ Two terminal states: core dies (defender loses) or all cyborgs dead /
 unable to attack (defender wins). No stalemate rule
 (`feedback_die_or_survive`).
 
-**S21 state.** Pixel-perfect render foundation is live: PPWU=2,
-internal canvas locked, `image-rendering: pixelated`, per-frame
-position snap, sprites render at their PNG-native size (no per-piece
-scale knobs). Diminishing-returns heal scaling fixes the cannon vs
-Blastor stalemate. See `docs/PIXEL_PERFECT.md` and the
-`project_session_21_wrap` memory. **Open question for S22:** cells
-are 50 wu, sprites overflow by ~2x; user wants them sized as
-structural tile containers but past attempts to scale the world were
-too invasive. Confirm the approach before touching Config.
+**S22c state.** The battle map is now STAGE-driven (see "Key constants"
+below + `project_lobby_configurable_stage` memory): the whole board
+derives from one `STAGE` object, placement is rule-driven via
+`canPlace`, the floor is flat themed color, zones have blue/red tints,
+and the grid spans the full map. Map #1 is 20x12 @ cell 75. Sphere +
+robot_mine render at 1x (the only crisp step below 2x). Full session
+summary: `project_session_22_wrap` memory.
+
+**OPEN - start here next session:** the grid shows uneven cells /
+shimmer at fractional zoom. The current live grid (world-space lines)
+is visible but has this issue; a baked texture and an fwidth grid
+SHADER were both tried and pulled (shader is the right path but
+rendered invisible, commit 28f65ca). Full trail + next steps:
+`project_grid_zoom_quality` memory. Also pending: balance retune for
+the bigger board (piece stats untouched on purpose).
 
 ## Where to find what
 The detail lives in topical docs, not here. Read the relevant file when
