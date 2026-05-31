@@ -103,7 +103,16 @@ const STRUCTURE_OMNI_FIRE: Partial<Record<StructureType, true>> = {
 //   - Sniper: no melee — retreats to base when empty
 //   - Medic + Repair: support, retreat when charges are spent
 const MELEE_FALLBACK_DAMAGE = 10
-const MELEE_FALLBACK_RANGE  = 70   // ~1.4 cells — must be in a neighboring cell
+// Melee reach, derived from GRID_CELL so it survives board / cell resizes.
+// Cardinal-adjacent cells sit one GRID_CELL apart (center to center), so the
+// reach MUST exceed GRID_CELL or a melee unit standing next to its target
+// can't hit it. 1.5 cells covers cardinal (1.0) and diagonal (~1.41) adjacency
+// without reaching the next ring out (2.0). Was a hardcoded 70 ("~1.4 cells"
+// back when cells were 50px); the S22b bump to 75px left 70 < one cell, so
+// melee units (hulk / stalker) and out-of-ammo punchers couldn't reach the
+// 2x2 Power Core or an adjacent enemy — they marched up and "danced" til dead.
+const MELEE_REACH = Math.round(Config.GRID_CELL * 1.5)
+const MELEE_FALLBACK_RANGE = MELEE_REACH
 
 // Each bomb now carries its own timerTurns based on triggerMode (see
 // PendingGrenade). Proximity bombs default to 3 armed reveals (safety
@@ -979,7 +988,7 @@ export class RevealPhase {
         const slam = this.pickSlamWedge(unit)
         if (slam) return { kind: 'slam', cell: slam }
       }
-      const meleeRange = Config.UNITS.hulk.range
+      const meleeRange = Math.max(Config.UNITS.hulk.range, MELEE_REACH)
       const melee = this.nearestEnemy(unit, meleeRange)
       if (melee) {
         return { kind: 'fire', target: { kind: melee.kind, id: melee.id } }
@@ -1038,7 +1047,7 @@ export class RevealPhase {
           setTimeout(() => unit.engageCloak(), 2000)
         }
       }
-      const meleeRange = Config.UNITS.stalker.range
+      const meleeRange = Math.max(Config.UNITS.stalker.range, MELEE_REACH)
       const melee = this.nearestEnemy(unit, meleeRange)
       if (melee) {
         return { kind: 'fire', target: { kind: melee.kind, id: melee.id } }
@@ -3272,9 +3281,14 @@ export class RevealPhase {
     const dx = aim.x - ax
     const dy = aim.y - ay
     const dist = Math.sqrt(dx * dx + dy * dy)
-    // Melee fallback uses a shorter effective range — out-of-ammo cyborgs
-    // can only punch what's adjacent.
-    const effRange = isMeleeFallback ? MELEE_FALLBACK_RANGE : this.actorRange(actor)
+    // Melee fallback uses the adjacency reach — out-of-ammo cyborgs can only
+    // punch what's adjacent. Dedicated melee units (hulk / stalker) also get
+    // floored to MELEE_REACH: their Config range (70) is under one cell (75),
+    // so without the floor a confirmed punch on an adjacent target (incl. the
+    // 2x2 core) would fail this dist check and whiff. See MELEE_REACH note.
+    const meleeFloor = actor instanceof SpriteUnit && (actor.type === 'hulk' || actor.type === 'stalker')
+      ? MELEE_REACH : 0
+    const effRange = isMeleeFallback ? MELEE_FALLBACK_RANGE : Math.max(this.actorRange(actor), meleeFloor)
     if (dist > effRange) return
 
     // Burn one round of ammo unless this is a free attack (hulk fists or
