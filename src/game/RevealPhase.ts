@@ -1935,6 +1935,7 @@ export class RevealPhase {
     let bestD = Infinity
     for (const u of this.units) {
       if (u.isDead) continue
+      if (u.cloaked) continue   // Stalker invisibility — a walking structure can't chase what it can't see
       const d = Math.hypot(u.worldX - st.worldX, u.worldY - st.worldY)
       if (d < bestD) { bestD = d; best = u }
     }
@@ -2047,7 +2048,10 @@ export class RevealPhase {
         allies.push({ x: u.worldX, y: u.worldY })
       }
     } else {
-      for (const u of this.units) if (!u.isDead) enemies.push({ x: u.worldX, y: u.worldY })
+      // Skip cloaked attackers when AIMING (the defender can't see the Stalker
+      // to target it). If a bomb still lands near a cloaked unit for other
+      // reasons, the AoE damage step hits it anyway — geometry, not targeting.
+      for (const u of this.units) if (!u.isDead && !u.cloaked) enemies.push({ x: u.worldX, y: u.worldY })
       for (const s of this.spheres)       if (!s.isDead) allies.push({ x: s.worldX, y: s.worldY })
       for (const s of this.structures) {
         if (s.isDead) continue
