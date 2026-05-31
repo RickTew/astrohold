@@ -49,10 +49,7 @@ export type SampleEvent =
 
 interface PoolSpec { urls: string[]; volume?: number; throttleMs?: number }
 
-// Exported so the audio audit page (/audio-test.html) can enumerate every
-// event + its sample file(s) straight from the source of truth, instead of
-// keeping a drift-prone mirror. Dev tooling only; the game uses it internally.
-export const POOLS: Record<SampleEvent, PoolSpec> = {
+const POOLS: Record<SampleEvent, PoolSpec> = {
   // Weapon fire — pools where the user has multiple options. We send the
   // full list and play random one. Throttle matches the synth recipe so a
   // burst of fire from multiple units doesn't pile sounds on top.

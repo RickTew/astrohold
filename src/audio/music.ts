@@ -15,6 +15,7 @@
 // live element fades to 0 or back to target volume without reloading.
 
 import { isMusicOn, onMusicChange } from './AudioSettings'
+import { logAudioPlay, audioFileName } from './audioDebug'
 
 export type MusicTrack = 'menu' | 'robots' | 'cyborgs'
 
@@ -114,6 +115,8 @@ export function setMusicTrack(track: MusicTrack | null) {
   el.volume = 0
   currentEl = el
   attemptPlay(el)
+  // Dev overlay: report the music track now playing (no-op unless ?audiolog).
+  logAudioPlay({ t: performance.now(), kind: 'music', label: `music:${track}`, file: audioFileName(TRACK_URLS[track]) })
 }
 
 /** Stop and discard the current track. Used on dispose / HMR teardown. */

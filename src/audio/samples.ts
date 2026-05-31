@@ -22,6 +22,7 @@
 // the file.
 
 import { isSfxOn } from './AudioSettings'
+import { logAudioPlay, audioFileName } from './audioDebug'
 
 let ctx: AudioContext | null = null
 function getCtx(): AudioContext | null {
@@ -40,6 +41,7 @@ function getCtx(): AudioContext | null {
 
 interface Pool {
   buffers: AudioBuffer[]
+  names: string[]        // file name per buffer, same index — for the audio debug overlay
   lastIndex: number
   volume: number
   throttleMs: number
@@ -82,19 +84,27 @@ export async function preloadPool(name: string, urls: string[], opts: PreloadOpt
   }
   const pool: Pool = {
     buffers: [],
+    names: [],
     lastIndex: -1,
     volume: opts.volume ?? 1,
     throttleMs: opts.throttleMs ?? 30,
   }
   pools.set(name, pool)
-  // Decode in parallel. Failures resolve to null and are filtered out.
+  // Decode in parallel. Each result keeps its url so a successful buffer and
+  // its file name stay aligned by index (the audio debug overlay reports the
+  // name). Failures resolve to a null buffer and are dropped from both arrays.
   const decoded = await Promise.all(urls.map(url =>
     fetch(url)
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer() })
       .then(ab => c.decodeAudioData(ab))
-      .catch(() => null),
+      .then(buf => ({ url, buf }))
+      .catch(() => ({ url, buf: null as AudioBuffer | null })),
   ))
-  pool.buffers = decoded.filter((b): b is AudioBuffer => b !== null)
+  for (const { url, buf } of decoded) {
+    if (!buf) continue
+    pool.buffers.push(buf)
+    pool.names.push(audioFileName(url))
+  }
 }
 
 /** Returns true if the pool has at least one decoded buffer. Useful for
@@ -130,5 +140,7 @@ export function playPool(name: string): boolean {
   gain.gain.value = p.volume
   src.connect(gain).connect(c.destination)
   src.start(0)
+  // Dev overlay: report the exact file that just played (no-op unless ?audiolog).
+  logAudioPlay({ t: performance.now(), kind: 'sample', label: name, file: p.names[idx] ?? '?' })
   return true
 }
