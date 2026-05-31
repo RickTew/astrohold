@@ -50,8 +50,19 @@ const SPHERE_COST = 100
 
 export class Game {
   private scene: THREE.Scene
+  // S22d ground layer. The procedural "ground" (floor, zone tints/borders,
+  // grid) renders on a SEPARATE, smoothly-scaled canvas behind the pixelated
+  // sprite canvas. Thin grid/border lines and the pixel-art sprites have
+  // opposite scaling needs: sprites want nearest-neighbor (image-rendering:
+  // pixelated) to stay crisp, but that same non-integer nearest-neighbor
+  // squash mangles 1px lines into uneven cell widths. Splitting them lets the
+  // grid render at true device resolution with antialiasing (even cells at any
+  // zoom) while the sprite canvas keeps native 1:1. See project_grid_zoom_quality.
+  private sceneBack: THREE.Scene
   private camera: THREE.OrthographicCamera
   private renderer: THREE.WebGLRenderer
+  private rendererBack: THREE.WebGLRenderer
+  private bgCanvas: HTMLCanvasElement
   private rafId = 0
   private lastTime = 0
   private phase: Phase = 'loading'
@@ -218,7 +229,10 @@ export class Game {
 
   constructor(private canvas: HTMLCanvasElement) {
     this.scene = new THREE.Scene()
-    this.scene.background = new THREE.Color(STAGE.theme.background)  // flat stage background
+    // Front scene (sprites + VFX) is transparent so the ground canvas behind
+    // it shows through; the dark stage background lives on the back scene.
+    this.sceneBack = new THREE.Scene()
+    this.sceneBack.background = new THREE.Color(STAGE.theme.background)
     this.placementArcPreview = new FireArcPreview(this.scene)
 
     const halfW = Config.WORLD_WIDTH_WU / 2
@@ -240,12 +254,37 @@ export class Game {
     // sample rate, and `image-rendering: pixelated` on the canvas style
     // tells the browser to nearest-neighbor scale up/down to the actual
     // window without smoothing. antialias OFF — we want hard pixel edges.
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false })
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: true })
     this.renderer.setPixelRatio(1)
+    this.renderer.setClearColor(0x000000, 0)   // transparent: ground canvas shows through
     this.applyInternalCanvasSize()
     // Crisp upscale at the browser-stretch step. Without this, devicePixelRatio
     // != 1 displays would blur our pixel-art textures during the final blit.
     canvas.style.imageRendering = 'pixelated'
+
+    // S22d ground canvas: a second canvas BEHIND the sprite canvas, rendered at
+    // true device resolution with antialiasing (NOT pixelated). This is where
+    // the procedural ground (floor + zone tints/borders + grid) draws, so its
+    // thin lines scale smoothly and cells stay even at any zoom. Both canvases
+    // fill the window and share the same camera, so world positions line up.
+    // Push the ground canvas BEHIND the (untouched) sprite canvas with a
+    // negative z-index. The sprite canvas stays in normal flow exactly as
+    // before, so the floating HUD (position:fixed, z-index auto) keeps painting
+    // on top of it. Stacking top-to-bottom: HUD > sprite canvas (transparent) >
+    // ground canvas > body background.
+    this.bgCanvas = document.createElement('canvas')
+    this.bgCanvas.id = 'bg-canvas'
+    this.bgCanvas.style.position = 'fixed'
+    this.bgCanvas.style.left = '0'
+    this.bgCanvas.style.top = '0'
+    this.bgCanvas.style.width = '100vw'
+    this.bgCanvas.style.height = '100vh'
+    this.bgCanvas.style.display = 'block'
+    this.bgCanvas.style.zIndex = '-1'
+    canvas.parentElement?.insertBefore(this.bgCanvas, canvas)
+    this.rendererBack = new THREE.WebGLRenderer({ canvas: this.bgCanvas, antialias: true })
+    this.rendererBack.setPixelRatio(window.devicePixelRatio)
+    this.rendererBack.setSize(window.innerWidth, window.innerHeight)
 
     window.addEventListener('resize', this.onResize)
     window.addEventListener('wheel', this.onWheel, { passive: false })
@@ -256,7 +295,7 @@ export class Game {
   }
 
   async init() {
-    this.background = new Background(this.scene)
+    this.background = new Background(this.sceneBack)
     this.hud = new HUD()
     // Mini Control Center floats over the canvas at bottom-right.
     // BATTLE handler delegates to the existing HUD.onBattle chain so
@@ -296,12 +335,12 @@ export class Game {
     // Persistent visual overlay for the core's electric defense zone —
     // 12 cells around the 2×2 core. Translucent yellow tiles so the
     // player can see the danger area at all times.
-    this.scene.add(this.makeCoreDefenseOverlay())
+    this.sceneBack.add(this.makeCoreDefenseOverlay())
 
     // Map-wide strategy grid. Game is shifting toward chess-like turn-based
     // play with one piece per square (see docs/STATS.md). The grid makes the
     // playable cells visible so positioning is obvious during build phase.
-    this.scene.add(this.makeMapGrid())
+    this.sceneBack.add(this.makeMapGrid())
 
     this.hud.showGame()
     this.enterPickSide()
@@ -461,14 +500,13 @@ export class Game {
   }
 
   private makeMapGrid(): THREE.Object3D {
-    // S22c WORKING FALLBACK: world-space GL lines spanning the full map.
-    // KNOWN ISSUE (open, see project_grid_zoom_quality memory): at fractional
-    // zoom the 1px lines round onto screen pixels unevenly, so cells look
-    // slightly different widths / shimmer while zooming. Two fixes were tried
-    // and pulled: a baked repeating texture (still uneven: thin lines beat in a
-    // minified mipmap) and a procedural fwidth grid shader (correct in theory
-    // but rendered invisible here -- finish/debug that next session; it lives
-    // in git at commit 28f65ca). This visible line grid is the overnight state.
+    // S22d: world-space GL lines spanning the full map, rendered on the GROUND
+    // canvas (sceneBack) at true device resolution with antialiasing. The
+    // earlier uneven-cells / shimmer bug was NOT the lines -- it was the
+    // pixelated sprite canvas nearest-neighbor squashing thin lines at a
+    // non-integer scale. On the smoothly-scaled ground canvas these same lines
+    // come out even at any zoom, so no baked texture or fwidth shader is
+    // needed. See project_grid_zoom_quality + the sceneBack field note.
     const verts: number[] = []
     const cell = Config.GRID_CELL
     const z = 0.3   // above zone tints (0.2), below base borders (0.4)
@@ -1487,14 +1525,14 @@ private enterBuildPhase() {
     const mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.7 })
     group.add(new THREE.LineSegments(geo, mat))
 
-    this.scene.add(group)
+    this.sceneBack.add(group)   // ground layer (see sceneBack note)
     return group
   }
 
   private removeZoneTint(side: 'att' | 'def') {
     const m = side === 'att' ? this.attZoneMesh : this.defZoneMesh
     if (!m) return
-    this.scene.remove(m)
+    this.sceneBack.remove(m)
     m.traverse(obj => {
       if (obj instanceof THREE.Mesh || obj instanceof THREE.LineSegments) {
         obj.geometry.dispose()
@@ -1575,6 +1613,10 @@ private enterBuildPhase() {
     // positions independent of mesh.position), and re-applied each frame
     // before the next update() runs, so movement interpolation chases
     // logicalX from the snapped position with no accumulating drift.
+    // Ground canvas first, with the UN-snapped camera so the grid pans/zooms
+    // smoothly (snapForRender quantizes the camera for pixel-perfect sprites,
+    // which would otherwise add a sub-pixel grid wobble we don't want here).
+    this.rendererBack.render(this.sceneBack, this.camera)
     this.snapForRender()
     this.renderer.render(this.scene, this.camera)
   }
@@ -1601,6 +1643,8 @@ private enterBuildPhase() {
     const { innerWidth: w, innerHeight: h } = window
     if (w === 0 || h === 0) return
     this.applyInternalCanvasSize()
+    this.rendererBack.setPixelRatio(window.devicePixelRatio)
+    this.rendererBack.setSize(w, h)
     const halfW = Config.WORLD_WIDTH_WU / 2
     const halfH = halfW / (w / h)
     this.camera.left   = -halfW
