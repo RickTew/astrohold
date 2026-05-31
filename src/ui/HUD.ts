@@ -296,6 +296,9 @@ export class HUD {
         <div class="sp-inner">
           <div class="sp-title">ASTROHOLD</div>
           <div class="sp-headline">CHOOSE YOUR SIDE</div>
+          <button id="sp-swap" class="sp-swap" type="button" title="Swap which faction plays each side">
+            <span class="sp-swap-icon">&#8646;</span> Swap factions
+          </button>
           <div class="sp-cards">
             <button class="sp-card defender" data-faction="robot" data-role="defender">
               <div class="sp-role-label">DEFENDER</div>
@@ -431,12 +434,39 @@ export class HUD {
     // Side-picker cards. Mouse-only per the no-keyboard rule. Each card
     // carries data-faction + data-role; both feed Game so it can place the
     // player's pieces with the right tint and let the AI pick its own faction.
+    // ROLE is fixed per card (left = DEFENDER, right = ATTACKER); the swap
+    // toggle below flips which FACTION mans each role, so any faction can play
+    // either side. The click reads the card's CURRENT data-faction, which the
+    // swap keeps in sync.
     this.container.querySelectorAll<HTMLElement>('#side-picker .sp-card').forEach(card => {
       card.addEventListener('click', () => {
         const faction = card.dataset.faction as 'robot' | 'cyborg'
         const role = card.dataset.role as 'defender' | 'attacker'
         this.onPickSide?.(faction, role)
       })
+    })
+    // Swap toggle: flip which faction (name + mascot sprite) is on each role
+    // card, without adding more cards. Role label, card color, and tagline are
+    // ROLE-bound and stay put; only the faction identity moves.
+    const FACTION_INFO: Record<'robot' | 'cyborg', { name: string; hero: string }> = {
+      robot:  { name: 'Robots',  hero: '/sprites/sphere/south.png' },
+      cyborg: { name: 'Cyborgs', hero: '/sprites/hulk/south.png' },
+    }
+    const applyFaction = (sel: string, faction: 'robot' | 'cyborg') => {
+      const card = this.container.querySelector<HTMLElement>(sel)
+      if (!card) return
+      card.dataset.faction = faction
+      const name = card.querySelector('.sp-team-name')
+      if (name) name.textContent = FACTION_INFO[faction].name
+      const img = card.querySelector<HTMLImageElement>('.sp-hero img')
+      if (img) img.src = FACTION_INFO[faction].hero
+    }
+    let factionsSwapped = false
+    this.container.querySelector<HTMLElement>('#sp-swap')?.addEventListener('click', () => {
+      factionsSwapped = !factionsSwapped
+      applyFaction('#side-picker .sp-card.defender', factionsSwapped ? 'cyborg' : 'robot')
+      applyFaction('#side-picker .sp-card.attacker', factionsSwapped ? 'robot' : 'cyborg')
+      playEventSfx('button_toggle')
     })
     // Difficulty selector. Persists immediately on click; the active
     // value is read by Game during BUILD when allocating AI credits.

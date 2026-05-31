@@ -892,6 +892,31 @@
       text-shadow: 0 0 22px rgba(60, 140, 220, 0.7), 0 1px 0 rgba(0, 0, 0, 0.8);
       margin-top: -8px;
     }
+    #side-picker .sp-swap {
+      align-self: center;
+      margin: clamp(2px, 0.8vh, 8px) 0 clamp(-4px, -0.4vh, 0px);
+      padding: 6px 18px;
+      font-family: inherit;
+      font-size: clamp(10px, 1.5vh, 13px);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #bcd4e8;
+      background: linear-gradient(180deg, rgba(40,50,62,0.92), rgba(16,20,26,0.92));
+      border: 1px solid #3a4a5c;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    #side-picker .sp-swap:hover {
+      color: #eaf4ff;
+      border-color: #5a7088;
+      box-shadow: 0 0 14px rgba(90,160,220,0.35);
+    }
+    #side-picker .sp-swap .sp-swap-icon {
+      font-size: 1.25em;
+      vertical-align: -2px;
+      margin-right: 5px;
+    }
     #side-picker .sp-cards {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
