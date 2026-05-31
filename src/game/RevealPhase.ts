@@ -1013,13 +1013,14 @@ export class RevealPhase {
     //      cloak is to close distance without being shot, so we
     //      don't want him hanging back.
     if (unit.type === 'stalker') {
-      // S20 dramatic intro. Stalker spawns visible and marches west
-      // uncloaked. The intro callout fires the moment he comes within
-      // ~350 units of ANY defender piece (long enough that the player's
-      // longest-range Phaser at 330 actually has a shot). The cloak
-      // engages 2 seconds after that, giving the defender one full turn
-      // to fire on the visible Stalker. From the next turn onward the
-      // existing cloaked-stalker behavior applies.
+      // Stalker intro. Spawns visible and marches west uncloaked. The intro
+      // callout fires the moment he comes within ~350 units of ANY defender
+      // piece — which is just OUTSIDE defender weapon range — and the cloak
+      // engages on that SAME action (his first move into range). The old
+      // version waited 2 real seconds before cloaking, which spanned several
+      // reveal turns: the visible Stalker marched into weapon range and got
+      // shot before going dark. Now he calls out and vanishes together, so
+      // defenders never get a free firing window on him.
       if (!unit.introSpoken) {
         const STALKER_REVEAL_RANGE = 350
         const sx = unit.worldX
@@ -1044,7 +1045,7 @@ export class RevealPhase {
         if (inRange) {
           unit.introSpoken = true
           unit.announceOnce('intro')
-          setTimeout(() => unit.engageCloak(), 2000)
+          unit.engageCloak()   // cloak on this same move — no visible window for defenders to shoot
         }
       }
       const meleeRange = Math.max(Config.UNITS.stalker.range, MELEE_REACH)
@@ -3274,14 +3275,19 @@ export class RevealPhase {
                            && actor.type !== 'sniper'
     if (ammoZero && !meleeUnlimited && !isMeleeFallback) return
 
+    const ax = this.actorX(actor)
+    const ay = this.actorY(actor)
     // Resolve target XY (specific entity for 'fire', cell center for 'throw').
+    // For the 2x2 core, aim at the cell nearest the attacker (passing ax/ay),
+    // NOT the geometric centroid. nearestEnemy picks the target by nearest core
+    // cell (~1 cell away when adjacent); resolving to the centroid here would
+    // measure ~1.5 cells and make a melee unit's confirmed punch whiff — the
+    // core "stand next to it and never hit it" bug.
     const aim = action.kind === 'fire'
-      ? this.resolveTargetXY((action as { target: TargetRef }).target)
+      ? this.resolveTargetXY((action as { target: TargetRef }).target, ax, ay)
       : this.cellCenter((action as { cell: CellRef }).cell)
     if (!aim) return
 
-    const ax = this.actorX(actor)
-    const ay = this.actorY(actor)
     const dx = aim.x - ax
     const dy = aim.y - ay
     const dist = Math.sqrt(dx * dx + dy * dy)
@@ -3753,9 +3759,21 @@ export class RevealPhase {
     return hit && !hit.isDead ? hit : null
   }
 
-  private resolveTargetXY(ref: TargetRef): { x: number; y: number } | null {
+  private resolveTargetXY(ref: TargetRef, fromX?: number, fromY?: number): { x: number; y: number } | null {
     if (ref.kind === 'core') {
       if (this.core.isDead) return null
+      // Aim at the core cell nearest the attacker (when a from-point is given)
+      // so a melee unit adjacent to one of the 2x2 cells is actually in range.
+      // Falls back to the mesh center for callers that pass no from-point.
+      if (fromX !== undefined && fromY !== undefined) {
+        let best = { x: this.core.mesh.position.x, y: this.core.mesh.position.y }
+        let bestD = Infinity
+        for (const c of this.core.cellCenters()) {
+          const d = Math.hypot(c.x - fromX, c.y - fromY)
+          if (d < bestD) { bestD = d; best = { x: c.x, y: c.y } }
+        }
+        return best
+      }
       return { x: this.core.mesh.position.x, y: this.core.mesh.position.y }
     }
     if (ref.kind === 'bomb') {
