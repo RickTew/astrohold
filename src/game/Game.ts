@@ -1384,6 +1384,14 @@ private enterBuildPhase() {
   private startCyborgPlacement(type: UnitType) {
     // Tear down any previous placement so its ghost ring doesn't orphan.
     this.endPlacement()
+    // Guard preview / not-yet-implemented tiles (e.g. CYBORG MINE, whose
+    // placement flow is still PENDING and has no Config.UNITS entry). Without
+    // this, clicking that tile dereferenced Config.UNITS[undefined].color and
+    // threw, which read in-game as "cyborg placement is broken". No-op instead.
+    if (!Config.UNITS[type]) {
+      this.hud.setSelectedUnitType(null)
+      return
+    }
     const color = Config.UNITS[type].color
     const ghost = this.makeGhostRing(color, 12, 20)
     ghost.position.set((Config.ATTACKER_MIN_X + Config.WORLD.RIGHT) / 2, 0, 1)
