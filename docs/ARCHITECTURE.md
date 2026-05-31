@@ -43,6 +43,17 @@ credits made no sense.
   unified `PlacementSession`, grid snap, cross-system `isCellOccupied`
   (covers spheres + cyborgs + dogs + structures + core 2x2 cells),
   defenderUnits + attackerUnits + structures arrays owned here.
+  - **Two-canvas render (S22d).** Two stacked canvases share ONE camera:
+    `rendererBack`/`sceneBack` (antialiased, devicePixelRatio, NOT
+    pixelated) draws the procedural GROUND (floor + zone tints/borders +
+    grid) behind a transparent, pixelated `renderer`/`scene` that draws
+    sprites + VFX at native 1:1. Thin grid/border lines need smooth
+    scaling; pixel sprites need nearest-neighbor — opposite needs, so
+    they live on separate canvases. Ground is rendered BEFORE the
+    per-frame `snapForRender()` (with the un-snapped camera) so it pans
+    smoothly. The back canvas sits at `z-index: -1`; the sprite canvas
+    and the floating HUD keep their original stacking. See
+    `project_grid_zoom_quality`.
 - `TurnTypes.ts` — `QueuedAction` union, `AP_COST` table,
   `STATIONARY_INITIATIVE = 100`, `nextActorId()` factory.
 - `PlanningPhase.ts` — selection + queued-action overlays during PLAN.

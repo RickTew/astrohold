@@ -80,9 +80,17 @@ pips at 12/3/6/9 + BATTLE/PAUSE pill at the bottom. Procedural CSS
   Combat log toggles `.center-log` display.
 
 ## Side-picker modal (#side-picker)
-Full-screen before BUILD. **2 cards**: DEFENDER (Robots) and
-ATTACKER (Cyborgs). Card color follows ROLE: defender=blue,
-attacker=red. AI gets the opposite role + opposite faction.
+Full-screen before BUILD. **2 cards**: DEFENDER and ATTACKER. Card color
+follows ROLE: defender=blue, attacker=red. AI gets the opposite role +
+opposite faction.
+
+**Swap factions pill (S22d, `#sp-swap`).** A slim pill below the cards (above
+AI DIFFICULTY) flips which FACTION (team name + mascot sprite + `data-faction`)
+mans each role card. ROLE is fixed per card (label, color, tagline stay);
+faction moves. The card click reads the live `data-faction`, so swapping is
+all the wiring needs. Default = Robots defend / Cyborgs attack. Note: faction
+is cosmetic (music + label); rosters are role-bound, so a swapped pairing does
+NOT yet bring faction-specific pieces.
 
 Layout uses `clamp()` everywhere (no fixed px) and the safe-centering
 pattern (outer `overflow: auto` + inner `min-height: 100% + flex

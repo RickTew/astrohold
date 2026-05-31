@@ -2698,3 +2698,66 @@ active). Source zip is local-only.
   numbers should show whether sniper falls off 🔥 OVER, whether any
   cyborg pieces go ❄ UNDER, and whether hulk arrival rate improved
   at 400 HP. Then iterate.
+
+## Session S22d (2026-05-31) — grid fix + melee/Stalker combat + picker swap
+
+Render / visual:
+- **Grid zoom quality FIXED (two-canvas split).** The procedural ground
+  (floor + zone tints/borders + grid) moved to a SECOND canvas
+  (`sceneBack` / `rendererBack`) rendered at true device resolution with
+  antialiasing, stacked BEHIND the pixelated sprite canvas (z-index -1).
+  Root cause of the old uneven/shimmer: the pixel-perfect sprite canvas
+  is nearest-neighbor stretched to the window at a non-integer ratio,
+  which resamples thin 1px lines unevenly. Sprites (chunky) survive it;
+  lines don't. Splitting layers gives the grid smooth scaling while
+  native 1:1 sprite sizing stays untouched. Front renderer is now
+  alpha/transparent; both renderers share the camera; the ground renders
+  with the UN-snapped camera so pan/zoom stays smooth. No shader, no
+  baked texture (both prior attempts stay reverted). `Game.ts`.
+
+Combat (RevealPhase):
+- **Melee reach is cell-relative + cardinal-only.**
+  `MELEE_REACH = round(GRID_CELL * 1.3)` (98). Catches cardinal-adjacent
+  (75), excludes diagonal (106) and 2-away (150). Fixes both the old
+  hardcoded-70-broke-at-cell-75 bug AND the over-correction to 1.5 (113)
+  that reached diagonally ("attacking from a distance").
+- **Melee = instant hit, no projectile.** Hulk/Stalker fists and the
+  out-of-ammo fallback punch resolve damage immediately with an impact
+  spark + melee sound, then return before the projectile path. A flying
+  bolt on a melee unit read as "shooting."
+- **Core attack fix.** `resolveTargetXY` for the core returns the core
+  CELL nearest the attacker (passed ax/ay), not the geometric centroid
+  (~1.5 cells from an adjacent cell). Decision (nearestEnemy, per-cell)
+  and execution now agree, so melee units actually connect with the 2x2
+  core instead of standing on it.
+- **Stalker cloak = zone-exit.** Calls out + cloaks the instant it leaves
+  its red zone (`worldX < ATTACKER_MIN_X`), well outside defender weapon
+  range. Replaced the 350-range scan + 2s timer (which let it get shot,
+  since structures fire before cyborgs each turn).
+- **Cloak targeting holes closed.** `nearestCyborgToStructure` (walking
+  Sentry) and the defender bomber's aim list now skip `cloaked` units.
+  Targeting can't see the Stalker; AoE/splash that overlaps still hits it
+  (geometry, intentionally unfiltered).
+
+UI / placement:
+- **Cyborg placement crash fixed.** The CYBORG MINE tile (preview, no
+  `Config.UNITS` entry) crashed `startCyborgPlacement` on click; guarded
+  to a no-op so real cyborg units place.
+- **Side-picker "Swap factions" pill.** Decouples faction from role
+  (either faction can defend/attack). Game logic already supported it
+  (`onSidePicked` derives AI faction/side as opposites). Faction stays
+  cosmetic (music + label); rosters are role-bound.
+
+Tooling:
+- **`?audiolog` overlay.** Visit `/?audiolog` for a live on-screen log
+  naming the exact file every sound plays (SFX via `playPool`, music via
+  `setMusicTrack`). Built to hunt the intermittent Live Caption vocal.
+  Gated, no-op for normal players. Removed the redundant `audio-test.html`.
+
+### Open going into next session
+- **Audio vocal hunt** — `project_audio_vocal_hunt`. Use `?audiolog` to
+  catch the file when Live Caption shows a vocal, then pull it.
+- **Balance retune** for bigger board + new melee reach (stats untouched).
+- **Faction-specific rosters** (optional). Today faction is cosmetic; a
+  cyborg-defender uses the robot structure roster. Distinct per-faction
+  rosters would be a separate build.

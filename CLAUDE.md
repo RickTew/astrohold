@@ -7,21 +7,41 @@ Two terminal states: core dies (defender loses) or all cyborgs dead /
 unable to attack (defender wins). No stalemate rule
 (`feedback_die_or_survive`).
 
-**S22c state.** The battle map is now STAGE-driven (see "Key constants"
+**S22d state.** The battle map is STAGE-driven (see "Key constants"
 below + `project_lobby_configurable_stage` memory): the whole board
 derives from one `STAGE` object, placement is rule-driven via
 `canPlace`, the floor is flat themed color, zones have blue/red tints,
 and the grid spans the full map. Map #1 is 20x12 @ cell 75. Sphere +
-robot_mine render at 1x (the only crisp step below 2x). Full session
-summary: `project_session_22_wrap` memory.
+robot_mine render at 1x (the only crisp step below 2x).
 
-**OPEN - start here next session:** the grid shows uneven cells /
-shimmer at fractional zoom. The current live grid (world-space lines)
-is visible but has this issue; a baked texture and an fwidth grid
-SHADER were both tried and pulled (shader is the right path but
-rendered invisible, commit 28f65ca). Full trail + next steps:
-`project_grid_zoom_quality` memory. Also pending: balance retune for
-the bigger board (piece stats untouched on purpose).
+S22d shipped a batch of fixes (full log: `project_session_23_wrap`):
+- **Grid zoom quality FIXED.** The procedural ground (floor + zone
+  tints/borders + grid) now renders on a SEPARATE smooth-scaled canvas
+  (`sceneBack` / `rendererBack`) BEHIND the pixelated sprite canvas, at
+  true device resolution with antialiasing. Even cells at any zoom;
+  native 1:1 sprite sizing untouched. The old uneven/shimmer was the
+  pixelated sprite canvas nearest-neighbor squashing thin lines.
+  `project_grid_zoom_quality` (resolved).
+- **Melee combat:** reach is now cell-relative (`MELEE_REACH = cell*1.3`
+  = cardinal-adjacent ONLY, no diagonal); melee units (Hulk/Stalker) and
+  out-of-ammo punches hit INSTANTLY (no projectile); core aim resolves to
+  the nearest core CELL so melee actually connects with the 2x2 core.
+- **Stalker** cloaks the instant it leaves its red zone (was a 2s timer
+  that let it get shot). Defender targeting (sentry walk, bomber aim) now
+  skips cloaked units.
+- **Side picker:** "Swap factions" pill decouples faction from role
+  (either faction can defend or attack). Faction is still cosmetic
+  (music + label) - rosters are role-bound; faction-specific rosters
+  would be a separate build.
+
+**OPEN - start here next session:**
+- **Audio vocal hunt (`project_audio_vocal_hunt`).** Some cyborg sound
+  triggers macOS Live Caption (an "Oh" / "wow wow") - intermittent,
+  unconfirmed which file. Use the new `?audiolog` overlay (visit
+  `/?audiolog`) which names the exact file every sound plays. Catch the
+  line when the caption fires, then pull that URL from its pool.
+- **Balance retune** for the bigger board + new melee reach (piece stats
+  still untouched on purpose; `feedback_data_driven_balance`).
 
 ## Where to find what
 The detail lives in topical docs, not here. Read the relevant file when

@@ -21,7 +21,7 @@ flow is BUILD then REVEAL (PLAN phase is currently skipped, see Turn flow).
 - **Sentry walks like a SpriteUnit.** Position lerp + walking-frame animation now applies to mobile structures with `STRUCTURE_HAS_WALK[type]` (sentry only today). New PixelLab walking + explosion frames shipped.
 - **MORTAR → BLASTOR** rename in the HUD (internal type still `bomber`).
 - **Robot anti-cluster rule.** Defender mobile units outside base (`x ≥ DEFENDER_MAX_X`) take a 40-point detour penalty per adjacent live defender piece, to dodge the death-explosion chain.
-- **Stalker dramatic intro.** Spawns visible; plays `intro` SpeechTrigger callout when within 350 of any defender; engages cloak 2s later. Gives the defender one real turn to fire on a visible Stalker.
+- **Stalker intro + cloak (S22d).** Spawns visible inside its red deployment zone, marches west, and calls out + cloaks together the instant it steps OFF the zone (`worldX < ATTACKER_MIN_X`). The zone edge is well outside any defender weapon range, so it goes dark before it can be shot. Replaced the old 350-range scan + 2s cloak timer (that timer spanned several reveal turns and let the visible Stalker get shot, since structures fire BEFORE cyborgs each turn).
 - **Visual overhaul.** Dusty Planet procedural floor replaces Perlin dirt. Side-tinted soft drop shadows on every piece (per-sprite footFraction overrides). Phaser/Bomber/Laser/Signal sprite sizes rebalanced. Phaser beam Y offset recalibrated against the actual cyan barrel.
 - **Speech callouts** capped at 20 chars/line. `intro` trigger added. `core_hit` expanded to 12 lines per side.
 
@@ -158,10 +158,22 @@ Each piece spends Action Points (AP) per turn. Default actions:
 - Tuning rule of thumb: ammo budget × damage should be comparable to that
   piece's "fair share" of damage required to end the game.
 
+**Melee reach + instant hit (S22d).** All melee reach derives from
+`MELEE_REACH = round(GRID_CELL * 1.3)` (= 98 at cell 75) in RevealPhase. It
+sits between cardinal-adjacent (1 cell = 75) and diagonal (~1.41 cells = 106),
+so melee only connects with a CARDINALLY adjacent target - matching cardinal
+movement, no half-cell-gap "distance" swings. Cell-relative so it survives
+board resizes (a hardcoded 70 broke when cells went 50 -> 75). Melee strikes
+(Hulk/Stalker fists + the fallback punch) land INSTANTLY with an impact spark
+and the melee sound - NO flying projectile (a bolt on a melee unit read as
+"shooting"). For the 2x2 core, aim resolves to the core CELL nearest the
+attacker (not the centroid) so an adjacent melee unit is actually in range.
+
 **Universal melee fallback.** When a SpriteUnit hits `ammoRemaining = 0`
-AND an enemy is within ~1.4 cells, swings for `MELEE_FALLBACK_DAMAGE = 10`
-at no ammo cost. Excludes hulk (already unlimited), sniper (retreats), and
-medic + repair (retreat). Keeps combat moving when both sides are dry.
+AND an enemy is within `MELEE_FALLBACK_RANGE` (= `MELEE_REACH`, cardinal-
+adjacent), punches for `MELEE_FALLBACK_DAMAGE = 10` at no ammo cost, using the
+melee body-impact sound (not the unit's ranged weapon). Excludes hulk (already
+unlimited), sniper (retreats), and medic + repair (retreat).
 
 **Firing arc (S18):** Structures fire CARDINAL-ONLY. The target must be in
 the lane the structure faces: forward dot > 0 AND perpendicular distance
