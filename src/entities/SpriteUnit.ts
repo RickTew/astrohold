@@ -268,6 +268,16 @@ const MANIFEST: Record<string, AnimManifest> = {
     walking: { fps: 10, loop: true,  presentDirs: ALL_DIRS, frameCount: 9 },
     shoot:   { fps: 14, loop: false, presentDirs: ['east', 'west'], frameCount: 9 },
   },
+  // Cyborg Nerd / Hacker. MANIFEST keyed by folder ('cyborg_nerd'). The
+  // ipad-hack cast lives in the one-shot 'throw' slot (played by the hack
+  // action), so it auto-returns to idle when the clip finishes. 4 cardinal
+  // dirs per state; diagonals fall back to the static rotations.
+  cyborg_nerd: {
+    idle:    { fps: 6,  loop: true,  presentDirs: ['east', 'west', 'north', 'south'], frameCount: 4 },
+    walking: { fps: 10, loop: true,  presentDirs: ['east', 'west', 'north', 'south'], frameCount: 6 },
+    throw:   { fps: 12, loop: false, presentDirs: ['east', 'west', 'north', 'south'], frameCount: 9 },
+    die:     { fps: 10, loop: false, presentDirs: ['east', 'west', 'north', 'south'], frameCount: 9 },
+  },
 }
 
 function loadTexture(url: string): Promise<THREE.Texture> {
@@ -433,6 +443,14 @@ export class SpriteUnit {
   // opacity while cloaked so the player can still see them but they
   // read as stealth-mode.
   cloaked = false
+  // Hacked (Cyborg Nerd mechanic). While > 0, this DEFENDER piece is a
+  // turncoat: it attacks other robots, cyborgs stop targeting it, and the
+  // counter decrements once per reveal until it reverts. Set by the Hacker's
+  // 'hack' action (RevealPhase.executeHack). Only ever non-zero on defender
+  // units; cyborgs are never hacked. See [[project_human_faction_planned]]
+  // sibling note in DEVNOTES for the design.
+  hackedTurnsRemaining = 0
+  get isHacked(): boolean { return this.hackedTurnsRemaining > 0 }
   // S20 — set true once the unit has fired its 'intro' speech bubble
   // (Stalker only today). RevealPhase reads this to know whether to
   // play the intro on the next stalker action, and to know whether
@@ -763,6 +781,14 @@ export class SpriteUnit {
   // for the slam (4 cardinal dirs); diagonals mirror to the nearest
   // cardinal. Falls back silently if the clip isn't loaded for this type.
   playSlamAnim() {
+    if (this.isDead) return
+    if (!animSets.get(this.artKey)?.anims['throw']) return
+    this.playState('throw')
+  }
+
+  // Cyborg Nerd hack cast — the space-ipad clip ships in the one-shot 'throw'
+  // slot, so this plays it and auto-returns to idle when it completes.
+  playHackAnim() {
     if (this.isDead) return
     if (!animSets.get(this.artKey)?.anims['throw']) return
     this.playState('throw')

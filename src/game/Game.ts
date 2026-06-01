@@ -340,6 +340,7 @@ export class Game {
       preloadSpriteUnit('medic', 'medic'),
       preloadSpriteUnit('repair', 'repair'),
       preloadSpriteUnit('stalker', 'cyborg_stalker'),
+      preloadSpriteUnit('hacker', 'cyborg_nerd'),
       // Human faction art overrides (registered under their own art keys;
       // FACTION_ART maps cannon -> human_warrior, medic -> human_medic).
       preloadSpriteUnit('human_warrior', 'human_warrior'),

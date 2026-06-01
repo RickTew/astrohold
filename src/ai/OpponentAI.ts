@@ -300,7 +300,7 @@ export class OpponentAI {
     // factions use the full cyborg roster.
     const allTypes: UnitType[] = this.faction === 'human'
       ? ['cannon', 'doublegun', 'medic']
-      : ['cannon', 'grenadier', 'doublegun', 'hulk', 'sniper', 'medic', 'stalker']
+      : ['cannon', 'grenadier', 'doublegun', 'hulk', 'sniper', 'medic', 'stalker', 'hacker']
 
     // Spawn from the back columns (closest to the cyborg edge of the field).
     // Cyborgs march west toward the core, so back-row spawns get the most

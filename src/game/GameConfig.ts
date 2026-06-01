@@ -320,6 +320,14 @@ export const Config = {
     // never decrement and the ammo field stays at zero forever.
     // Compare to Hulk who DOES have meaningful ammo via slamAmmo (3).
     stalker:   { cost: 70, hp: 130, speed: 60,  damage: 40, range: 70,  sightRange: 220, aoeRadius: 0,  apBudget: 2, ammo: 0, label: 'Stalker',   color: 0xaaaaaa },
+    // Cyborg Nerd / HACKER — support saboteur. No gun (damage 0); instead
+    // his `ammo` is a pool of HACKS (2). When an enemy robot piece (tower or
+    // mobile defender) is within `range` (200), he plays the space-ipad cast
+    // and hacks it: for 3 reveals that piece turns traitor - it attacks other
+    // robots, and cyborgs ignore it. Fragile (HP 60), so he hangs back behind
+    // the front line. Behavior lives in RevealPhase (hack action); these are
+    // just the numbers. `allowDiagonalMove` keeps him nimble while repositioning.
+    hacker:    { cost: 80, hp: 60,  speed: 60,  damage: 0,  range: 200, sightRange: 320, aoeRadius: 0,  apBudget: 3, ammo: 2, allowDiagonalMove: true, label: 'Hacker',    color: 0x66ccff },
     // Robot Repair — defender-side support unit, the medic's structural twin.
     // Three repair modes: pack-throw, deployable repair-pad, weld-tether.
     // Targets are anything defender-side with HP — towers, walls, mines,

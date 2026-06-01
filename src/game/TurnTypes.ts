@@ -22,6 +22,9 @@ export type QueuedActionKind =
   // Signal EMP strike — defender structure action targeting one cyborg.
   // Stuns the target for 2 turns; no damage.
   | 'emp'
+  // Cyborg Nerd HACK — attacker action targeting one enemy robot piece
+  // (structure or mobile defender). Turns it traitor for a few reveals.
+  | 'hack'
 
 export type QueuedAction =
   | { kind: 'move';    cell: CellRef }
@@ -48,6 +51,8 @@ export type QueuedAction =
   | { kind: 'repair-tether'; target: TargetRef }
   // Signal EMP strike. Target must be a cyborg (TargetRef.kind === 'unit').
   | { kind: 'emp';           target: TargetRef }
+  // Cyborg Nerd hack. Target is an enemy robot piece (structure / unit).
+  | { kind: 'hack';          target: TargetRef }
 
 export const AP_COST: Record<QueuedActionKind, number> = {
   move: 1,
@@ -62,6 +67,7 @@ export const AP_COST: Record<QueuedActionKind, number> = {
   'repair-pad': 2,
   'repair-tether': 1,
   emp: 1,
+  hack: 2,
 }
 
 // Stationary pieces (Sphere, structures, core) use this fallback. Set HIGHER

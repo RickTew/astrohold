@@ -261,6 +261,11 @@ export class Structure {
   fireFacings: number[] = [0]
   queuedActions: QueuedAction[] = []
   get side(): 'defender' { return 'defender' }
+  // Hacked (Cyborg Nerd mechanic). While > 0, this tower fires on OTHER
+  // robots instead of cyborgs, and cyborgs stop targeting it. Decremented
+  // once per reveal by RevealPhase.tickHack until it reverts to loyal.
+  hackedTurnsRemaining = 0
+  get isHacked(): boolean { return this.hackedTurnsRemaining > 0 }
 
   private hpBarGroup!: THREE.Group
   private hpBar: THREE.Mesh

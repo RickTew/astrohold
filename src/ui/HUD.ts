@@ -117,8 +117,8 @@ export class HUD {
       { label: 'MEDIC',    cost:  70, icon: '/sprites/medic/south.png',     dataType: 'medic' },
       // S17.16: Stalker is now a placeable cyborg piece (was AI-only).
       { label: 'STALKER',  cost:  70, icon: '/sprites/cyborg_stalker/south.png', dataType: 'stalker' },
-      // Cyborg mine. Tile shows up; placement flow + trigger are PENDING.
-      { label: 'CYBORG MINE', cost: 20, icon: '/sprites/cyborg_mine/south.png', dataType: 'cyborg_mine', preview: true },
+      // Cyborg Nerd / Hacker — saboteur that turns robots against each other.
+      { label: 'HACKER',   cost:  80, icon: '/sprites/cyborg_nerd/south.png',    dataType: 'hacker' },
     ]
     // Human faction attacker roster (S22d). Reuses existing attacker stat
     // blocks - WARRIOR spawns a 'cannon' (the faction-art layer swaps it to

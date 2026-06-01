@@ -117,6 +117,18 @@ const MELEE_FALLBACK_DAMAGE = 10
 const MELEE_REACH = Math.round(Config.GRID_CELL * 1.3)
 const MELEE_FALLBACK_RANGE = MELEE_REACH
 
+// Cyborg Nerd HACK — how many reveals a hacked robot stays a turncoat before
+// it reverts to fighting cyborgs. Decremented once per reveal in tickHack.
+const HACK_DURATION = 3
+// Structure types the Hacker can turn — single-target direct-fire towers
+// that route through the standard (side-agnostic) projectile path, so a
+// hacked one cleanly shoots robots. Excluded: walls/mines/shields (no
+// weapon), bomber/signal (lob + EMP special actions), and the Phaser
+// 'cannon' (its piercing-beam path scans cyborgs directly).
+const HACKABLE_STRUCTURES: Partial<Record<StructureType, true>> = {
+  turret: true, laser: true, sentry: true,
+}
+
 // Each bomb now carries its own timerTurns based on triggerMode (see
 // PendingGrenade). Proximity bombs default to 3 armed reveals (safety
 // fuse against ignored traps); timed grenades default to 1 (grenadier
@@ -640,6 +652,24 @@ export class RevealPhase {
     // standing in the 4×4 zone around the core. Visual overlay shows the
     // danger area persistently (see Game.makeCoreDefenseOverlay).
     this.tickCoreDefense()
+    // Decrement hacked-piece timers so turncoat towers/units revert once
+    // the Nerd's hold expires.
+    this.tickHack()
+  }
+
+  // Cyborg Nerd hack: count down each turncoat piece's remaining reveals and
+  // restore it to the robot side when it hits zero. Covers both mobile
+  // defenders (defenderUnits) and towers (structures).
+  private tickHack() {
+    const revert = (p: SpriteUnit | Structure) => {
+      if (p.hackedTurnsRemaining <= 0) return
+      p.hackedTurnsRemaining--
+      if (p.hackedTurnsRemaining === 0 && !p.isDead) {
+        this.log('defender', `${this.actorLabel(p)} reboots — back under robot control`)
+      }
+    }
+    for (const u of this.defenderUnits) revert(u)
+    for (const s of this.structures) revert(s)
   }
 
   // Core electric defense — if any live cyborg is inside the 12-cell zone
@@ -882,6 +912,13 @@ export class RevealPhase {
     for (const st of this.structures) {
       if (st.isDead || st.apBudget === 0) continue
       if (st.ammoRemaining <= 0) continue
+      // Hacked turncoat tower: fire on the nearest LOYAL robot in its arc
+      // instead of hunting cyborgs. Skips all the normal targeting below.
+      if (st.isHacked) {
+        const robot = this.pickHackedStructureTarget(st)
+        if (robot) list.push({ actor: st, action: { kind: 'fire', target: robot } })
+        continue
+      }
       if (st.type === 'bomber') {
         // One bomb per defender Bomber at a time — skip if their previous
         // bomb is still armed on the field.
@@ -960,6 +997,40 @@ export class RevealPhase {
     // tickTethers does the heal at start-of-reveal; the units themselves
     // don't take a normal action this turn.
     if (unit.tether) return { kind: 'hold' }
+
+    // Hacked turncoat (Cyborg Nerd): a robot the Hacker flipped. Until the
+    // hack expires it hunts its former allies — fire on the nearest LOYAL
+    // robot in range, else close on the nearest one. Cyborgs ignore it
+    // (nearestEnemy skips hacked pieces), so this overrides its normal AI.
+    if (unit.isHacked) {
+      const inRange = this.nearestLoyalRobot(unit.worldX, unit.worldY, unit.id, this.actorRange(unit))
+      if (inRange) return { kind: 'fire', target: inRange.ref }
+      const approach = this.nearestLoyalRobot(unit.worldX, unit.worldY, unit.id, Infinity)
+      if (approach) {
+        const cell = this.pickStepTowardPoint(unit, approach.x, approach.y)
+        if (cell) return { kind: 'move', cell }
+      }
+      return { kind: 'hold' }
+    }
+
+    // Cyborg Nerd / HACKER — no gun. Spends a hack on the nearest hackable
+    // robot piece in range, otherwise closes the distance to one. When out
+    // of hacks he's defenceless, so he retreats to the cyborg spawn edge.
+    if (unit.type === 'hacker') {
+      if (unit.ammoRemaining > 0) {
+        const victim = this.findHackVictim(unit, Config.UNITS.hacker.range)
+        if (victim) return { kind: 'hack', target: victim.ref }
+        const approach = this.findHackVictim(unit, Infinity)
+        if (approach) {
+          const cell = this.pickStepTowardPoint(unit, approach.x, approach.y)
+          if (cell) return { kind: 'move', cell }
+        }
+        return { kind: 'hold' }
+      }
+      const retreat = this.pickStepTowardPoint(unit, Config.WORLD.RIGHT, unit.worldY)
+      if (retreat) return { kind: 'move', cell: retreat }
+      return { kind: 'hold' }
+    }
 
     // Cyborg Medic — three heal modes (tether / throw / pad) prioritized
     // by ally value + ammo + cluster geometry. Falls through to
@@ -1667,9 +1738,11 @@ export class RevealPhase {
       if (d <= bestDist) { bestId = id; bestKind = kind; bestX = x; bestY = y; bestDist = d }
     }
     if (unit.side === 'attacker') {
+      // Hacked robots are temporary cyborg allies — skip them so cyborgs
+      // don't waste shots on their own turncoats.
       for (const s of this.spheres)        if (!s.isDead) consider(s.id, 'sphere',    s.worldX, s.worldY)
-      for (const s of this.structures)     if (!s.isDead) consider(s.id, 'structure', s.worldX, s.worldY)
-      for (const d of this.defenderUnits)  if (!d.isDead) consider(d.id, 'unit',      d.worldX, d.worldY)
+      for (const s of this.structures)     if (!s.isDead && !s.isHacked) consider(s.id, 'structure', s.worldX, s.worldY)
+      for (const d of this.defenderUnits)  if (!d.isDead && !d.isHacked) consider(d.id, 'unit',      d.worldX, d.worldY)
       if (!this.core.isDead) {
         for (const cc of this.core.cellCenters()) consider('core', 'core', cc.x, cc.y)
       }
@@ -2678,6 +2751,11 @@ export class RevealPhase {
       this.executeEmp(actor, action.target)
       return
     }
+
+    if (action.kind === 'hack') {
+      this.executeHack(actor, action.target)
+      return
+    }
   }
 
   // Signal EMP: stun the target cyborg for 2 turns, spawn a blue burst on
@@ -2703,6 +2781,101 @@ export class RevealPhase {
     this.log('defender',
       `${this.actorLabel(actor)} EMP strikes ${this.actorLabel(target)} — stunned ${stunTurns} turns`)
     this.emit({ kind: 'action', actorType: 'signal', side: 'defender', action: 'emp' })
+  }
+
+  // Cyborg Nerd HACK: flip one enemy robot piece (tower or mobile defender)
+  // to the cyborg side for HACK_DURATION reveals. No damage; consumes 1 hack
+  // from the Nerd's pool. The piece reverts via tickHack. Fizzles (still costs
+  // the hack) if the target died or got hacked by someone else first.
+  private executeHack(actor: Actor, ref: TargetRef) {
+    if (!(actor instanceof SpriteUnit) || actor.type !== 'hacker') return
+    if (actor.ammoRemaining <= 0) return
+    const target = this.resolveHackTarget(ref)
+    if (!target) {
+      this.log('attacker', `${this.actorLabel(actor)}'s hack fizzles — target gone`)
+      this.decrementActorAmmo(actor)
+      return
+    }
+    const d = Math.hypot(target.worldX - actor.worldX, target.worldY - actor.worldY)
+    if (d > Config.UNITS.hacker.range) return   // out of range at execute time — try again later
+    this.decrementActorAmmo(actor)
+    actor.faceTarget(target.worldX, target.worldY)
+    actor.playHackAnim()
+    target.hackedTurnsRemaining = HACK_DURATION
+    // Visual: cyan data-burst on the hacked piece (reuses Explosion, no AoE).
+    this.explosions.push(new Explosion(this.scene, target.worldX, target.worldY, 45, 0.5, 0x66ccff))
+    this.combatThisReveal = true
+    this.log('attacker',
+      `${this.actorLabel(actor)} HACKS ${this.actorLabel(target)} — turned for ${HACK_DURATION} turns`)
+    this.emit({ kind: 'action', actorType: 'hacker', side: 'attacker', action: 'hack' })
+  }
+
+  // Resolve a hack TargetRef to a live, not-already-hacked robot piece.
+  private resolveHackTarget(ref: TargetRef): SpriteUnit | Structure | null {
+    if (ref.kind === 'structure') {
+      const s = this.structures.find(x => x.id === ref.id)
+      return s && !s.isDead && !s.isHacked ? s : null
+    }
+    if (ref.kind === 'unit') {
+      const u = this.defenderUnits.find(x => x.id === ref.id)
+      return u && !u.isDead && !u.isHacked ? u : null
+    }
+    return null
+  }
+
+  // Nearest robot piece the Hacker can TURN — a firing tower (HACKABLE_
+  // STRUCTURES) or a mobile defender — that isn't already hacked, within
+  // maxDist. Used both to pick a victim and to path toward one.
+  private findHackVictim(hacker: SpriteUnit, maxDist: number): { ref: TargetRef; x: number; y: number } | null {
+    let best: { ref: TargetRef; x: number; y: number } | null = null
+    let bestD = maxDist
+    const consider = (ref: TargetRef, x: number, y: number) => {
+      const d = Math.hypot(x - hacker.worldX, y - hacker.worldY)
+      if (d <= bestD) { bestD = d; best = { ref, x, y } }
+    }
+    for (const s of this.structures) {
+      if (s.isDead || s.isHacked || !HACKABLE_STRUCTURES[s.type]) continue
+      consider({ kind: 'structure', id: s.id }, s.worldX, s.worldY)
+    }
+    for (const u of this.defenderUnits) {
+      if (u.isDead || u.isHacked) continue
+      consider({ kind: 'unit', id: u.id }, u.worldX, u.worldY)
+    }
+    return best
+  }
+
+  // Nearest LOYAL robot piece (live, not hacked) for a turncoat mobile unit
+  // to attack — any structure, mobile defender, or sphere except itself.
+  private nearestLoyalRobot(fromX: number, fromY: number, selfId: string, maxDist: number): { ref: TargetRef; x: number; y: number } | null {
+    let best: { ref: TargetRef; x: number; y: number } | null = null
+    let bestD = maxDist
+    const consider = (ref: TargetRef, x: number, y: number) => {
+      const d = Math.hypot(x - fromX, y - fromY)
+      if (d <= bestD) { bestD = d; best = { ref, x, y } }
+    }
+    for (const s of this.structures)    if (!s.isDead && !s.isHacked && s.id !== selfId) consider({ kind: 'structure', id: s.id }, s.worldX, s.worldY)
+    for (const u of this.defenderUnits) if (!u.isDead && !u.isHacked && u.id !== selfId) consider({ kind: 'unit', id: u.id }, u.worldX, u.worldY)
+    for (const sp of this.spheres)      if (!sp.isDead && sp.id !== selfId) consider({ kind: 'sphere', id: sp.id }, sp.worldX, sp.worldY)
+    return best
+  }
+
+  // Nearest LOYAL robot in a hacked tower's range + fire arc (omni structures
+  // skip the arc check). Mirrors pickNearestEnemyOf but scans robots.
+  private pickHackedStructureTarget(struct: Structure): TargetRef | null {
+    const omni = STRUCTURE_OMNI_FIRE[struct.type] === true
+    let bestRef: TargetRef | null = null
+    let bestD: number = struct.range
+    const consider = (ref: TargetRef, x: number, y: number) => {
+      const dx = x - struct.worldX, dy = y - struct.worldY
+      const d = Math.sqrt(dx * dx + dy * dy)
+      if (d > bestD) return
+      if (!omni && !this.targetInFireArc(struct, dx, dy)) return
+      bestD = d; bestRef = ref
+    }
+    for (const s of this.structures)    if (!s.isDead && !s.isHacked && s.id !== struct.id) consider({ kind: 'structure', id: s.id }, s.worldX, s.worldY)
+    for (const u of this.defenderUnits) if (!u.isDead && !u.isHacked) consider({ kind: 'unit', id: u.id }, u.worldX, u.worldY)
+    for (const sp of this.spheres)      if (!sp.isDead) consider({ kind: 'sphere', id: sp.id }, sp.worldX, sp.worldY)
+    return bestRef
   }
 
   // Resolve a TargetRef to a concrete repairable defender entity. Unlike
