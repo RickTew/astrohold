@@ -748,8 +748,14 @@ export class SpriteUnit {
   // shoots. Returns to walking/idle automatically once the clip completes.
   playAttackAnim() {
     if (this.isDead) return
-    const state: AnimState = this.type === 'grenadier' ? 'throw' : 'shoot'
-    if (!animSets.get(this.artKey)?.anims[state]) return  // unit has no shoot/throw clip
+    const anims = animSets.get(this.artKey)?.anims
+    let state: AnimState = this.type === 'grenadier' ? 'throw' : 'shoot'
+    // Human gunners (Warrior/Marine) ship no dedicated shoot/throw clip but a
+    // quick 'aim' clip — use it as a fast pre-fire reaction so they visibly
+    // raise the gun as the shot leaves. The Sniper is unaffected: it has a real
+    // shoot clip and its own hold-position aim flow (crouch + fire next turn).
+    if (!anims?.[state] && anims?.['aim']) state = 'aim'
+    if (!anims?.[state]) return  // unit has no usable attack clip
     this.playState(state)
   }
 
@@ -998,6 +1004,14 @@ export class SpriteUnit {
               this._crouched = true
               return
             }
+            this.playState(this.isMoving ? 'walking' : 'idle')
+            return
+          }
+          // Transient 'aim' (human gunners' quick fire reaction) returns to
+          // rest once it completes. The Sniper instead HOLDS its crouched aim
+          // pose between turns, so it's excluded here and stays clamped on the
+          // final frame.
+          if (this.currentState === 'aim' && this.type !== 'sniper') {
             this.playState(this.isMoving ? 'walking' : 'idle')
             return
           }
