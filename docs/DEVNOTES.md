@@ -2888,6 +2888,15 @@ the tile ONCE then clicking N cells. Combat log must be scraped with a
 MutationObserver (panel trims to 220 rows). Bottom rows are unclickable at
 16:9 (off-screen) - use rows 4-11.
 
+### Wrap addendum: log polish shipped same session (commit 9adb2dc)
+After review, three of the flagged text issues were fixed and verified
+live: human units now log under faction names (Warrior/Marine/Medic via
+HUMAN_UNIT_LABELS in RevealPhase actor/target labels), combat-log strings
+lost their em dashes (hyphens now; comments and stats.html placeholders
+left for a later sweep), and the no-target Phaser beam no longer writes a
+log line every turn (visual/sfx/miss-telemetry unchanged). The same-tile
+re-click placement toggle was deliberately KEPT as-is per Rick.
+
 ### Open going into next session
 - Hacker balance + wider board retune (unchanged, now with a working
   telemetry baseline).
