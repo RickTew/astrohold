@@ -27,9 +27,13 @@ hang. Found + FIXED a real bug: RevealPhase ran its start-of-reveal ticks
 in the constructor before Game bound the callbacks, silently dropping
 tick-time log lines ("reboots" never showed), whole turn headers, and
 tick damage telemetry. Ticks now live in `RevealPhase.start()`, called
-after wiring. Flags awaiting decisions in `docs/DEVNOTES.md` Session 24
-(reconciliation attribution, 16:9 bottom-rows cutoff, MCC overlap,
-same-tile placement toggle, endgame punch grind).
+after wiring. Also shipped same session (all verified live): human units
+log as Warrior/Marine/Medic, em-dash sweep in combat-log strings,
+no-target Phaser line silenced, and same-type shop-tile re-click is a
+no-op instead of silently cancelling placement (board click-to-place /
+click-to-remove unchanged). Flags awaiting decisions in
+`docs/DEVNOTES.md` Session 24 (reconciliation attribution, 16:9
+bottom-rows cutoff, MCC overlap, endgame punch grind).
 
 **S22d state.** The battle map is STAGE-driven (see "Key constants"
 below + `project_lobby_configurable_stage` memory): the whole board
@@ -66,8 +70,7 @@ S22d shipped a batch of fixes (full log: `project_session_23_wrap`):
 - **S24 playtest flags needing decisions** (`docs/DEVNOTES.md` S24):
   damage-reconciliation attribution (core blast + turncoat damage),
   bottom 4 rows hidden at 16:9 default zoom, MCC overlapping attacker
-  cells, same-tile re-click silently cancelling placement, 40-turn
-  endgame punch grind vs structures.
+  cells, 40-turn endgame punch grind vs structures.
 - **Human faction polish (optional):** bespoke voice (`SpeechBubble.ts`),
   a `humans.mp3` track, human defensive structures, and a side-aware
   `firePhaserBeam` so the Phaser becomes hackable.
