@@ -1112,6 +1112,11 @@ private enterBuildPhase() {
         if (this.phase === 'reveal') this.enterRevealPhase()
       }, 0)
     }
+    // Run the start-of-reveal ticks (expired bombs, heal/repair pads,
+    // core defense, hack timers) now that every callback above is bound.
+    // Ticks log and emit telemetry; running them inside the RevealPhase
+    // constructor silently dropped those events (null callbacks).
+    this.revealPhase.start()
   }
 
   // Parse combat-log entries and add per-side damage + kill totals.

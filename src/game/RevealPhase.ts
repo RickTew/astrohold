@@ -635,21 +635,34 @@ export class RevealPhase {
     private currentTurn: number = 0,
   ) {
     this.steps = this.buildSteps()
+  }
+
+  // Start-of-reveal ticks. These used to run in the constructor, but they
+  // log() and emit() - and Game wires onLogEntry / onPieceEvent / onWin /
+  // onLose AFTER construction, so every constructor-time entry fired into a
+  // null callback. Symptoms: "reboots" lines never rendered, turns whose
+  // only events were tick-driven showed no header at all, and tick damage
+  // (core defense, expired bombs) was missing from telemetry, tripping the
+  // damage-reconciliation warning. Game.enterRevealPhase calls start()
+  // right after the callbacks are bound; step playback begins on the next
+  // update() so the relative order (buildSteps, then ticks, then steps)
+  // is unchanged.
+  start() {
     // Force-detonate bombs that have outlived their fuse. Done before any
     // step runs so the explosions read as "the bomb you left out finally
-    // went off" — happens at the start of the new reveal.
+    // went off" - happens at the start of the new reveal.
     this.expireOldBombs()
     // Tick medic-pads next so healed cyborgs are at top HP before they act.
     this.tickMedicPads()
     // Tick active tethers so target/medic heal-bonds resolve before any
     // cyborg takes their action.
     this.tickTethers()
-    // Defender-side counterparts — repair-pads + repair-tethers fire at the
+    // Defender-side counterparts - repair-pads + repair-tethers fire at the
     // start of the reveal so towers are at top HP before they auto-fire.
     this.tickRepairPads()
     this.tickRepairTethers()
-    // Power-core electric defense — pulses every reveal if any cyborg is
-    // standing in the 4×4 zone around the core. Visual overlay shows the
+    // Power-core electric defense - pulses every reveal if any cyborg is
+    // standing in the 4x4 zone around the core. Visual overlay shows the
     // danger area persistently (see Game.makeCoreDefenseOverlay).
     this.tickCoreDefense()
     // Decrement hacked-piece timers so turncoat towers/units revert once
@@ -3278,7 +3291,8 @@ export class RevealPhase {
         : box.type === 'repair_kit' ? 'repair kit'
         : box.type === 'grenade' ? 'grenade box'
         : 'ammo box'
-      this.log(unit.side, `${this.actorLabel(unit)} grabs a ${kitLabel} (+${gained})`)
+      const article = kitLabel === 'ammo box' ? 'an' : 'a'
+      this.log(unit.side, `${this.actorLabel(unit)} grabs ${article} ${kitLabel} (+${gained})`)
       unit.announce('rearmed')
       playEventSfx('ammo_pickup')
       // Parity telemetry. Cyborg-only counter since defender side has no crate path.
@@ -3896,7 +3910,8 @@ export class RevealPhase {
     }
     if (this.units.every(u => u.isDead)) {
       this.over = true
-      this.log('neutral', 'All cyborgs eliminated')
+      // Faction-neutral: the attacker can be Cyborgs, Humans, or Robots.
+      this.log('neutral', 'All attackers eliminated')
       this.onWin?.()
     }
   }
