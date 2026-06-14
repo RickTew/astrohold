@@ -134,7 +134,7 @@ Our pattern: `Game` instance is created fresh in `main.ts`, old one disposed via
 ---
 
 ## Current Build State (2026-05-06)
-- Deployed at https://astrohold3.vercel.app
+- Deployed at https://astro-hold.vercel.app
 - World: ±600 x ±200, three ~400×400 zones
 - Testing phase: both shops visible, attacker units spawn on button click
 - Sphere.glb = power core (local only; SphereGeometry fallback on Vercel)
@@ -201,7 +201,7 @@ If a unit dies and vanishes before the projectile animation completes, that's co
 ---
 
 ## Current Build State (2026-05-06, session 2)
-- Deployed at https://astrohold3.vercel.app / GitHub: RickTew/AstroHold3
+- Deployed at https://astro-hold.vercel.app / GitHub: RickTew/astro-hold
 - World: ±600 x ±200, three ~400×400 zones, rocky planet terrain (canvas texture)
 
 ### Key tuning knobs (check these first after any crash)
@@ -279,7 +279,7 @@ Per CLAUDE.md, swapped fallback `MeshStandardMaterial` → `MeshBasicMaterial` s
 ## Session 5 (2026-05-12) — Multi-sphere refactor BROKE sphere visuals; LIVE SITE IS BROKEN
 
 ### TL;DR for the next session
-- **Live site (https://astrohold3.vercel.app) is currently broken.** Placed spheres render as oblate / squashed ellipsoids instead of round.
+- **Live site (https://astro-hold.vercel.app) is currently broken.** Placed spheres render as oblate / squashed ellipsoids instead of round.
 - Most likely cause: `loadSphereTemplate()` in `Game.ts` stores `gltf.scene` as a template, and `SphereDefender` constructor does `modelTemplate.clone(true)` per placement. Meshy GLB exports often contain `SkinnedMesh` + `Skeleton` metadata even when the rig add-on wasn't purchased. `Object3D.clone(true)` does NOT correctly clone skinned meshes — the clones share the original skeleton's bind matrices and render with broken transforms.
 - The cyborg code already uses `SkeletonUtils.clone` (imported from `three/examples/jsm/utils/SkeletonUtils.js`) for exactly this reason.
 - Most likely fix: replace `modelTemplate.clone(true)` in `SphereDefender.ts:21` with `SkeletonUtils.clone(modelTemplate)`. One-line change. **NOT VERIFIED.**
@@ -363,7 +363,7 @@ Per CLAUDE.md, swapped fallback `MeshStandardMaterial` → `MeshBasicMaterial` s
 ### Repo state at session end
 - Working tree clean, branch `main` at `d7ddcb7` (depth-test fix), production deployed.
 - All recent commits on main, pushed to GitHub.
-- Live: https://astrohold3.vercel.app
+- Live: https://astro-hold.vercel.app
 
 ### Suggested next-session opening moves
 1. **Sphere HP bar position.** Bar is at local (0, 55, 0), which after 45° camera projection puts it noticeably high *above* the sphere body, sometimes outside the fence when sphere is placed near the top. Either:
@@ -415,7 +415,7 @@ Old `targetUnit: Unit | null` was changed to a structural `Trackable = { worldX,
 User plans to commission the Power Core in Meshy. Delivered the prompt as chat text — captured in the project memory `project_powercore_meshy_prompt` for re-use.
 
 ### Repo state at session end
-- Branch `main` at `3c2e1d9`, pushed to GitHub, production deployed to https://astrohold3.vercel.app via `vercel --prod`.
+- Branch `main` at `3c2e1d9`, pushed to GitHub, production deployed to https://astro-hold.vercel.app via `vercel --prod`.
 - Pre-session commit: `448330c` (CLAUDE.md hybrid-direction codification).
 - Build is clean (`pnpm build` succeeds, no TypeScript errors).
 
@@ -597,7 +597,7 @@ Single source of truth for balance. Captures:
 - Branch `main` at `d0ac6a8`, pushed to GitHub, deployed to production.
 - Build clean (`pnpm build`). Bundle: 38 KB index + 527 KB Three.js (down
   70 KB from session 7 — GLTFLoader removed).
-- Live: https://astrohold3.vercel.app
+- Live: https://astro-hold.vercel.app
 
 ### Suggested next-session opening moves
 1. **Full turn system** — alternating Robots → Cyborgs → Robots turns. Each
@@ -758,7 +758,7 @@ Targeted to idle only — other states might need the same trick.
 ### Repo state at session end
 - Branch `main` at `2e84b35`, pushed to GitHub, deployed to production.
 - Build clean (`pnpm build`). Bundle: ~60 KB index + 526 KB Three.js.
-- Live: https://astrohold3.vercel.app
+- Live: https://astro-hold.vercel.app
 - Old `BattlePhase.ts` and `AIPlayer.ts` remain on disk but are no longer
   imported by Game.ts — reference only for the retired tick loop.
 
@@ -931,7 +931,7 @@ a 1-cell-forward 3-wide wedge).
 ### Repo state at session end
 - Branch `main` at `6ee5070`, pushed to GitHub, deployed to prod.
 - Build clean (`pnpm build`). Bundle: ~70 KB index + 526 KB Three.js.
-- Live: https://astrohold3.vercel.app
+- Live: https://astro-hold.vercel.app
 - Pending tasks for the next session:
   - #5 Asset commissions (Gun + Defense dome — user picks winners)
   - #7 More cyborg / robot variety (Sniper / Assassin / Berserker — user)
@@ -1135,7 +1135,7 @@ asking the user to confirm direction mid-build).
 ### Repo state at session end
 - Branch `main` at `4268927`, pushed to GitHub, deployed to prod.
 - Build clean (`pnpm build`). Bundle: ~85 KB index + 526 KB Three.js.
-- Live: https://astrohold3.vercel.app
+- Live: https://astro-hold.vercel.app
 - Project settings: created `.claude/settings.json` with 6 read-only
   patterns (awk, shasum, Vercel MCP reads) — most permissions live
   in the pre-existing `.claude/settings.local.json` (125 entries).
@@ -1618,7 +1618,7 @@ asking the user to confirm direction mid-build).
 ## Session 16 (2026-05-23) — Robot Repair + Sentry + procedural Wall + behaviors + speech + ammo crates
 
 Big session. Twelve+ feature passes, all driven by playtest feedback.
-Production at https://astrohold3.vercel.app stayed live the whole time
+Production at https://astro-hold.vercel.app stayed live the whole time
 — commit → push → vercel --prod after every change.
 
 ### New pieces
@@ -2823,7 +2823,7 @@ Cyborg Nerd / HACKER (new mechanic):
 ## Session 24 (2026-06-11) - Scripted live playtest (Playwright) + reveal-tick fix
 First automated playtest of the LIVE site: a Playwright harness driving
 installed Chrome (headless, SwiftShader WebGL2) against
-https://astrohold3.vercel.app. Six scripted scenarios, four full battles to
+https://astro-hold.vercel.app. Six scripted scenarios, four full battles to
 terminal state. Memory: `project_playwright_playtest_harness` (recipe;
 the harness itself lives in /tmp and is ephemeral).
 

@@ -128,7 +128,7 @@ appears under the placement ghost so the player sees coverage
 before committing.
 
 ## Build-test sandbox
-`build-test.html` (live at https://astrohold3.vercel.app/build-test.html)
+`build-test.html` (live at https://astro-hold.vercel.app/build-test.html)
 is the HUD A/B surface and the audio-pool test page. Imports production
 MCC + shield from `/src/*` via `src/devtools/buildTest.ts` (moved out
 of `/public/` into Vite's input set during S19). All BEFORE rows must

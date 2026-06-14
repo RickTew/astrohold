@@ -127,7 +127,7 @@ that fires a second build of the same code and burns paid Vercel
 build minutes. Only run a CLI deploy when the user explicitly asks.
 
 We do NOT use the local dev server. The user tests on the live URL
-(https://astrohold3.vercel.app). Never run `pnpm dev` / `vite` as
+(https://astro-hold.vercel.app). Never run `pnpm dev` / `vite` as
 a verification step.
 
 ### HUD HARD LOCK protocol (S17.3)
