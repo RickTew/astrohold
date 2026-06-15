@@ -160,7 +160,7 @@ export class HUD {
       // title attribute kicks in at narrow widths (≤640px) where the tile
       // label is CSS-hidden — browser shows it on hover, players can still
       // identify pieces.
-      return `<button class="${classes.join(' ')}" ${data} title="${t.label} — ${t.cost}cr">` +
+      return `<button class="${classes.join(' ')}" ${data} title="${t.label} - ${t.cost}cr">` +
         iconEl +
         `<div class="tile-label">${t.label}</div>` +
         `<div class="tile-cost">${t.cost}cr</div>` +
