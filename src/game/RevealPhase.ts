@@ -3896,7 +3896,7 @@ export class RevealPhase {
       }
       s.takeDamage(9999)   // mine self-destructs on trigger
       this.combatThisReveal = true
-      this.log('defender', `Mine triggers - ${this.actorLabel(unit)} step set it off${hits > 0 ? ` (−${hits * dmg}, ${hits} hit${kills > 0 ? `, ${kills} killed` : ''})` : ' (no other targets)'}`)
+      this.log('defender', `Mine triggers - ${this.actorLabel(unit)} step set it off${hits > 0 ? ` (−${hits * dmg}, ${hits} hit${hits === 1 ? '' : 's'}${kills > 0 ? `, ${kills} killed` : ''})` : ' (no other targets)'}`)
     }
   }
 
