@@ -714,7 +714,7 @@ export class RevealPhase {
     if (hits > 0) {
       this.combatThisReveal = true
       this.log('defender',
-        `Power Core electric defense - ${hits} hit (−${hits * CORE_DEFENSE_DAMAGE}${kills > 0 ? `, ${kills} killed` : ''})`)
+        `Power Core electric defense - ${hits} hit${hits === 1 ? '' : 's'} (−${hits * CORE_DEFENSE_DAMAGE}${kills > 0 ? `, ${kills} killed` : ''})`)
       this.emit({ kind: 'action', actorType: 'core', side: 'defender', action: 'core_pulse' })
       playEventSfx('core_zap')
     }
@@ -2669,7 +2669,7 @@ export class RevealPhase {
       : `shot by ${this.actorLabel(trigger)}`
     this.log(g.side, summary.hits === 0
       ? `Bomb detonates (${cause}) - no targets in blast`
-      : `Bomb detonates (${cause}) - ${summary.hits} hit (−${summary.damageDealt}${summary.kills > 0 ? `, ${summary.kills} killed` : ''})`)
+      : `Bomb detonates (${cause}) - ${summary.hits} hit${summary.hits === 1 ? '' : 's'} (−${summary.damageDealt}${summary.kills > 0 ? `, ${summary.kills} killed` : ''})`)
   }
 
   private shouldDetonateGrenade(g: PendingGrenade): boolean {
@@ -3721,7 +3721,7 @@ export class RevealPhase {
         const summary = this.applyAoe(aim.x, aim.y, aoeRadius, damage, actor)
         this.log(sourceSide, summary.hits === 0
           ? `${sourceLabel} AoE bursts harmlessly`
-          : `${sourceLabel} AoE - ${summary.hits} hit (−${summary.damageDealt}${summary.kills > 0 ? `, ${summary.kills} killed` : ''})`)
+          : `${sourceLabel} AoE - ${summary.hits} hit${summary.hits === 1 ? '' : 's'} (−${summary.damageDealt}${summary.kills > 0 ? `, ${summary.kills} killed` : ''})`)
         // Accuracy. Hit if ANY target took damage from the burst.
         if (summary.hits > 0) this.emit({ kind: 'hit',  actorType: sourceType, side: sourceSide })
         else                  this.emit({ kind: 'miss', actorType: sourceType, side: sourceSide })
