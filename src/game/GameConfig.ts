@@ -211,7 +211,7 @@ export const Config = {
     // direct-fire profile on the defender side.
     // S17.20 Phaser range bumped 280 -> 330 (one cell longer per user
     // request). Beam length follows. Damage stays 40 per enemy in lane.
-    cannon:  { cost: 60, hp: 120, damage: 36, range: 330, fireInterval: 4, apBudget: 1, aoeRadius: 0, ammo: 5, label: 'Phaser 60cr' },
+    cannon:  { cost: 60, hp: 120, damage: 36, range: 330, fireInterval: 4, apBudget: 1, aoeRadius: 0, ammo: 5, label: 'Phaser' },
     // Bomber — mid-range proximity-trap thrower. Ammo 3 = three bombs per
     // game total. Combined with the one-bomb-on-field rule this means the
     // defender Bomber is a deliberate placement choice, not a turret.
