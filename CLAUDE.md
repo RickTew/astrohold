@@ -182,6 +182,22 @@ So leftover credits remain spendable by the cheapest piece.
 Framework decision (session 9): stay on Vite + Three.js. Phaser 4 was
 evaluated and rejected.
 
+## Module map (src/, by capability)
+Quick orientation for agents; the file-by-file detail still lives in
+`docs/ARCHITECTURE.md`. Tagged by what each module DOES, not by piece name.
+- `game/` — turn/phase engine + tuning: BuildPhase, PlanningPhase,
+  RevealPhase, RevealSpeed, Difficulty, BattleStats, TurnTypes, and the
+  GameConfig/Game core (the STAGE seam).
+- `entities/` — combat actors + VFX: SpriteUnit, Structure, SphereDefender,
+  Projectile, Explosion, AmmoBox, MedicPad/RepairPad/RepairTether/Tether,
+  HealVfx, PendingGrenade, FireArcPreview, PixelPowerCore, SpeechBubble.
+- `scene/` — Three.js environment: Background (procedural ground/grid) + Shadow.
+- `ui/` — HUD + MiniControlCenter (FROZEN per the HUD hard-lock above).
+- `audio/` — music, sfx, samples, AudioSettings, audioDebug.
+- `ai/` — OpponentAI (the attacker brain).
+- `devtools/` — audioLogOverlay (`/?audiolog`) + buildTest sandbox.
+- root `main.ts` — entry/bootstrap.
+
 ## File conventions
 - Static assets in `/public/`. Loaded via absolute paths.
 - Pixel sprite layout:
