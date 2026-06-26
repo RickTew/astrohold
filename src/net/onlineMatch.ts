@@ -98,6 +98,23 @@ export async function joinMatch(inviteToken: string): Promise<OnlineMatch> {
   return (Array.isArray(data) ? data[0] : data) as OnlineMatch
 }
 
+/** Fetch a single match by id (or null if not visible / not found). */
+export async function getMatch(matchId: string): Promise<OnlineMatch | null> {
+  const sb = getSupabase()
+  const { data, error } = await sb.from('matches')
+    .select('*').eq('id', matchId).maybeSingle()
+  if (error) throw error
+  return (data as OnlineMatch | null) ?? null
+}
+
+/** The signed-in player's side in a match, or null if they're not in it. */
+export async function mySideIn(match: OnlineMatch): Promise<MatchSide | null> {
+  const uid = await ensureSignedIn()
+  if (match.attacker_id === uid) return 'attacker'
+  if (match.defender_id === uid) return 'defender'
+  return null
+}
+
 /**
  * Subscribe to live UPDATEs on a single match row (status flips, phase /
  * turn changes, state snapshots). Returns an unsubscribe function.
