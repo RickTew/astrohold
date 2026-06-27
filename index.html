@@ -306,32 +306,33 @@
     }
 
     /* ── Mobile phone tuning ──────────────────────────────────────────────
-       The breakpoints above are width-only and were tuned for narrow desktop
-       windows; phones add two new problems they don't cover: a SHORT landscape
-       viewport (the strip eats the little height there is) and a very narrow
-       portrait one (the center panel's 300px floor crushes the left shop).
-       These rules are scoped to phone-sized viewports, so a normal desktop
-       window (wide AND tall) never matches them and is untouched. Paired with
-       the MCC scale-down in MiniControlCenter.ts. */
-
-    /* Short viewport = landscape phone: shrink the strip so more board shows.
-       --hud-top-h also feeds the camera's HUD-aware Y offset, so the world
-       slides up to match automatically. */
-    @media (max-height: 540px) {
-      :root { --hud-top-h: 140px; }
+       The width-only breakpoints above were tuned for narrow desktop windows.
+       Phones add two failure modes: a SHORT landscape viewport, and a tall
+       PORTRAIT one where the icon's 7vh term balloons; together with the name
+       labels the two tile rows overflow BELOW the panel frame. Fix: on phone-
+       sized viewports drop the name labels and cap the icon to a fixed size,
+       and keep the strip at 180px (the value proven to fit two rows) so nothing
+       spills out. Targeted by ORIENTATION (short landscape OR narrow portrait)
+       so a normal desktop window never matches. Paired with the MCC scale-down
+       in MiniControlCenter.ts. */
+    @media (orientation: landscape) and (max-height: 540px),
+           (orientation: portrait)  and (max-width: 540px) {
+      :root { --hud-top-h: 180px; }
+      .hud-tile .tile-label { display: none; }
+      /* Fixed icon: the base clamp() uses 7vh, which balloons on a tall
+         portrait phone and shoves the tile rows past the panel frame. */
+      .hud-tile .tile-icon { width: 46px; height: 46px; }
+      .hud-tile { padding: 2px 4px; }
+      .tile-grid { gap: 6px; }
     }
-
-    /* Narrow viewport = portrait phone: drop the center floor from 300px to a
-       compact size so the left shop gets real width back instead of ~80px. */
-    @media (max-width: 500px) {
-      :root { --hud-top-h: 150px; }
+    /* Portrait phone: relax the center floor so the left shop keeps real width
+       instead of collapsing to a sliver against the 300px center. */
+    @media (orientation: portrait) and (max-width: 540px) {
       #hud-top, #hud-top-att {
-        grid-template-columns: 1fr minmax(200px, 46%);
+        grid-template-columns: 1fr minmax(190px, 44%);
         gap: 6px;
         padding: 4px 8px 6px;
       }
-      .tile-grid { gap: 5px; }
-      .hud-tile { padding: 2px 3px; }
     }
 
     /* ── Center panel content — command-deck centerpiece ──────────────────

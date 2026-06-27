@@ -463,13 +463,14 @@ function injectStyles() {
     /* Mobile: the 240px dial covers most of a phone screen and blocks the
        board. Shrink it uniformly toward the bottom-right corner so the inner
        px-positioned pieces keep their proportions (no internal math to touch).
-       Matches narrow (portrait) OR short (landscape) viewports only - a normal
-       desktop window (wide AND tall) is unaffected. */
-    @media (max-width: 950px), (max-height: 520px) {
-      #mini-control-center { transform: scale(0.58); transform-origin: bottom right; }
+       Targeted by orientation (short landscape OR narrow portrait) so a normal
+       desktop window never matches and keeps the full-size dial. */
+    @media (orientation: landscape) and (max-height: 540px),
+           (orientation: portrait)  and (max-width: 540px) {
+      #mini-control-center { transform: scale(0.56); transform-origin: bottom right; }
     }
-    @media (max-width: 430px) {
-      #mini-control-center { transform: scale(0.5); transform-origin: bottom right; }
+    @media (orientation: portrait) and (max-width: 400px) {
+      #mini-control-center { transform: scale(0.48); transform-origin: bottom right; }
     }
   `
   document.head.appendChild(style)
