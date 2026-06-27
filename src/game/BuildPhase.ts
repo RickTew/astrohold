@@ -127,7 +127,16 @@ private buildHitPlane(): THREE.Mesh {
     return this.externalOccupied(col, row)
   }
 
+  // Set once the player uses touch. The hover ghost has no cursor to follow on
+  // a phone, so suppress it (placement happens on tap via Game.placeAtClient).
+  private touchMode = false
+  setTouchMode(on: boolean) {
+    this.touchMode = on
+    if (on) this.hideGhost()
+  }
+
   private onMouseMove = (e: MouseEvent) => {
+    if (this.touchMode) { this.hideGhost(); return }
     if (!this.selectedType) { this.hideGhost(); return }
     const cell = this.getCell(e.clientX, e.clientY)
     if (cell && !this.isCellBlocked(cell.col, cell.row)) {

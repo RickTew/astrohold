@@ -252,6 +252,10 @@ export class Game {
   private touchStart = { x: 0, y: 0 }
   private touchMoved = false
   private lastPinchDist = 0
+  // Latched once the player uses touch. Suppresses the hover-follow placement
+  // ghosts (which have no cursor to snap them on a phone, so they would sit
+  // off-grid). Placement happens on tap instead.
+  private usingTouch = false
 
   constructor(private canvas: HTMLCanvasElement) {
     this.scene = new THREE.Scene()
@@ -1500,7 +1504,11 @@ private enterBuildPhase() {
     const mat = new THREE.MeshBasicMaterial({
       color: 0x00ff88, side: THREE.DoubleSide, transparent: true, opacity: 0.25,
     })
-    return new THREE.Mesh(geo, mat)
+    const mesh = new THREE.Mesh(geo, mat)
+    // Start hidden: on desktop onMouseMove reveals + snaps it to the hovered
+    // cell; on touch it stays hidden (no cursor) so it never floats off-grid.
+    mesh.visible = false
+    return mesh
   }
 
   // Snap a world-space point to the center of its grid cell, restricted to
@@ -1988,7 +1996,7 @@ private enterBuildPhase() {
       this.panCameraBy(e.clientX - this.lastPan.x, e.clientY - this.lastPan.y)
       this.lastPan = { x: e.clientX, y: e.clientY }
     }
-    if (this.placement) {
+    if (this.placement && !this.usingTouch) {
       const pos = this.screenToWorld(e.clientX, e.clientY)
       if (pos) {
         const snap = this.snapToGridCell(
@@ -2039,6 +2047,10 @@ private enterBuildPhase() {
   }
 
   private onTouchStart = (e: TouchEvent) => {
+    // Mark touch mode for ANY touch (including HUD taps) so the hover ghosts
+    // are suppressed before a synthetic mousemove could reveal one off-grid.
+    this.usingTouch = true
+    this.buildPhase?.setTouchMode(true)
     // Only the game canvas is a board gesture. Every interactive overlay (the
     // HUD, the body-level Mini Control Center with BATTLE, the compass rose,
     // and this menu) is some OTHER element, so those touches fall through to
@@ -2135,8 +2147,7 @@ private enterBuildPhase() {
           world.x, world.y, this.placement.zoneXMin, this.placement.zoneXMax,
         )
         if (!snap.valid) return
-        this.placement.ghost.position.set(snap.x, snap.y, 1)
-        this.placement.ghost.visible = true
+        // Place directly at the tapped cell; no lingering ghost on touch.
         if (this.placement.onPlace(snap.x, snap.y)) this.endPlacement()
         return
       }
