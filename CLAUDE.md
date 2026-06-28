@@ -7,7 +7,28 @@ Two terminal states: core dies (defender loses) or all cyborgs dead /
 unable to attack (defender wins). No stalemate rule
 (`feedback_die_or_survive`).
 
-**S23 state (latest).** Three factions now exist: Robots, Cyborgs, and
+**S26 state (latest, 2026-06-28).** Live-playtest fixes + faction-rosters
+groundwork. (1) New games default to the **slow** reveal speed for first-run
+players (`RevealSpeed` DEFAULT; saved prefs win). (2) Phaser beam visual now
+exits the barrel bore, not the muzzle glint. (3) **Cyborg Sniper** shoot-and-
+move now SIDESTEPS at ~80% range instead of stepping toward the target (was
+creeping inside its own range). (4) The in-game **How to play** was rewritten
+(honest "SIDES and FACTIONS" copy) and now opens with an **"Updates and
+fixes"** changelog; a HARD RULE + `feedback_keep_howtoplay_synced` memory
+require updating How to play on every game change. (5) Faction "I picked X but
+got Robots" is BY DESIGN (faction = skin over role-bound stats; defender uses
+shared structures). The real **faction rosters** build is scoped
+(`docs/FACTION_ROSTERS.md`): decision = "decoupled but shared DEFENSE" (towers
+shared; faction art on the mobile UNITS - attacker units + Sphere/Dog/Repair).
+**Phase 1 code seam shipped** (empty override maps, no art, no visual change):
+`FACTION_STRUCTURE_ART` scaffold in `Structure.ts`, `FACTION_ART` how-to guide
+in `SpriteUnit.ts`, `factionAttackerGrids` map in `HUD.ts`. Art commission
+prompts: `docs/FACTION_ART_PROMPTS.md`. Remaining work is pure art + data
+drop-ins. Full log: `project_session_26_wrap` + `project_faction_rosters_build`
+memories and `docs/DEVNOTES.md` Session 26. (The 2026-06-27 mobile +
+pre-launch-gate work lives in `project_mobile_support` / `project_prelaunch_gate`.)
+
+**S23 state.** Three factions now exist: Robots, Cyborgs, and
 the new **Humans** (`Faction = 'robot' | 'cyborg' | 'human'`), decoupled
 from role via the picker's "Change factions" cycler. Unit ART is now
 faction-aware (`FACTION_ART` in `SpriteUnit.ts`, art resolved by
@@ -118,9 +139,9 @@ you touch that area:
   Read before touching the camera / renderer / sprite size constants.
 - **`docs/DEVNOTES.md`** — session-by-session decisions, gotchas, bugs.
 - **Session wrap memories** — `project_session_NN_wrap` in memory has
-  the recent-session summary. Check current `project_session_20_wrap`
-  before doing balance work (S20 balance pass is unvalidated and
-  retest is the first task next session).
+  the recent-session summary. Current is `project_session_26_wrap`
+  (2026-06-28). Older balance context lives in `project_session_20_wrap`
+  (S20 balance pass is unvalidated; retest before more balance work).
 
 If a per-piece rule, balance number, or piece behavior is not in this
 file, it lives in `STATS.md`. Don't duplicate.

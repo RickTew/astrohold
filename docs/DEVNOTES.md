@@ -3000,3 +3000,70 @@ two devices / incognito to test); a `vca_` Vercel token leaked to chat once
 RevealPhase PieceEvent stream to `rounds.replay_events`, guest plays back);
 (2) add the "Play Online" button into the side picker last. Seams + plan in
 docs/ONLINE_PVP.md.
+
+## Session 26 (2026-06-28) - Playtest fixes + How-to-play sync + faction rosters Phase 1
+
+(The 2026-06-27 mobile + pre-launch-gate work isn't a numbered session here;
+it lives in the `project_mobile_support` + `project_prelaunch_gate` memories.)
+
+Live-playtest feedback pass, all verified to typecheck and pushed to main.
+
+**Gameplay/UX fixes (commit eff3c39):**
+- **New-player default pace.** `RevealSpeed` DEFAULT flipped `fast` -> `slow`
+  so a first-run player (no stored preference) watches the auto-chained
+  reveals at a readable pace. Returning players keep their saved choice
+  (localStorage). The dial already showed slow in the user's screenshots
+  because they had set it manually; only the code default was still fast.
+- **Phaser beam alignment.** The beam visual was anchored to the cyan muzzle
+  GLINT (gun sprite image y20); it read "up a tiny bit". Dropped the exit
+  point to the barrel bore (`BARREL_PERP_PCT = 0.5 - 26/64`, ~3.75 wu lift
+  vs the old ~7.5). NOTE: couldn't catch the 0.6s beam live to pixel-verify;
+  acted on the user's eyes. If still off it's a one-line constant.
+- **Cyborg Sniper standoff.** The S20 shoot-and-move rule stepped the sniper
+  TOWARD the target after each shot, so it crept ~1 cell closer per fire
+  cycle and ended up far inside its own 350 range ("getting closer than
+  needed"). Relocation is now a perpendicular SIDESTEP held at ~80% of max
+  range (re-opens distance if the target closed in). Still relocates between
+  shots, so the anti-static-turret intent of S20 is preserved.
+
+**How to play kept in sync (commit 9a283b2):**
+- Rewrote the SIDES paragraph into "SIDES and FACTIONS" with an honest
+  heads-up (faction is currently a visual identity; the Defender always
+  commands the shared structure roster; only the Human attacker has its own
+  units). This fixes the "I picked Humans/Cyborgs but got Robots" confusion.
+- Added an **"Updates and fixes"** changelog as the first How-to-play section
+  (newest first) and updated the Sniper special text.
+- New HARD RULE in CLAUDE.md (+ `feedback_keep_howtoplay_synced` memory):
+  every game change must also update How to play + the changelog.
+
+**Faction "bug" = by design.** Verified in code: faction is a SKIN over
+role-bound stats. Units (`SpriteUnit`) are faction-aware via
+`factionArtKey`/`FACTION_ART` (only the 3 Human attacker overrides exist);
+structures key art by type only and take `team`, not faction. So picking
+Humans/Cyborgs as Defender correctly labels you but hands you the shared
+robot-tech structures.
+
+**Faction rosters - real build, scoped + Phase 1 (commits f8ab6b5, c33cfff,
+7fddffc, de12835):**
+- Plan: `docs/FACTION_ROSTERS.md`. Decisions: scope = "decoupled, but shared
+  DEFENSE" (towers/structures stay one shared look for all factions; faction
+  art ships on the mobile UNITS - all attacker units + Sphere/Dog/Repair);
+  build the code seam only now, no art.
+- Phase 1 seam (no art, no visual change): `Structure.ts` empty
+  `FACTION_STRUCTURE_ART` map + `factionStructureFolder()` resolver routed
+  through preload; `SpriteUnit.ts` `FACTION_ART` gained a full
+  how-to-add-a-skin guide; `HUD.ts` the Human-only attacker swap is now a
+  data-driven `factionAttackerGrids` map (future roster = one entry).
+- Art commission sheet: `docs/FACTION_ART_PROMPTS.md` - per-faction base
+  PixelLab prompts (base pass only, no anim/explosion), matched to existing
+  canvas sizes, + drop-in checklist. No PixelLab MCP is connected this
+  session, so prompts are paste-ready for the user.
+- User correction logged: the **Sphere is a mobile UNIT, not a tower** (so it
+  is in the faction-art bucket with Dog/Repair, not the shared structures;
+  `SphereDefender` still needs a small faction seam before its skin drops in).
+
+**RESUME / NEXT:** faction art is now pure art + data drop-ins. Gaps: Human
+attacker (grenadier, hulk, sniper, stalker, hacker), Robot attacker (8,
+optional), and faction Sphere/Dog/Repair. Per finished piece: art folder ->
+`FACTION_ART` entry -> `preloadSpriteUnit` -> (attacker) `factionAttackerGrids`
+grid -> update How to play. See `project_faction_rosters_build` memory.
