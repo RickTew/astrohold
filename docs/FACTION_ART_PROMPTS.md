@@ -39,8 +39,34 @@ Prepend the matching line to each piece subject below.
 - **Cyborgs**: `cybernetic space trooper, half flesh half machine, chrome
   augmetic limbs, dark sci-fi armor with glowing red optics, gritty futuristic`
 - **Humans**: `sci-fi SPACE MARINE, sleek powered combat exo-armor with a
-  sealed visored helmet, armored gauntlets and boots, steel/navy plating with
-  blue energy trim, futuristic` (match the existing human_marine art)
+  sealed visored helmet, armored gauntlets and boots, futuristic` (match the
+  existing human_marine silhouette; the COLOR comes from the per-unit accent
+  below, NOT a fixed navy/blue)
+
+## Color variety (so units don't all look the same)
+
+The first Human batch all came out navy/blue and blended together (the
+preamble hard-coded "blue trim" on every unit). DO NOT paint a whole set one
+palette. Give each piece a DISTINCT accent color - visor glow, armor trim,
+shoulder lights, weapon energy - over the faction's base material. In-game the
+team tint (blue for defender, red for attacker) re-unifies them, so the raw
+art can be colorful. Reuse one accent per ROLE so the same role reads alike
+across factions; append it to the subject (e.g. `...long sci-fi rail rifle,
+acid-green visor and scope glow`):
+
+| Role | Accent |
+|---|---|
+| Cannon / Warrior | crimson red |
+| Double Gun / Marine | electric blue |
+| Sniper | acid green |
+| Grenadier | amber orange |
+| Hulk | gold / heavy yellow |
+| Medic | white + medical green |
+| Stalker | violet purple |
+| Hacker | cyan / teal |
+| Dog | orange |
+| Repair | white + green |
+| Sphere | the faction core color |
 
 For STRUCTURES, swap the trooper/android wording for the faction's STARBASE
 defense-tech flavor (all are sci-fi installations, never field emplacements):
@@ -94,11 +120,11 @@ Mobile-unit preambles (sci-fi space drones):
 
 | Unit | Canvas | Subject to append |
 |---|---|---|
-| Grenadier (`grenadier`) | 108 | `shouldering a sci-fi grenade launcher` |
-| Hulk (`hulk`) | 108 | `huge heavy trooper in massive powered exo-armor / heavy weapons` |
-| Sniper (`sniper`) | 104 | `lean marksman aiming a long sci-fi rail / sniper rifle` |
-| Stalker (`stalker`) | 112 | `stealth operative with an energy blade and cloak, crouched` |
-| Hacker (`hacker`) | 104 | `tech specialist holding a glowing holo-tablet, no firearm` |
+| Grenadier (`grenadier`) | 108 | `shouldering a sci-fi grenade launcher, amber-orange visor and trim` |
+| Hulk (`hulk`) | 108 | `huge heavy trooper in massive powered exo-armor / heavy weapons, gold/yellow trim and lights` |
+| Sniper (`sniper`) | 104 | `lean marksman aiming a long sci-fi rail / sniper rifle, acid-green visor and scope glow` |
+| Stalker (`stalker`) | 112 | `stealth operative with an energy blade and cloak, crouched, violet-purple blade and visor` |
+| Hacker (`hacker`) | 104 | `tech specialist holding a glowing holo-tablet, no firearm, cyan/teal screen and trim` |
 
 ## ROBOTS - ATTACKER units (OPTIONAL)
 Only needed if you want Robots to be playable as the attacker with their own
@@ -107,14 +133,14 @@ war-machine preamble + subject.
 
 | Unit | Canvas | Subject to append |
 |---|---|---|
-| Cannon (`cannon`) | 104 | `robot shouldering a heavy cannon` |
-| Grenadier (`grenadier`) | 108 | `robot with a grenade launcher` |
-| Double Gun (`doublegun`) | 112 | `robot dual-wielding heavy guns` |
-| Hulk (`hulk`) | 108 | `massive hulking battle-robot, heavy armored frame` |
-| Sniper (`sniper`) | 104 | `slim long-range robot with a rail/sniper rifle` |
-| Medic (`medic`) | 108 | `support robot with a repair/med device` |
-| Stalker (`stalker`) | 112 | `stealth assassin robot, blades, crouched` |
-| Hacker (`hacker`) | 104 | `spindly tech robot holding a hacking device, no gun` |
+| Cannon (`cannon`) | 104 | `robot shouldering a heavy cannon, crimson-red optic and trim` |
+| Grenadier (`grenadier`) | 108 | `robot with a grenade launcher, amber-orange optic and trim` |
+| Double Gun (`doublegun`) | 112 | `robot dual-wielding heavy guns, electric-blue optic and trim` |
+| Hulk (`hulk`) | 108 | `massive hulking battle-robot, heavy armored frame, gold/yellow lights` |
+| Sniper (`sniper`) | 104 | `slim long-range robot with a rail/sniper rifle, acid-green optic and scope` |
+| Medic (`medic`) | 108 | `support robot with a repair/med device, white + green lights` |
+| Stalker (`stalker`) | 112 | `stealth assassin robot, blades, crouched, violet-purple optic and blades` |
+| Hacker (`hacker`) | 104 | `spindly tech robot holding a hacking device, no gun, cyan/teal screen and optic` |
 
 ---
 
