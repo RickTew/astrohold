@@ -107,6 +107,30 @@ Settings (same as the units): Humanoid, **Pro**, **64px**, Low Top-Down.
 - **Blastor** (`bomber`): `Space mortar defense TOWER for the HUMAN team with blue hints and clean military-grade plating, a stubby upward-angled launcher. Looks like polished, well-engineered starbase tech.`
 - **Sentry** (`sentry`): `Space heavy weapons turret on treads for the HUMAN team with blue hints and clean military-grade plating. A mobile gun platform that looks like polished, well-engineered starbase tech.`
 
+## SUPPORT STRUCTURES + POWER CORE - paste-ready prompts
+Faction versions of the EXISTING piece types (no new gameplay types invented).
+Same settings: Humanoid, Pro, 64px, Low Top-Down.
+
+**POWER CORE** (`powercore` - the win/lose objective; each faction needs its own; the existing one is the robot/default):
+- Cyborg: `Space POWER CORE reactor for the CYBORG team, a big glowing red energy core in a junk-metal housing with lots of wiring. Looks like it was hacked together from various pieces of super tech.`
+- Human: `Space POWER CORE reactor for the HUMAN team, a big glowing blue energy core in clean military-grade housing. Looks like polished, well-engineered starbase tech.`
+
+**SIGNAL** (`signal` - EMP satellite-dish tower):
+- Cyborg: `Space EMP signal dish TOWER for the CYBORG team with red hints and junk metal with lots of wiring, a scavenged satellite dish on a mast. Looks hacked together from various pieces of super tech.`
+- Human: `Space EMP signal dish TOWER for the HUMAN team with blue hints and clean military-grade plating, a polished satellite dish on a mast. Looks like well-engineered starbase tech.`
+
+**SHIELD** (`defense` - dome shield generator):
+- Cyborg: `Space shield generator for the CYBORG team with red hints and junk metal with lots of wiring, projecting a glowing red energy dome. Looks hacked together from various pieces of super tech.`
+- Human: `Space shield generator for the HUMAN team with blue hints and clean military-grade plating, projecting a glowing blue energy dome. Looks like well-engineered starbase tech.`
+
+**MINE** (`mine` - proximity mine):
+- Cyborg: `Space proximity MINE for the CYBORG team, a small spiky device of red junk metal and wiring. Looks hacked together from super tech.`
+- Human: `Space proximity MINE for the HUMAN team, a small clean blue military device. Looks like well-engineered starbase tech.`
+
+**WALL** (`wall` - barrier segment; currently procedural geometry, would need art wiring):
+- Cyborg: `Space barrier WALL segment for the CYBORG team, welded junk metal and wiring with red lights. Looks hacked together from super tech.`
+- Human: `Space barrier WALL segment for the HUMAN team, clean military-grade armored plating with blue lights. Looks like well-engineered starbase tech.`
+
 ## DEFENDER MOBILE UNITS - Sphere, Dog, Repair
 These are mobile UNITS, not towers/structures, so they belong in the
 faction-art bucket (like the attacker units), NOT the shared-structure bucket.
