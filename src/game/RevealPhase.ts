@@ -1149,13 +1149,29 @@ export class RevealPhase {
       if (unit.ammoRemaining > 0) {
         const target = this.nearestEnemy(unit, Config.UNITS.sniper.range)
         if (target) {
-          // S20 shoot-and-move: after firing the sniper is flagged for
-          // a forced relocation on its NEXT turn. Take one step toward
-          // the target (closing distance) instead of firing/crouching.
-          // moveTo clears mustRelocate, so the turn after this is a
-          // normal settle/fire cycle from the new cell.
+          // S20 shoot-and-move: after firing the sniper is flagged for a
+          // forced relocation on its NEXT turn. It SIDESTEPS to a fresh
+          // firing spot WITHOUT closing the gap - a sniper's value is its
+          // standoff range. The old behavior stepped toward the target each
+          // shot, which crept the sniper far inside its own range over a
+          // battle ("getting closer than needed"). Instead aim the step
+          // perpendicular to the line of sight, held at ~80% of max range,
+          // so it reads as "ran to a new spot" but keeps (or re-opens) its
+          // distance. moveTo clears mustRelocate, so the turn after this is
+          // a normal settle/fire cycle from the new cell.
           if (unit.mustRelocate) {
-            const cell = this.pickStepTowardPoint(unit, target.x, target.y)
+            const dx = target.x - unit.worldX
+            const dy = target.y - unit.worldY
+            const dist = Math.hypot(dx, dy) || 1
+            const ux = dx / dist, uy = dy / dist        // unit vector toward target
+            let px = -uy, py = ux                        // perpendicular (sidestep)
+            // Sidestep toward open vertical space so the sniper does not
+            // pin itself against the top/bottom map edge.
+            if ((py > 0) === (unit.worldY > 0)) { px = -px; py = -py }
+            const standoff = Config.UNITS.sniper.range * 0.8
+            const relX = target.x - ux * standoff + px * Config.GRID_CELL * 2
+            const relY = target.y - uy * standoff + py * Config.GRID_CELL * 2
+            const cell = this.pickStepTowardPoint(unit, relX, relY)
             if (cell) return { kind: 'move', cell }
             // No legal move (boxed in) — fall through so the sniper can
             // at least re-fire instead of doing nothing.
@@ -2468,9 +2484,13 @@ export class RevealPhase {
     // (current cannon STRUCTURE_SPRITE_SIZE).
     const SIZE = 40
     const BARREL_FORWARD_PCT = 59 / 64 - 0.5   // 0.422 — east tip of cyan glow
-    const BARREL_PERP_PCT    = 0.5 - 20 / 64   // 0.188 — y of cyan tip above PNG center
+    // The cyan pixels at image y=20 are the muzzle GLINT (top edge of the
+    // barrel), not the bore the beam should exit from. Aligning to the
+    // glint left the beam reading "up a tiny bit" in playtest, so drop the
+    // exit point to the barrel bore (~image y=26, a little below center).
+    const BARREL_PERP_PCT    = 0.5 - 26 / 64   // 0.094 — bore below PNG center-glint
     const BARREL_FORWARD = SIZE * BARREL_FORWARD_PCT      // ~16.88
-    const BARREL_PERP_LEFT = SIZE * BARREL_PERP_PCT       // ~7.50
+    const BARREL_PERP_LEFT = SIZE * BARREL_PERP_PCT       // ~3.75
     void cannonSize  // (kept around for documentation; not used directly)
     const beamLen = range - BARREL_FORWARD
     const beamWidth = 10
@@ -2485,7 +2505,7 @@ export class RevealPhase {
     const mesh = new THREE.Mesh(geo, mat)
     // Perpendicular-counter-clockwise vector for the lateral offset.
     // For east-facing (fx=1, fy=0) this is (0, +1), so the beam lifts
-    // by +3 world Y to align with the cyan glow.
+    // by BARREL_PERP_LEFT (~3.75) world Y to sit on the barrel bore.
     const px = -fy
     const py = fx
     const cx = ax + fx * (BARREL_FORWARD + beamLen / 2) + px * BARREL_PERP_LEFT

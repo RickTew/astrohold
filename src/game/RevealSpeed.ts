@@ -17,10 +17,12 @@ export type RevealSpeed = 'slow' | 'normal' | 'fast'
 const KEY = 'astrohold:reveal-speed:v1'
 const VALID: RevealSpeed[] = ['slow', 'normal', 'fast']
 
-// Default is FAST — current build speed; matches what S17 stats were
-// gathered under so existing records remain comparable until users opt
-// into a slower setting.
-const DEFAULT: RevealSpeed = 'fast'
+// Default is SLOW so a brand-new player (no stored preference) watches
+// the auto-chained reveals at a relaxed, readable pace instead of being
+// overwhelmed by the fast baseline. Returning players keep whatever they
+// last picked (persisted in localStorage), so this only changes the
+// first-run experience.
+const DEFAULT: RevealSpeed = 'slow'
 
 const MULTIPLIER: Record<RevealSpeed, number> = {
   slow: 5.0,
