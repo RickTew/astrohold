@@ -208,10 +208,14 @@ export class HUD {
         </circle>
       </svg>`
 
-    // Cache the human attacker roster grid markup so setPlayerSide() can swap
-    // it into the attacker panels when the player picks the Human faction.
-    // Built here while tileHtml() is in scope.
-    this.humanAttGridHtml = humanTiles.map(t => tileHtml(t, 'att')).join('')
+    // Faction-rosters seam (2026-06-28): cache each faction's ATTACKER tile
+    // grid so setPlayerSide() can swap it in. Today only Humans have a distinct
+    // roster (Warrior/Marine/Medic); Robots + Cyborgs fall back to the default
+    // cyborg grid already rendered in the panels. Adding a future attacker
+    // roster = build its Tile[] and assign another entry here (plus its
+    // FACTION_ART + preloadSpriteUnit registration). Built here while
+    // tileHtml() is in scope. See docs/FACTION_ROSTERS.md.
+    this.factionAttackerGrids.human = humanTiles.map(t => tileHtml(t, 'att')).join('')
 
     this.container.innerHTML = `
       <div id="loading-screen">LOADING ASSETS...</div>
@@ -554,17 +558,18 @@ export class HUD {
   }
 
   private playerSide: 'defender' | 'attacker' = 'defender'
-  private humanAttGridHtml = ''
+  private factionAttackerGrids: Partial<Record<Faction, string>> = {}
   setPlayerSide(role: 'defender' | 'attacker', faction: Faction = 'cyborg', aiFaction: Faction = 'cyborg') {
     const picker = this.container.querySelector('#side-picker')
     picker?.classList.add('hidden')
     this.playerSide = role
-    // Faction-bound attacker roster: when the player attacks AS the Human
-    // faction, replace the cyborg shop tiles with the human roster. Both the
-    // left and right attacker panels render the attacker grid, so swap both.
-    if (role === 'attacker' && faction === 'human') {
+    // Faction-bound attacker roster: if the picked faction has its own attacker
+    // grid, swap it into both attacker panels (the cyborg default is already
+    // rendered for factions without an override). Today only Humans qualify.
+    const attackerGrid = role === 'attacker' ? this.factionAttackerGrids[faction] : undefined
+    if (attackerGrid) {
       this.container.querySelectorAll<HTMLElement>('#hud-top-att .tile-grid')
-        .forEach(grid => { grid.innerHTML = this.humanAttGridHtml })
+        .forEach(grid => { grid.innerHTML = attackerGrid })
       this.wireAttackerTiles()
     }
     // Center-panel matchup label on the player's visible panel: their faction

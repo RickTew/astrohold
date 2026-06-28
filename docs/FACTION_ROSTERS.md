@@ -145,6 +145,34 @@ Register new animated art keys with `preloadSpriteUnit(key, folder)` in
 - **Phase 4+:** remaining columns as desired (Robot attacker, the other
   defender column).
 
+## 5b. DECIDED (2026-06-28) + Phase 1 status
+
+User decisions:
+- **Scope = decoupled, but shared defense.** Any faction can still play
+  either side, BUT defender STRUCTURES (and the Sphere) stay one shared
+  neutral installation look for every faction. Faction art ships only on
+  the SpriteUnits: all attacker units + the mobile defenders (Dog, Repair).
+  This removes the two most expensive columns (per-faction defender
+  structure redraws).
+- **Build now = the code seam only**, no new art, no visual change.
+
+Phase 1 shipped (this commit), all no-ops until art lands:
+- `Structure.ts`: empty `FACTION_STRUCTURE_ART` override map +
+  `factionStructureFolder()` resolver, routed through preload. Structures
+  render identically; the hook is documented for the (deferred) day a
+  faction structure skin is ever wanted. Texture caches stay type-keyed
+  while overrides are empty.
+- `SpriteUnit.ts`: `FACTION_ART` extended with a full how-to-add-a-skin
+  guide (the real seam - units already resolve art by faction).
+- `HUD.ts`: the Human-only attacker-roster swap is now a data-driven
+  `factionAttackerGrids` map, so a future attacker faction roster is one
+  entry, not a new special-case.
+
+Remaining work is purely ART + data drop-ins (Phase 2+ below): each new
+faction unit set is art -> `FACTION_ART` entry -> `preloadSpriteUnit` ->
+(attacker) a `factionAttackerGrids` grid. No further engine work needed
+unless we reverse the "shared defense" call.
+
 ## 6. Open decisions (these drive the cost)
 
 - **D1 - Keep faction fully decoupled from role?** Full decoupling needs

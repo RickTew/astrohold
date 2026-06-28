@@ -39,6 +39,19 @@ function spriteSizeFor(key: string): number {
 // default type folder - gameplay TYPE (and therefore stats/behavior) is
 // unchanged. The Human faction reuses attacker stat blocks: its WARRIOR is a
 // 'cannon' wearing the human_warrior art, its MEDIC the human_medic art.
+//
+// Faction-rosters seam (2026-06-28): this is THE place faction art ships,
+// per the "decoupled, but shared defense" decision - SpriteUnits (every
+// attacker unit + the mobile defenders Dog/Repair) get faction skins, while
+// structures + the Sphere stay shared (see Structure.ts FACTION_STRUCTURE_ART
+// and docs/FACTION_ROSTERS.md). To add a faction skin for any unit:
+//   1. drop the art under /public/sprites/<artkey>/ (8 rotations + the
+//      type's animation states; mirror the same-type cyborg/robot layout),
+//   2. add an entry below, e.g. cyborg: { dog: 'cyborg_dog' },
+//   3. register it in Game.ts init with preloadSpriteUnit('<artkey>','<artkey>'),
+//   4. for an ATTACKER roster, add the shop grid in HUD.factionAttackerGrids.
+// Gaps still needing art: Robot attacker (8), Human attacker (grenadier,
+// hulk, sniper, stalker, hacker), plus optional faction Dog/Repair skins.
 const FACTION_ART: Partial<Record<Faction, Partial<Record<UnitType, string>>>> = {
   human: {
     cannon:    'human_warrior',

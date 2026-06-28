@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { Config, StructureType, TEAM_TINT } from '../game/GameConfig'
+import { Config, StructureType, TEAM_TINT, Faction } from '../game/GameConfig'
 import { QueuedAction, STATIONARY_INITIATIVE, nextActorId } from '../game/TurnTypes'
 import { playExplosion } from '../audio/sfx'
 import { spawnHealVfx, HealVfxVariant } from './HealVfx'
@@ -25,6 +25,21 @@ const STRUCTURE_SPRITE_FOLDERS: Partial<Record<StructureType, string>> = {
   laser:   'laser',    // twin-laser turret
   signal:  'signal',   // satellite dish — EMP emitter
   mine:    'robot_mine',  // spiky proximity mine (matches the HUD tile sprite)
+}
+
+// Faction-rosters seam (2026-06-28). Per the "decoupled, but shared defense"
+// decision, defender STRUCTURES stay one shared neutral installation look for
+// every faction, so this override map is intentionally EMPTY and structures
+// render identically regardless of faction. It is the documented hook: to ever
+// give a faction its own structure art, add e.g.
+//   { cyborg: { turret: 'cyborg_tower' } }
+// and then key the texture caches below by the resolved folder (today they are
+// type-keyed, which is fine while overrides are empty). See
+// docs/FACTION_ROSTERS.md. The faction art that DOES ship lives on the
+// SpriteUnits (attacker + mobile defender Dog/Repair) via FACTION_ART, not here.
+const FACTION_STRUCTURE_ART: Partial<Record<Faction, Partial<Record<StructureType, string>>>> = {}
+function factionStructureFolder(faction: Faction, type: StructureType): string {
+  return FACTION_STRUCTURE_ART[faction]?.[type] ?? STRUCTURE_SPRITE_FOLDERS[type]!
 }
 // Structures that ship with an explosion sequence (folder/explosion/).
 // Frame count defaults to 4; override per type via STRUCTURE_EXPLOSION_FRAMES
@@ -179,7 +194,10 @@ export async function preloadStructureSprites(): Promise<void> {
   // per-piece chosen rotation in a follow-up pass.)
   await Promise.all([
     ...(Object.keys(STRUCTURE_SPRITE_FOLDERS) as StructureType[]).map(async type => {
-      const folder = STRUCTURE_SPRITE_FOLDERS[type]!
+      // Resolved through the faction seam (shared default today, so this is
+      // the same folder for every faction). When a faction structure skin is
+      // ever added, this preload + the type-keyed caches move to per-folder.
+      const folder = factionStructureFolder('robot', type)
       const dir = STRUCTURE_DEFAULT_DIR[type] ?? 'south'
       const tex = await loadTex(`/sprites/${folder}/${dir}.png`)
       structureTextures.set(type, tex)
