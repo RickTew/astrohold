@@ -68,32 +68,44 @@ acid-green visor and scope glow`):
 | Repair | white + green |
 | Sphere | the faction core color |
 
-For STRUCTURES, swap the trooper/android wording for the faction's STARBASE
-defense-tech flavor (all are sci-fi installations, never field emplacements):
-- Robots: `automated orbital defense turret, sleek metal, cyan energy core`
-- Cyborgs: `bio-mechanical defense turret, chrome and organic cabling, pulsing red core`
-- Humans: `human starbase defense turret, sleek armored sci-fi plating, blue energy core`
+## STRUCTURES (towers / guns) - PROMPT STYLE (use the user's voice)
+
+WRITE A NATURAL, EVOCATIVE SENTENCE - not a dry technical parts-list. A
+parts-list ("beam-cannon emplacement, one long focusing barrel, bio-mechanical
+tech, chrome and cabling, glowing red core") made the model produce
+"amalgamation" blobs, not a clean tower. Instead, name the WEAPON + the FACTION
+team + a color hint + a material/vibe + a "looks like..." flavor line.
+
+PROVEN example from the user (Pro, 64px) that produced a clean tower:
+> `Space laser defense TOWER for the CYBORG team with red hints and junk metal
+> with lots of wiring. Looks like it was hacked together from various pieces of
+> super tech.`
+
+Per-faction flavor to reuse in the sentence:
+- **Cyborg**: red hints, junk metal and lots of wiring; looks hacked together from scavenged super tech.
+- **Human**: blue hints, clean military-grade plating; looks like polished, well-engineered starbase tech.
+- **Robot**: cyan hints, sleek chrome plating; looks like precision factory-built machinery.
+
+Settings (same as the units): Humanoid, **Pro**, **64px**, Low Top-Down.
 
 ---
 
-## CYBORGS - missing DEFENDER towers/structures
-(Cyborg attacker roster already exists.) Prompt = Cyborg structure preamble + subject.
+## CYBORG defender towers/guns - paste-ready prompts
+(Cyborg attacker roster already exists.)
 
-| Piece | Canvas | Subject to append |
-|---|---|---|
-| Tower (`turret`) | 120 | `single-barrel auto gun turret on a round armored base` |
-| Phaser (`cannon`/gun art) | 64 | `heavy beam-cannon emplacement, one long focusing barrel` |
-| Blastor (`bomber`) | 124 | `mortar turret, short fat upward-angled launcher` |
-| Laser (`laser`) | 64 | `twin-laser turret, two long thin emitters` |
-| Sentry (`sentry`) | 116 | `mobile heavy weapons platform on treads/tracks` |
-| Signal (`signal`) | 64 | `EMP emitter, satellite dish on a pedestal` |
-| Shield (`defense`) | 64 | `dome shield generator projecting a translucent energy dome` |
-| Mine (`mine`) | 64 | `squat spiky round proximity mine, single blinking light` |
+- **Tower** (`turret`): `Space auto-gun defense TOWER for the CYBORG team with red hints and junk metal with lots of wiring. A single-barrel turret that looks hacked together from various pieces of super tech.`
+- **Phaser** (`cannon`/gun): `Space beam-cannon defense TOWER for the CYBORG team with red hints and junk metal with lots of wiring, one long focusing barrel. Looks hacked together from various pieces of super tech.`
+- **Laser** (`laser`): `Space laser defense TOWER for the CYBORG team with red hints and junk metal with lots of wiring. Looks like it was hacked together from various pieces of super tech.`
+- **Blastor** (`bomber`): `Space mortar defense TOWER for the CYBORG team with red hints and junk metal with lots of wiring, a stubby upward-angled launcher. Looks hacked together from various pieces of super tech.`
+- **Sentry** (`sentry`): `Space heavy weapons turret on treads for the CYBORG team with red hints and junk metal with lots of wiring. A mobile gun platform that looks hacked together from various pieces of super tech.`
 
-## HUMANS - missing DEFENDER towers/structures
-Prompt = Human structure preamble + the SAME subjects as the Cyborg table
-above (Tower, Phaser, Blastor, Laser, Sentry, Signal, Shield, Mine), same
-canvas sizes.
+## HUMAN defender towers/guns - paste-ready prompts
+
+- **Tower** (`turret`): `Space auto-gun defense TOWER for the HUMAN team with blue hints and clean military-grade plating, a single-barrel turret. Looks like polished, well-engineered starbase tech.`
+- **Phaser** (`cannon`/gun): `Space beam-cannon defense TOWER for the HUMAN team with blue hints and clean military-grade plating, one long focusing barrel. Looks like polished, well-engineered starbase tech.`
+- **Laser** (`laser`): `Space laser defense TOWER for the HUMAN team with blue hints and clean military-grade plating. Looks like polished, well-engineered starbase tech.`
+- **Blastor** (`bomber`): `Space mortar defense TOWER for the HUMAN team with blue hints and clean military-grade plating, a stubby upward-angled launcher. Looks like polished, well-engineered starbase tech.`
+- **Sentry** (`sentry`): `Space heavy weapons turret on treads for the HUMAN team with blue hints and clean military-grade plating. A mobile gun platform that looks like polished, well-engineered starbase tech.`
 
 ## DEFENDER MOBILE UNITS - Sphere, Dog, Repair
 These are mobile UNITS, not towers/structures, so they belong in the
