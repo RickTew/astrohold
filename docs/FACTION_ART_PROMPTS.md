@@ -1,5 +1,13 @@
 # Faction art - coming soon + PixelLab prompts
 
+> **SETTING = SPACE.** AstroHold is a sci-fi space game. EVERY prompt must read
+> as futuristic / space, NOT present-day Earth. Humans are SPACE MARINES in
+> powered armor + sealed visored helmets with sci-fi/energy weapons - never
+> "olive-drab / tactical / modern military / sandbagged". Towers are starbase /
+> orbital defense tech, not field emplacements. Match the existing
+> `human_marine` (dark powered armor) and `human_warrior` (visored helmet)
+> sprites.
+
 Placeholder policy (live now): until a faction's own art exists, every
 faction uses the SHARED art - defender towers/structures render as the
 robot/installation set for all factions, and any attacker unit without a
@@ -12,7 +20,8 @@ first, then we generate the rest to match.
 
 ## PixelLab settings (apply to every prompt)
 
-- View: **high top-down** (matches the current 3/4 top-down sprites).
+- View: **Low Top-Down** (the frontal 3/4 look matching the existing units;
+  this is what the test generation used).
 - Outline: **single colour black outline**, **low detail** (matches existing).
 - Canvas size: **match the existing same piece** (sizes listed per row below).
 - Directions: generate the **base / south facing first** only. Hold off on
@@ -24,22 +33,20 @@ first, then we generate the rest to match.
 
 Prepend the matching line to each piece subject below.
 
-- **Robots** (baseline - already in game): `sleek metal war-machine, brushed
-  steel and chrome plating, exposed servos, glowing cyan optic/joint lights,
-  clean industrial sci-fi`
-- **Cyborgs**: `battle-worn cyborg, half flesh half machine, chrome
-  endoskeleton and cybernetic limbs, dark plated armor with glowing red
-  accents, gritty`
-- **Humans**: `human special-forces soldier, modern tactical armor and
-  helmet, webbing and pouches, matte olive-drab and gunmetal, NO cybernetics,
-  grounded military sci-fi`
+- **Robots** (baseline - already in game): `sleek sci-fi war android, brushed
+  steel and chrome space-armor plating, exposed servos, glowing cyan optic and
+  joint lights, futuristic`
+- **Cyborgs**: `cybernetic space trooper, half flesh half machine, chrome
+  augmetic limbs, dark sci-fi armor with glowing red optics, gritty futuristic`
+- **Humans**: `sci-fi SPACE MARINE, sleek powered combat exo-armor with a
+  sealed visored helmet, armored gauntlets and boots, steel/navy plating with
+  blue energy trim, futuristic` (match the existing human_marine art)
 
-For STRUCTURES, swap the "soldier/war-machine" wording for the faction's
-installation flavor:
-- Robots: `automated turret, sleek metal, cyan energy core`
-- Cyborgs: `bio-mechanical turret, chrome and organic cabling, pulsing red core`
-- Humans: `field-deployed military emplacement, armored olive-drab plating,
-  manual sci-fi tech, blue indicator lights`
+For STRUCTURES, swap the trooper/android wording for the faction's STARBASE
+defense-tech flavor (all are sci-fi installations, never field emplacements):
+- Robots: `automated orbital defense turret, sleek metal, cyan energy core`
+- Cyborgs: `bio-mechanical defense turret, chrome and organic cabling, pulsing red core`
+- Humans: `human starbase defense turret, sleek armored sci-fi plating, blue energy core`
 
 ---
 
@@ -72,9 +79,9 @@ code before its skin can drop in (deferred, same as structures - see
 docs/FACTION_ROSTERS.md); Dog and Repair are `SpriteUnit`s and are already
 faction-art-ready.
 
-Mobile-unit preambles:
+Mobile-unit preambles (sci-fi space drones):
 - Cyborgs: `bio-mechanical combat drone, chrome and organic cabling, glowing red accents`
-- Humans: `military-issue combat drone/robot, armored olive-drab plating, blue indicator lights`
+- Humans: `sci-fi combat drone, sleek steel/navy armored plating, blue energy lights`
 
 | Unit | Canvas | Subject to append |
 |---|---|---|
@@ -87,11 +94,11 @@ Mobile-unit preambles:
 
 | Unit | Canvas | Subject to append |
 |---|---|---|
-| Grenadier (`grenadier`) | 108 | `soldier shouldering a grenade launcher` |
-| Hulk (`hulk`) | 108 | `huge heavy trooper in bulky powered exo-armor` |
-| Sniper (`sniper`) | 104 | `lean marksman with a long bolt-action sniper rifle` |
-| Stalker (`stalker`) | 112 | `stealth infiltrator with a cloak and a combat knife, crouched` |
-| Hacker (`hacker`) | 104 | `tech specialist holding a tablet/hacking device, no firearm` |
+| Grenadier (`grenadier`) | 108 | `shouldering a sci-fi grenade launcher` |
+| Hulk (`hulk`) | 108 | `huge heavy trooper in massive powered exo-armor / heavy weapons` |
+| Sniper (`sniper`) | 104 | `lean marksman aiming a long sci-fi rail / sniper rifle` |
+| Stalker (`stalker`) | 112 | `stealth operative with an energy blade and cloak, crouched` |
+| Hacker (`hacker`) | 104 | `tech specialist holding a glowing holo-tablet, no firearm` |
 
 ## ROBOTS - ATTACKER units (OPTIONAL)
 Only needed if you want Robots to be playable as the attacker with their own
