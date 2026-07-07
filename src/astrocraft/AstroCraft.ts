@@ -865,18 +865,28 @@ export function mountAstroCraft() {
   // when the browser throttles requestAnimationFrame (background/occluded
   // tab, frame hiccups). Catch-up is capped so a long-hidden tab does not
   // fast-forward the whole battle in one frame.
+  // The sim is stepped by BOTH requestAnimationFrame and a setInterval:
+  // browsers stop rAF entirely for occluded/background windows, but
+  // setInterval keeps firing (clamped to ~1/s), so the battle keeps real
+  // time either way. tick() is accumulator-based so double-driving never
+  // double-steps.
   let last = performance.now()
   const STEP = 1 / 30
-  function frame(now: number) {
-    let elapsed = Math.min(1.5, (now - last) / 1000)
+  let acc = 0
+  function tick() {
+    const now = performance.now()
+    acc = Math.min(1.5, acc + (now - last) / 1000)
     last = now
-    if (!over) {
-      while (elapsed > 0) {
-        step(Math.min(STEP, elapsed))
-        elapsed -= STEP
-        if (over) break
-      }
+    if (over) { acc = 0; return }
+    while (acc >= STEP) {
+      step(STEP)
+      acc -= STEP
+      if (over) { acc = 0; break }
     }
+  }
+  setInterval(tick, 100)
+  function frame() {
+    tick()
     draw()
     requestAnimationFrame(frame)
   }
