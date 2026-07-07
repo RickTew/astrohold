@@ -892,4 +892,24 @@ export function mountAstroCraft() {
   }
   say('Right-click a shard with your Sphere Drones to start mining.', 12)
   requestAnimationFrame(frame)
+
+  // Playtest/debug handle (same spirit as window.astrohold in the main game).
+  ;(window as unknown as Record<string, unknown>).astrocraft = {
+    state: () => ({
+      time: Math.round(gameTime),
+      credits,
+      supply: `${supplyUsed()}/${supplyMax()}`,
+      over,
+      selected: [...selected],
+      ents: ents.filter(e => !e.dead).map(e => ({
+        id: e.id, team: e.team, kind: e.unit?.key ?? e.bld!.key,
+        x: Math.round(e.x), y: Math.round(e.y), hp: Math.round(e.hp),
+        carrying: e.carrying, progress: e.buildProgress, queue: e.queue.map(q => q.key),
+      })),
+      shards: shards.reduce((a, s) => a + s.amount, 0),
+    }),
+    select: (ids: number[]) => { selected.clear(); ids.forEach(i => selected.add(i)); rebuildBtns() },
+    rightClick: (x: number, y: number) => issueRightClick(x, y),
+    give: (n: number) => { credits += n },
+  }
 }
