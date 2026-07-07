@@ -180,6 +180,40 @@ export function mountAstroCraft() {
     return c
   }
 
+  // ---------- audio ----------
+  // Reuses AstroHold's existing audio files. A small dial in the bottom-right
+  // corner cycles sound ON -> LOW -> OFF. Music starts on the first click
+  // (browser autoplay policy).
+  const SFX: Record<string, string> = {
+    shotRobot: '/audio/Astrohold3 Suno Sounds/Laser Shot.mp3',
+    shotCyborg: '/audio/Astrohold3 Suno Sounds/Cyborg shot.mp3',
+    boomSmall: '/audio/Astrohold3 Suno Sounds/Cyborge Grenade Explosion small.mp3',
+    boomBig: '/audio/Astrohold3 Suno Sounds/Distant explosion.mp3',
+    place: '/audio/Astrohold3 Suno Sounds/Robot placement.mp3',
+  }
+  let soundMode = 0 // 0 = on, 1 = low, 2 = off
+  const soundGain = () => [1, 0.35, 0][soundMode]
+  const music = new Audio('/audio/robots.mp3')
+  music.loop = true
+  let musicStarted = false
+  function updateMusicVolume() { music.volume = 0.30 * soundGain() }
+  function startMusic() {
+    if (musicStarted || soundGain() === 0) return
+    musicStarted = true
+    updateMusicVolume()
+    music.play().catch(() => { musicStarted = false })
+  }
+  const sfxLast = new Map<string, number>()
+  function playSfx(key: string, vol = 0.5) {
+    if (soundGain() === 0) return
+    const now = performance.now()
+    if (now - (sfxLast.get(key) ?? 0) < 120) return
+    sfxLast.set(key, now)
+    const a = new Audio(SFX[key])
+    a.volume = Math.min(1, vol * soundGain())
+    a.play().catch(() => {})
+  }
+
   // ---------- world state ----------
   const ents: Entity[] = []
   const shards: Shard[] = []
@@ -223,6 +257,15 @@ export function mountAstroCraft() {
   for (let i = 0; i < 3; i++) {
     ents.push(new Entity('cyborg', WORLD_W - CELL * 8 - (i % 2) * 40, WORLD_H / 2 - 60 + i * 44, UNITS.gatling))
   }
+  // enemy economy: their own shard patch plus mining drones, so the red base
+  // visibly works like yours instead of just sitting there
+  shardCluster(WORLD_W - CELL * 4, WORLD_H / 2 - CELL * 5, 6)
+  const eShard = shards[shards.length - 3]
+  for (let i = 0; i < 3; i++) {
+    const d = new Entity('cyborg', WORLD_W - CELL * 5 + i * 26, WORLD_H / 2 - CELL * 2 - i * 30, UNITS.drone)
+    d.harvestShard = eShard
+    ents.push(d)
+  }
 
   // waves
   const waves = [
@@ -235,6 +278,7 @@ export function mountAstroCraft() {
   let waveIdx = 0
 
   // ---------- camera + input ----------
+  let zoom = 1 // mouse-wheel zoom, world pixels -> screen pixels
   let camX = 0
   let camY = WORLD_H / 2 - innerHeight / 2
   let mx = 0, my = 0 // screen mouse
@@ -244,8 +288,13 @@ export function mountAstroCraft() {
   let placing: BuildingDef | null = null
   let mouseIn = true
 
-  const wx = () => mx + camX
-  const wy = () => my + camY
+  const wx = () => mx / zoom + camX
+  const wy = () => my / zoom + camY
+  const minZoom = () => Math.max(innerWidth / WORLD_W, innerHeight / WORLD_H, 0.5)
+  function clampCam() {
+    camX = Math.max(0, Math.min(WORLD_W - innerWidth / zoom, camX))
+    camY = Math.max(0, Math.min(WORLD_H - innerHeight / zoom, camY))
+  }
 
   function resize() {
     cv.width = innerWidth * devicePixelRatio
@@ -277,7 +326,7 @@ export function mountAstroCraft() {
     btns = []
     const bw = 118, bh = 52, gap = 8
     const baseY = innerHeight - bh - 12
-    let x = innerWidth - 12 - (bw + gap) * 4
+    let x = innerWidth - 56 - (bw + gap) * 4 // leaves room for the sound dial
     const add = (label: string, sub: string, act: () => void, on: () => boolean) => {
       btns.push({ x, y: baseY, w: bw, h: bh, label, sub, act, on })
       x += bw + gap
@@ -355,16 +404,34 @@ export function mountAstroCraft() {
   }
 
   cv.addEventListener('contextmenu', e => e.preventDefault())
+  cv.addEventListener('wheel', e => {
+    e.preventDefault()
+    const px = wx(), py = wy() // keep the world point under the cursor fixed
+    zoom = Math.max(minZoom(), Math.min(2, zoom * (e.deltaY < 0 ? 1.15 : 1 / 1.15)))
+    camX = px - mx / zoom
+    camY = py - my / zoom
+    clampCam()
+  }, { passive: false })
   cv.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY })
   cv.addEventListener('mouseleave', () => { mouseIn = false })
   cv.addEventListener('mouseenter', () => { mouseIn = true })
   cv.addEventListener('mousedown', e => {
     mx = e.clientX; my = e.clientY
+    startMusic()
     if (over) { location.href = '/?astrocraft'; return }
+    // sound dial, bottom-right corner
+    if (Math.hypot(mx - (innerWidth - 26), my - (innerHeight - 26)) < 17) {
+      soundMode = (soundMode + 1) % 3
+      updateMusicVolume()
+      if (soundMode !== 2) startMusic()
+      say(`Sound: ${['ON', 'LOW', 'OFF'][soundMode]}`, 2)
+      return
+    }
     const m = mini()
     if (mx >= m.x && mx <= m.x + m.w && my >= m.y && my <= m.y + m.h) {
-      camX = ((mx - m.x) / m.w) * WORLD_W - innerWidth / 2
-      camY = ((my - m.y) / m.h) * WORLD_H - innerHeight / 2
+      camX = ((mx - m.x) / m.w) * WORLD_W - innerWidth / zoom / 2
+      camY = ((my - m.y) / m.h) * WORLD_H - innerHeight / zoom / 2
+      clampCam()
       return
     }
     if (e.button === 0) {
@@ -377,6 +444,7 @@ export function mountAstroCraft() {
         if (!canPlaceAt(placing, x, y)) return say('Cannot build there.')
         if (credits < placing.cost) { placing = null; return say('Not enough credits.') }
         credits -= placing.cost
+        playSfx('place', 0.5)
         const b = new Entity('robot', x, y, undefined, placing)
         b.buildProgress = 0
         ents.push(b)
@@ -397,8 +465,8 @@ export function mountAstroCraft() {
   cv.addEventListener('mouseup', e => {
     if (e.button !== 0 || !dragging) return
     dragging = false
-    const x0 = Math.min(dragX0, mx) + camX, x1 = Math.max(dragX0, mx) + camX
-    const y0 = Math.min(dragY0, my) + camY, y1 = Math.max(dragY0, my) + camY
+    const x0 = Math.min(dragX0, mx) / zoom + camX, x1 = Math.max(dragX0, mx) / zoom + camX
+    const y0 = Math.min(dragY0, my) / zoom + camY, y1 = Math.max(dragY0, my) / zoom + camY
     const isClick = x1 - x0 < 6 && y1 - y0 < 6
     selected.clear()
     if (isClick) {
@@ -427,10 +495,12 @@ export function mountAstroCraft() {
 
   function fireAt(e: Entity, t: Entity, dmg: number) {
     shots.push({ x1: e.x, y1: e.y, x2: t.x, y2: t.y, t: 0.12, team: e.team })
+    playSfx(e.team === 'robot' ? 'shotRobot' : 'shotCyborg', 0.18)
     t.hp -= dmg
     if (t.hp <= 0 && !t.dead) {
       t.dead = true
       booms.push({ x: t.x, y: t.y, t: 0.5, big: !!t.bld })
+      playSfx(t.bld ? 'boomBig' : 'boomSmall', t.bld ? 0.7 : 0.4)
       selected.delete(t.id)
       if (t === eCore) over = 'win'
       if (t === pCore) over = 'lose'
@@ -454,15 +524,14 @@ export function mountAstroCraft() {
     }
 
     // edge scroll
-    const EDGE = 24, SCROLL = 620
+    const EDGE = 24, SCROLL = 620 / zoom
     if (mouseIn && !dragging) {
       if (mx < EDGE) camX -= SCROLL * dt
       if (mx > innerWidth - EDGE) camX += SCROLL * dt
       if (my < EDGE) camY -= SCROLL * dt
       if (my > innerHeight - EDGE) camY += SCROLL * dt
     }
-    camX = Math.max(0, Math.min(WORLD_W - innerWidth, camX))
-    camY = Math.max(0, Math.min(WORLD_H - innerHeight, camY))
+    clampCam()
 
     for (const e of ents) {
       if (e.dead) continue
@@ -500,19 +569,20 @@ export function mountAstroCraft() {
       // worker harvest loop
       if (u.worker && e.harvestShard) {
         const s = e.harvestShard
+        const home = e.team === 'robot' ? pCore : eCore
         if (s.amount <= 0 && e.carrying === 0) {
           const next = shards.find(v => v.amount > 0 && Math.hypot(v.x - s.x, v.y - s.y) < CELL * 4)
           e.harvestShard = next ?? null
-          if (!next) say('Shard patch depleted.')
+          if (!next && e.team === 'robot') say('Shard patch depleted.')
           continue
         }
         if (e.carrying > 0) {
-          // return to core
-          const d = Math.hypot(pCore.x - e.x, pCore.y - e.y)
-          if (d < pCore.radius + e.radius + 6) {
-            credits += e.carrying
+          // return to own core (enemy income is cosmetic, waves are scripted)
+          const d = Math.hypot(home.x - e.x, home.y - e.y)
+          if (d < home.radius + e.radius + 6) {
+            if (e.team === 'robot') credits += e.carrying
             e.carrying = 0
-          } else moveToward(e, pCore.x, pCore.y, dt)
+          } else moveToward(e, home.x, home.y, dt)
         } else {
           const d = Math.hypot(s.x - e.x, s.y - e.y)
           if (d < 26) {
@@ -643,11 +713,17 @@ export function mountAstroCraft() {
     ctx.fillStyle = '#0a0e14'
     ctx.fillRect(0, 0, W, H)
 
+    // everything until ctx.restore() is drawn in WORLD scale (zoomed)
+    ctx.save()
+    ctx.scale(zoom, zoom)
+    const VW = W / zoom, VH = H / zoom // visible world size
+
     // grid
     ctx.strokeStyle = 'rgba(90,140,190,0.10)'
+    ctx.lineWidth = 1 / zoom
+    for (let gx = -(camX % CELL); gx < VW; gx += CELL) { ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, VH); ctx.stroke() }
+    for (let gy = -(camY % CELL); gy < VH; gy += CELL) { ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(VW, gy); ctx.stroke() }
     ctx.lineWidth = 1
-    for (let gx = -(camX % CELL); gx < W; gx += CELL) { ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, H); ctx.stroke() }
-    for (let gy = -(camY % CELL); gy < H; gy += CELL) { ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke() }
 
     for (const s of shards) if (s.amount > 0) drawShard(s)
 
@@ -664,7 +740,7 @@ export function mountAstroCraft() {
     const sorted = [...ents].filter(e => !e.dead).sort((a, b) => a.y - b.y)
     for (const e of sorted) {
       const x = e.x - camX, y = e.y - camY
-      if (x < -120 || x > W + 120 || y < -120 || y > H + 120) continue
+      if (x < -120 || x > VW + 120 || y < -120 || y > VH + 120) continue
       const color = e.team === 'robot' ? '#5ad0ff' : '#ff5a4a'
       if (selected.has(e.id)) {
         ctx.strokeStyle = '#8dffb0'
@@ -674,7 +750,15 @@ export function mountAstroCraft() {
         ctx.stroke()
       }
       if (e.bld) {
-        drawPad(x, y, e.radius, color, e.buildProgress)
+        // the foundation pad shows only WHILE constructing; finished
+        // buildings stand on a soft team-colored glow instead
+        if (!e.done) drawPad(x, y, e.radius, color, e.buildProgress)
+        else {
+          ctx.fillStyle = e.team === 'robot' ? 'rgba(60,140,220,0.16)' : 'rgba(220,70,60,0.16)'
+          ctx.beginPath()
+          ctx.ellipse(x, y + e.radius * 0.45, e.radius * 0.85, e.radius * 0.30, 0, 0, Math.PI * 2)
+          ctx.fill()
+        }
         const sp = e.team === 'cyborg' ? redTint(e.bld.sprite, 'south') : img(e.bld.sprite, 'south')
         if (sp && e.buildProgress > 0.15) {
           ctx.globalAlpha = e.done ? 1 : 0.35 + e.buildProgress * 0.5
@@ -684,7 +768,9 @@ export function mountAstroCraft() {
         }
       } else {
         const u = e.unit!
-        const sp = img(u.sprite, DIR_NAMES[e.dir]) ?? img(u.sprite, 'south')
+        const sp = (e.team === 'cyborg' && u.sprite === 'sphere')
+          ? redTint(u.sprite, DIR_NAMES[e.dir]) ?? redTint(u.sprite, 'south')
+          : img(u.sprite, DIR_NAMES[e.dir]) ?? img(u.sprite, 'south')
         const sz = u.drawSize
         // drop shadow tinted by side (per visual style)
         ctx.fillStyle = e.team === 'robot' ? 'rgba(60,140,220,0.30)' : 'rgba(220,70,60,0.30)'
@@ -754,7 +840,9 @@ export function mountAstroCraft() {
       }
     }
 
-    // drag box
+    ctx.restore() // back to SCREEN scale
+
+    // drag box (screen space)
     if (dragging) {
       ctx.strokeStyle = '#8dffb0'
       ctx.lineWidth = 1
@@ -842,7 +930,31 @@ export function mountAstroCraft() {
       ctx.fillRect(m.x + (e.x / WORLD_W) * m.w - sz / 2, m.y + (e.y / WORLD_H) * m.h - sz / 2, sz, sz)
     }
     ctx.strokeStyle = '#cfe9f5'
-    ctx.strokeRect(m.x + (camX / WORLD_W) * m.w, m.y + (camY / WORLD_H) * m.h, (innerWidth / WORLD_W) * m.w, (innerHeight / WORLD_H) * m.h)
+    ctx.strokeRect(m.x + (camX / WORLD_W) * m.w, m.y + (camY / WORLD_H) * m.h, (innerWidth / zoom / WORLD_W) * m.w, (innerHeight / zoom / WORLD_H) * m.h)
+
+    // sound dial, bottom-right
+    const dx = W - 26, dy = H - 26
+    ctx.fillStyle = 'rgba(12,20,30,0.92)'
+    ctx.beginPath(); ctx.arc(dx, dy, 15, 0, Math.PI * 2); ctx.fill()
+    ctx.strokeStyle = 'rgba(90,208,255,0.45)'
+    ctx.lineWidth = 1
+    ctx.beginPath(); ctx.arc(dx, dy, 15, 0, Math.PI * 2); ctx.stroke()
+    // speaker body
+    ctx.fillStyle = soundMode === 2 ? '#5a6a78' : '#9fd8ef'
+    ctx.beginPath()
+    ctx.moveTo(dx - 8, dy - 3); ctx.lineTo(dx - 4, dy - 3); ctx.lineTo(dx, dy - 7)
+    ctx.lineTo(dx, dy + 7); ctx.lineTo(dx - 4, dy + 3); ctx.lineTo(dx - 8, dy + 3)
+    ctx.closePath(); ctx.fill()
+    // waves by mode, X when off
+    ctx.strokeStyle = ctx.fillStyle
+    ctx.lineWidth = 1.5
+    if (soundMode === 2) {
+      ctx.beginPath(); ctx.moveTo(dx + 3, dy - 4); ctx.lineTo(dx + 9, dy + 4); ctx.stroke()
+      ctx.beginPath(); ctx.moveTo(dx + 9, dy - 4); ctx.lineTo(dx + 3, dy + 4); ctx.stroke()
+    } else {
+      ctx.beginPath(); ctx.arc(dx + 1, dy, 4, -Math.PI / 3, Math.PI / 3); ctx.stroke()
+      if (soundMode === 0) { ctx.beginPath(); ctx.arc(dx + 1, dy, 8, -Math.PI / 3, Math.PI / 3); ctx.stroke() }
+    }
   }
 
   function drawOver() {
@@ -890,7 +1002,7 @@ export function mountAstroCraft() {
     draw()
     requestAnimationFrame(frame)
   }
-  say('Right-click a shard with your Sphere Drones to start mining.', 12)
+  say('Right-click a shard with your Sphere Drones to start mining. Mouse wheel zooms.', 12)
   requestAnimationFrame(frame)
 
   // Playtest/debug handle (same spirit as window.astrohold in the main game).

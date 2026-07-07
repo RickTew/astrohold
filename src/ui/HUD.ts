@@ -360,6 +360,7 @@ export class HUD {
             <div class="sp-howto-body">
               <h4>Updates and fixes</h4>
               <p>Recent changes, newest first, so you can follow along:</p>
+              <p><strong>2026-07-07:</strong> ASTROCRAFT polish from the first playtest: mouse-wheel zoom, music and combat sounds with a small sound dial in the bottom-right corner, foundation frames now disappear when a building finishes, and the Cyborg base runs its own mining drones.</p>
               <p><strong>2026-07-07:</strong> New experiment: ASTROCRAFT, a mini real-time-strategy mission using AstroHold's units. Mine credit shards with Sphere Drones, build a base, and destroy the Cyborg Core. Open the new "Mini games" section below to play it.</p>
               <p><strong>2026-06-28:</strong> New games now start on the SLOW reveal speed so first-time players are not rushed. Change it any time on the speed dial.</p>
               <p><strong>2026-06-28:</strong> Cyborg Sniper now holds its distance. It used to creep one cell closer after every shot and end up well inside its own range. It now relocates sideways at long range between shots instead.</p>
