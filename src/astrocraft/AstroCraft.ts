@@ -911,5 +911,26 @@ export function mountAstroCraft() {
     select: (ids: number[]) => { selected.clear(); ids.forEach(i => selected.add(i)); rebuildBtns() },
     rightClick: (x: number, y: number) => issueRightClick(x, y),
     give: (n: number) => { credits += n },
+    place: (key: string, x: number, y: number) => {
+      const b = BUILDINGS[key]
+      if (!b || !canPlaceAt(b, x, y) || credits < b.cost) return 'rejected'
+      credits -= b.cost
+      const e = new Entity('robot', x, y, undefined, b)
+      e.buildProgress = 0
+      ents.push(e)
+      return e.id
+    },
+    train: (bldId: number, unitKey: string) => {
+      const e = ents.find(v => v.id === bldId && !v.dead)
+      const u = UNITS[unitKey]
+      if (!e?.bld?.trains || !u || credits < u.cost) return 'rejected'
+      credits -= u.cost
+      e.queue.push({ key: unitKey, t: u.buildTime })
+      return 'queued'
+    },
+    ff: (seconds: number) => {
+      for (let t = 0; t < seconds && !over; t += STEP) step(STEP)
+      draw()
+    },
   }
 }
