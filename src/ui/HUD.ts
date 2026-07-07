@@ -360,7 +360,7 @@ export class HUD {
             <div class="sp-howto-body">
               <h4>Updates and fixes</h4>
               <p>Recent changes, newest first, so you can follow along:</p>
-              <p><strong>2026-07-07:</strong> New experiment: ASTROCRAFT, a mini real-time-strategy mission using AstroHold's units. Mine credit shards with Sphere Drones, build a base, and destroy the Cyborg Core. Try it at /?astrocraft (prototype; a menu button is coming).</p>
+              <p><strong>2026-07-07:</strong> New experiment: ASTROCRAFT, a mini real-time-strategy mission using AstroHold's units. Mine credit shards with Sphere Drones, build a base, and destroy the Cyborg Core. Open the new "Mini games" section below to play it.</p>
               <p><strong>2026-06-28:</strong> New games now start on the SLOW reveal speed so first-time players are not rushed. Change it any time on the speed dial.</p>
               <p><strong>2026-06-28:</strong> Cyborg Sniper now holds its distance. It used to creep one cell closer after every shot and end up well inside its own range. It now relocates sideways at long range between shots instead.</p>
               <p><strong>2026-06-28:</strong> Phaser beam now lines up with the barrel instead of sitting slightly high.</p>
@@ -407,6 +407,17 @@ export class HUD {
               <p><strong>Cyborgs win:</strong> Power Core HP reaches 0.</p>
               <p><strong>Defender wins:</strong> Either every cyborg is dead OR no living cyborg can still damage the core (every shooter is empty AND there are no Hulks or Stalkers alive AND no melee-fallback cyborg can reach the core).</p>
               <p>No stalemates. The game is strictly die-or-survive.</p>
+            </div>
+          </details>
+          <details class="sp-howto">
+            <summary>Mini games</summary>
+            <div class="sp-howto-body">
+              <p>Other ways to play in the AstroHold universe. The main game is this screen: pick a side above and press PLAY.</p>
+              <h4>AstroCraft</h4>
+              <p>A mini real-time-strategy mission using AstroHold's units. Mine credit shards with Sphere Drones, build a base, train an army, survive the cyborg raids, and destroy the Cyborg Core. Mouse only: drag to select, right-click to move, attack, or harvest.</p>
+              <p><a href="/?astrocraft" style="color:#7ec8ff;text-decoration:underline;font-weight:700;letter-spacing:1px">PLAY ASTROCRAFT - First Claim (prototype)</a></p>
+              <h4>Campaign</h4>
+              <p>A story-driven series of AstroHold missions. Coming soon.</p>
             </div>
           </details>
         </div>
