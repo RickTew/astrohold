@@ -15,6 +15,14 @@ import { passGate } from './gate'
 passGate().then(boot)
 
 function boot() {
+  // AstroCraft mini-RTS prototype. Gated behind ?astrocraft so the main game
+  // is untouched; dynamic import keeps it out of the main bundle. When active
+  // it replaces the normal boot entirely (its own canvas + loop).
+  if (new URLSearchParams(location.search).has('astrocraft')) {
+    import('./astrocraft/AstroCraft').then(({ mountAstroCraft }) => mountAstroCraft())
+    return
+  }
+
   // Audio vocal hunt: visit astro-hold.vercel.app/?audiolog to turn on an
   // on-screen log that names the exact file every sound plays (SFX + music),
   // newest first. Read the line that appears the instant Live Caption shows a
