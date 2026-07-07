@@ -220,17 +220,17 @@ export function mountAstroCraft() {
   for (const dy of [-CELL * 3.5, CELL * 3.5]) {
     ents.push(new Entity('cyborg', WORLD_W - CELL * 6.5, WORLD_H / 2 + dy, undefined, eTurretDef))
   }
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 3; i++) {
     ents.push(new Entity('cyborg', WORLD_W - CELL * 8 - (i % 2) * 40, WORLD_H / 2 - 60 + i * 44, UNITS.gatling))
   }
 
   // waves
   const waves = [
     { at: 75, units: ['gatling', 'gatling'] },
-    { at: 170, units: ['gatling', 'gatling', 'gatling'] },
-    { at: 280, units: ['gatling', 'gatling', 'hulk'] },
-    { at: 400, units: ['gatling', 'gatling', 'gatling', 'hulk', 'hulk'] },
-    { at: 540, units: ['gatling', 'gatling', 'gatling', 'gatling', 'hulk', 'hulk', 'hulk'] },
+    { at: 170, units: ['gatling', 'gatling'] },
+    { at: 280, units: ['gatling', 'hulk'] },
+    { at: 400, units: ['gatling', 'gatling', 'hulk'] },
+    { at: 540, units: ['gatling', 'gatling', 'hulk', 'hulk'] },
   ]
   let waveIdx = 0
 
