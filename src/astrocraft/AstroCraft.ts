@@ -861,11 +861,22 @@ export function mountAstroCraft() {
   }
 
   // ---------- main loop ----------
+  // Fixed-timestep loop with catch-up so the sim tracks wall-clock time even
+  // when the browser throttles requestAnimationFrame (background/occluded
+  // tab, frame hiccups). Catch-up is capped so a long-hidden tab does not
+  // fast-forward the whole battle in one frame.
   let last = performance.now()
+  const STEP = 1 / 30
   function frame(now: number) {
-    const dt = Math.min(0.05, (now - last) / 1000)
+    let elapsed = Math.min(1.5, (now - last) / 1000)
     last = now
-    if (!over) step(dt)
+    if (!over) {
+      while (elapsed > 0) {
+        step(Math.min(STEP, elapsed))
+        elapsed -= STEP
+        if (over) break
+      }
+    }
     draw()
     requestAnimationFrame(frame)
   }
