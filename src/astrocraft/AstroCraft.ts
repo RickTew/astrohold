@@ -58,7 +58,7 @@ const UNITS: Record<string, UnitDef> = {
   drone: { key: 'drone', label: 'Sphere Drone', sprite: 'sphere', hp: 60, speed: 95, dmg: 3, range: 30, cooldown: 1.0, radius: 12, drawSize: 40, cost: 50, supply: 1, buildTime: 6, worker: true },
   dog: { key: 'dog', label: 'Combat Dog', sprite: 'dog', hp: 90, speed: 150, dmg: 8, range: 30, cooldown: 0.7, radius: 13, drawSize: 46, cost: 50, supply: 1, buildTime: 7 },
   marine: { key: 'marine', label: 'Marine', sprite: 'doublegun', hp: 120, speed: 90, dmg: 10, range: 150, cooldown: 0.9, radius: 14, drawSize: 50, cost: 80, supply: 2, buildTime: 10 },
-  heavy: { key: 'heavy', label: 'Heavy', sprite: 'cannon', hp: 220, speed: 60, dmg: 26, range: 190, cooldown: 1.6, radius: 16, drawSize: 54, cost: 120, supply: 3, buildTime: 14 },
+  heavy: { key: 'heavy', label: 'Heavy', sprite: 'cannon', hp: 220, speed: 60, dmg: 26, range: 215, cooldown: 1.6, radius: 16, drawSize: 54, cost: 120, supply: 3, buildTime: 14 },
   // cyborg side (AI only in this mission)
   gatling: { key: 'gatling', label: 'Cyborg Gatling', sprite: 'cyborg_gatling', hp: 110, speed: 85, dmg: 9, range: 140, cooldown: 0.8, radius: 14, drawSize: 50, cost: 0, supply: 0, buildTime: 0 },
   hulk: { key: 'hulk', label: 'Cyborg Hulk', sprite: 'hulk', hp: 320, speed: 55, dmg: 30, range: 34, cooldown: 1.2, radius: 17, drawSize: 56, cost: 0, supply: 0, buildTime: 0 },
@@ -216,7 +216,7 @@ export function mountAstroCraft() {
   // enemy base, right side
   const eCore = new Entity('cyborg', WORLD_W - CELL * 4, WORLD_H / 2, undefined, BUILDINGS.core)
   ents.push(eCore)
-  const eTurretDef: BuildingDef = { ...BUILDINGS.turret, sprite: 'cyborg_sentry', label: 'Cyborg Sentry', hp: 600 }
+  const eTurretDef: BuildingDef = { ...BUILDINGS.turret, sprite: 'cyborg_sentry', label: 'Cyborg Sentry', hp: 450 }
   for (const dy of [-CELL * 3.5, CELL * 3.5]) {
     ents.push(new Entity('cyborg', WORLD_W - CELL * 6.5, WORLD_H / 2 + dy, undefined, eTurretDef))
   }
