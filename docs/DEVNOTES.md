@@ -3098,3 +3098,51 @@ not to re-confirm settings already decided.
 Next: finish remaining structure art (Signal/Shield/Mine/Wall + towers),
 download keepers into `/public/sprites/`, then WIRE everything in
 (FACTION_ART + structure-faction seam + SphereDefender seam + preload + shop).
+
+## Session 27 (2026-07-07) - AstroCraft mini-RTS + Mini games menu
+
+Rick asked for mini games accessible from the home screen: a campaign and an
+RTS "mini Starcraft 2" using AstroHold characters and credits. Shipped the RTS
+same-day, live and verified.
+
+**AstroCraft ("First Claim", one mission).** Self-contained 2D-canvas game in
+`src/astrocraft/AstroCraft.ts` (~1000 lines), mounted from `main.ts` when the
+URL has `?astrocraft` (replaces normal boot; main game + frozen HUD untouched).
+Mine credit shards with Sphere Drones, build Fabricator / Relay Pylon / Sentry
+Turret, train Combat Dog / Marine / Heavy, survive 5 scripted cyborg waves,
+destroy the Cyborg Core. Mouse-only: drag-select, right-click move / attack /
+harvest, command card, minimap click, edge scroll, mouse-wheel zoom.
+
+**The no-building-art trick:** buildings are existing structure sprites
+(powercore, defense dome, signal, tower, red-tinted cyborg_sentry) on
+procedural vector FOUNDATION PADS; construction is a hologram fill. Pads
+disappear when the building finishes (Rick playtest feedback). Zero new art.
+
+**Home screen entry (Rick-approved #side-picker change):** a collapsed
+"Mini games" details below "How to play", reusing the sp-howto classes
+verbatim (no CSS changes). Lists Main game / AstroCraft (PLAY link) /
+Campaign (coming soon stub).
+
+**Playtest round (Rick) -> fixes shipped:** mouse-wheel zoom around the
+cursor, music + sfx reusing existing /audio files with a small ON/LOW/OFF
+sound dial bottom-right, foundation pads clear on completion, and the Cyborg
+base got its own shard patch + 3 red-tinted mining drones (income cosmetic,
+waves stay scripted).
+
+**Verification harness:** `window.astrocraft` debug handle
+(state / select / rightClick / give / place / train / ff). Chrome throttles
+rAF AND timers hard for occluded windows, so automated playtests should use
+`ff(seconds)` rather than real-time waits. Full win path verified live
+(MISSION COMPLETE) plus a legitimate loss (all-in while a raid hit home).
+
+**Balance findings baked in:** Heavy range 215 so it outranges enemy sentries
+(200) - without this the base assault was unwinnable attrition; enemy sentry
+hp 450, garrison 3, waves trimmed to 2/2/2/3/4.
+
+**RESUME / NEXT:**
+- Campaign mini-game is only a "coming soon" stub. Simplest plan: chain of
+  preset main-game battles with escalating AI credits + story blurbs.
+- AstroCraft polish candidates: first raid may be too punishing for brand-new
+  players (kills idle drones); no fog of war; no attack-move UI; single
+  mission only; restart is a full page reload.
+- Memory: `project_astrocraft_minigame`.

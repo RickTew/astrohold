@@ -7,7 +7,21 @@ Two terminal states: core dies (defender loses) or all cyborgs dead /
 unable to attack (defender wins). No stalemate rule
 (`feedback_die_or_survive`).
 
-**S26 state (latest, 2026-06-28).** Live-playtest fixes + faction-rosters
+**S27 state (latest, 2026-07-07): AstroCraft mini-RTS shipped + Mini games
+menu.** One-mission mini-Starcraft ("First Claim") in
+`src/astrocraft/AstroCraft.ts`, self-contained 2D canvas, gated by
+`?astrocraft` in `main.ts` (main game + frozen HUD untouched). Buildings =
+existing structure sprites on procedural vector foundation pads (zero new
+art; pads clear when construction finishes). Mouse-only + mouse-wheel zoom;
+music/sfx reuse `/audio` with an ON/LOW/OFF dial bottom-right; Cyborg base
+mines its own shard patch (cosmetic income, scripted waves). Home screen has
+a Rick-approved "Mini games" collapsed section below "How to play" (reuses
+sp-howto classes verbatim): Main game / AstroCraft PLAY link / **Campaign =
+coming-soon stub, not built**. Scripted-playtest handle `window.astrocraft`
+(use `ff(seconds)`; Chrome throttles occluded windows). Win + lose paths
+verified live. Log: DEVNOTES Session 27 + `project_astrocraft_minigame`.
+
+**S26 state (2026-06-28).** Live-playtest fixes + faction-rosters
 groundwork. (1) New games default to the **slow** reveal speed for first-run
 players (`RevealSpeed` DEFAULT; saved prefs win). (2) Phaser beam visual now
 exits the barrel bore, not the muzzle glint. (3) **Cyborg Sniper** shoot-and-
@@ -139,8 +153,8 @@ you touch that area:
   Read before touching the camera / renderer / sprite size constants.
 - **`docs/DEVNOTES.md`** — session-by-session decisions, gotchas, bugs.
 - **Session wrap memories** — `project_session_NN_wrap` in memory has
-  the recent-session summary. Current is `project_session_26_wrap`
-  (2026-06-28). Older balance context lives in `project_session_20_wrap`
+  the recent-session summary. Current is `project_session_27_wrap`
+  (2026-07-07). Older balance context lives in `project_session_20_wrap`
   (S20 balance pass is unvalidated; retest before more balance work).
 
 If a per-piece rule, balance number, or piece behavior is not in this
