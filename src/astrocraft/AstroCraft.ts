@@ -622,7 +622,7 @@ export function mountAstroCraft() {
     // spend the mined credits on an army: alternate gatlings and hulks
     const army = cyborgArmy()
     if (army.length < 8 && eCore.queue.length < 2) {
-      const want = aiTrainToggle % 3 === 2 ? UNITS.hulk : UNITS.gatling
+      const want = aiTrainToggle % 4 === 3 ? UNITS.hulk : UNITS.gatling
       if (cyCredits >= want.cost) {
         cyCredits -= want.cost
         aiTrainToggle++
@@ -817,9 +817,9 @@ export function mountAstroCraft() {
               credits += e.carrying
               addFloat(home.x, home.y - home.radius - 8, `+${e.carrying}`, '#39e6ff')
             } else {
-              // red income runs at 70% of the player's rate so a decent
+              // red income runs at half the player's rate so a decent
               // economy can out-produce the AI
-              cyCredits += Math.round(e.carrying * 0.7)
+              cyCredits += Math.round(e.carrying * 0.5)
             }
             e.carrying = 0
           } else moveToward(e, home.x, home.y, dt)
