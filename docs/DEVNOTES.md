@@ -3146,3 +3146,51 @@ hp 450, garrison 3, waves trimmed to 2/2/2/3/4.
   players (kills idle drones); no fog of war; no attack-move UI; single
   mission only; restart is a full page reload.
 - Memory: `project_astrocraft_minigame`.
+
+## Session 28 (2026-07-08) - AstroCraft big update: living world
+
+Major AstroCraft pass (all in src/astrocraft/AstroCraft.ts, main game
+untouched). Everything below verified live via window.astrocraft scripted
+playtests (win at 12:40 with a competent bot; lose paths confirmed).
+
+**Real red economy + adaptive AI:** cyborg miner deposits now fill a real
+cyCredits pool (50% of player rate, starts at 50). The Cyborg Core spends
+it: replaces lost miners, trains gatlings (hulk every 4th train), army cap
+8, and launches an assault on the player when 6+ units are idle AND
+gameTime > 300s. Scripted waves trimmed to 3 (75/170/280) as early pressure.
+Balance history in-session: assaults before 4-5 min or income at 70-100%
+were unwinnable; the 5:00 gate + 50% income + call-to-arms landed it.
+
+**Call to arms (key fix):** when a building takes fire, idle same-team
+combat units within 640px converge on the attacker. Before this, the rally
+point army literally watched the base die (units only auto-acquire at 220px).
+
+**Scavenger raiders (3rd team):** Team = 'raider', purple-tinted
+human_marine ("Scavenger") + grenadier ("Scavenger Brute"). 2-5 spawn from
+the top/bottom edges every ~95-140s and attack-move at a random core,
+fighting BOTH sides on the way. Emergent and intended: late-game raiders can
+grind down whichever base is weaker.
+
+**Neutral supply drops:** every ~55-85s a pod falls near mid-map (drop line
++ blinking landing ring), lands as a gold beacon crate worth 150cr. Any
+unit standing next to it for 1.2s claims it for its team (claim-progress
+ring in team color); scavengers claiming it destroys it. 75s despawn.
+Gold dot on the minimap.
+
+**Camera:** middle-mouse drag pans the map; the minimap is now draggable
+(click-drag scrubs the view). Wheel zoom / edge scroll / minimap jump
+unchanged. Still 100% mouse-only.
+
+**Visual pass:** world-anchored starfield + 3-color nebulae, team-glow
+under each base, world border line, pulsing shard glow halos, two-pass
+glowing tracers, muzzle flashes, spark particle bursts on hits/deaths,
+screen shake on building kills, floating +credit text over the core, and
+big center alert banners (CYBORG RAID INBOUND / SCAVENGERS RAIDING /
+SUPPLY DROP INBOUND / CYBORG ASSAULT DETECTED).
+
+How to play "Updates and fixes" changelog updated (2026-07-08 entry).
+
+**RESUME / NEXT:** watch Rick's first live game of this build for balance
+(bot-tuned: competent play wins ~12 min); Campaign stub still unbuilt;
+possible follow-ups: attack-move UI, fog of war, raider bounty credits,
+in-place restart instead of page reload.
