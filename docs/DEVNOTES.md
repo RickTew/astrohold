@@ -3194,3 +3194,18 @@ How to play "Updates and fixes" changelog updated (2026-07-08 entry).
 (bot-tuned: competent play wins ~12 min); Campaign stub still unbuilt;
 possible follow-ups: attack-move UI, fog of war, raider bounty credits,
 in-place restart instead of page reload.
+
+**Rick playtest round 2 -> fixes shipped (same session, all verified live):**
+- HUD click-through bug: clicking the bottom-center selection info bar fell
+  through to the world and silently deselected everything (looked like "the
+  UI disappeared"). Top bar + info bar now swallow clicks.
+- Command card tooltips: hovering any button shows a description box
+  (units + buildings all have desc strings now); the selection info bar
+  also appends the description and sizes to its text.
+- Worker assist is REAL now: buildings construct at 1x alone, +50% per
+  Sphere Drone standing at the site (cap x2, green "BUILD x2" tag over the
+  pad). Helpers auto-return to the nearest shard patch when construction
+  finishes. A/B verified live: 15s turret hit 100% in ~10s with one helper
+  while the control sat at 67%.
+- Discoverability: mission + intro text now say build a FABRICATOR to train
+  your attack units (Rick did not know where the army came from).

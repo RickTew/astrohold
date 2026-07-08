@@ -7,7 +7,24 @@ Two terminal states: core dies (defender loses) or all cyborgs dead /
 unable to attack (defender wins). No stalemate rule
 (`feedback_die_or_survive`).
 
-**S27 state (latest, 2026-07-07): AstroCraft mini-RTS shipped + Mini games
+**S28 state (latest, 2026-07-08): AstroCraft "living world" update.** All in
+`src/astrocraft/AstroCraft.ts`, main game untouched. Real red economy (cyborg
+miners fill cyCredits at 50% player rate; core trains gatlings + a hulk every
+4th, army cap 8, assaults after 5:00 when 6+ idle), neutral purple SCAVENGER
+raiders hit both sides from the map edges every ~2 min, neutral SUPPLY DROPS
+(+150cr) land mid-map and either side can claim them, call-to-arms (idle army
+within 640px converges when a building takes fire - key balance fix), camera
+pan (middle-drag + draggable minimap), visual pass (starfield/nebulae,
+sparks, screen shake, tracers, muzzle flashes, floating credits, alert
+banners). Rick-playtest fixes: HUD click-through deselect bug, command-card
+hover tooltips + selection descriptions, REAL worker build-assist (+50%/drone,
+x2 cap, helpers resume mining), mission text points at the Fabricator.
+Verified live: scripted-bot win at 12:40, lose paths, raiders, drops, A/B
+build-assist. Balance is bot-tuned - watch Rick's first full game. Log:
+DEVNOTES Session 28 + `project_astrocraft_minigame` +
+`project_session_28_wrap`.
+
+**S27 state (2026-07-07): AstroCraft mini-RTS shipped + Mini games
 menu.** One-mission mini-Starcraft ("First Claim") in
 `src/astrocraft/AstroCraft.ts`, self-contained 2D canvas, gated by
 `?astrocraft` in `main.ts` (main game + frozen HUD untouched). Buildings =
