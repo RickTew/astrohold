@@ -621,7 +621,7 @@ export function mountAstroCraft() {
     }
     // spend the mined credits on an army: alternate gatlings and hulks
     const army = cyborgArmy()
-    if (army.length < 10 && eCore.queue.length < 2) {
+    if (army.length < 8 && eCore.queue.length < 2) {
       const want = aiTrainToggle % 3 === 2 ? UNITS.hulk : UNITS.gatling
       if (cyCredits >= want.cost) {
         cyCredits -= want.cost
@@ -633,7 +633,7 @@ export function mountAstroCraft() {
     // Holds off for the first 4 minutes so the scripted waves stay the only
     // early pressure and the player has time to build defenses.
     const idle = army.filter(e => !e.moveTarget && !e.targetId && e.x > WORLD_W * 0.6)
-    if (gameTime > 240 && idle.length >= 6) {
+    if (gameTime > 300 && idle.length >= 6) {
       showBanner('CYBORG ASSAULT DETECTED', 3)
       say('The cyborgs are marching on your base!', 5)
       for (const u of idle) {
@@ -817,7 +817,9 @@ export function mountAstroCraft() {
               credits += e.carrying
               addFloat(home.x, home.y - home.radius - 8, `+${e.carrying}`, '#39e6ff')
             } else {
-              cyCredits += e.carrying
+              // red income runs at 70% of the player's rate so a decent
+              // economy can out-produce the AI
+              cyCredits += Math.round(e.carrying * 0.7)
             }
             e.carrying = 0
           } else moveToward(e, home.x, home.y, dt)
