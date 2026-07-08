@@ -129,6 +129,7 @@ class Entity {
   // building fields
   bld?: BuildingDef
   buildProgress = 1 // 0..1, <1 = under construction
+  assist = 0 // helpers speeding up construction (display only)
   queue: { key: string; t: number }[] = []
   rallyX = 0
   rallyY = 0
@@ -257,7 +258,7 @@ export function mountAstroCraft() {
   let cyCredits = 50 // the red side has a REAL economy now
   let gameTime = 0
   let over: 'win' | 'lose' | null = null
-  let msg = 'Mission: FIRST CLAIM. Mine shards, build an army, destroy the Cyborg Core.'
+  let msg = 'Mission: FIRST CLAIM. Mine shards, build a FABRICATOR to train your army, destroy the Cyborg Core.'
   let msgT = 12
   let banner = ''
   let bannerT = 0
@@ -783,8 +784,33 @@ export function mountAstroCraft() {
       // buildings
       if (e.bld) {
         if (!e.done) {
-          e.buildProgress = Math.min(1, e.buildProgress + dt / e.bld.buildTime)
-          if (e.done) { say(`${e.bld.label} online.`); rebuildBtns() }
+          // workers standing next to the site speed construction up:
+          // 1x alone, +50% per helper, capped at 2x with two helpers
+          let helpers = 0
+          if (e.team === 'robot') {
+            for (const w of ents) {
+              if (!w.dead && w.team === 'robot' && w.unit?.worker && Math.hypot(w.x - e.x, w.y - e.y) < e.radius + 60) helpers++
+            }
+          }
+          e.assist = Math.min(2, helpers)
+          const rate = 1 + 0.5 * e.assist
+          e.buildProgress = Math.min(1, e.buildProgress + (dt * rate) / e.bld.buildTime)
+          if (e.done) {
+            say(`${e.bld.label} online.`)
+            rebuildBtns()
+            // helpers head back to the nearest shard patch on their own
+            for (const w of ents) {
+              if (w.dead || w.team !== 'robot' || !w.unit?.worker || w.harvestShard || w.targetId) continue
+              if (Math.hypot(w.x - e.x, w.y - e.y) > e.radius + 90) continue
+              let best: Shard | null = null, bd = Infinity
+              for (const s of shards) {
+                if (s.amount <= 0) continue
+                const d = Math.hypot(s.x - w.x, s.y - w.y)
+                if (d < bd) { bd = d; best = s }
+              }
+              if (best) { w.harvestShard = best; w.moveTarget = null }
+            }
+          }
           continue
         }
         // production queue
@@ -1122,7 +1148,17 @@ export function mountAstroCraft() {
       if (e.bld) {
         // the foundation pad shows only WHILE constructing; finished
         // buildings stand on a soft team-colored glow instead
-        if (!e.done) drawPad(x, y, e.radius, color, e.buildProgress)
+        if (!e.done) {
+          drawPad(x, y, e.radius, color, e.buildProgress)
+          if (e.assist > 0) {
+            // show that helpers are speeding this up
+            ctx.font = 'bold 12px "Courier New",monospace'
+            ctx.fillStyle = '#8dffb0'
+            ctx.textAlign = 'center'
+            ctx.fillText(`BUILD x${(1 + 0.5 * e.assist).toFixed(1).replace('.0', '')}`, x, y - e.radius - 18)
+            ctx.textAlign = 'left'
+          }
+        }
         else {
           ctx.fillStyle = TEAM_SHADOW[e.team].replace('0.30', '0.16')
           ctx.beginPath()
@@ -1439,7 +1475,7 @@ export function mountAstroCraft() {
     draw()
     requestAnimationFrame(frame)
   }
-  say('Right-click a shard with your Sphere Drones to start mining. Wheel zooms, middle-drag pans.', 12)
+  say('Right-click a shard with your Sphere Drones to mine. Then select a drone and build a FABRICATOR - it trains your attack units.', 14)
   requestAnimationFrame(frame)
 
   // Playtest/debug handle (same spirit as window.astrohold in the main game).
