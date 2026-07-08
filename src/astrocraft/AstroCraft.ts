@@ -439,7 +439,7 @@ export function mountAstroCraft() {
   // ---------- commands ----------
   function issueRightClick(x: number, y: number) {
     const foe = ents.find(e => !e.dead && e.team !== 'robot' && Math.hypot(e.x - x, e.y - y) < e.radius + 10)
-    const shard = shards.find(s => s.amount > 0 && Math.hypot(s.x - x, s.y - y) < 20)
+    const shard = shards.find(s => s.amount > 0 && Math.hypot(s.x - x, s.y - y) < 26)
     let any = false
     for (const id of selected) {
       const e = ents.find(v => v.id === id && !v.dead)
@@ -629,9 +629,11 @@ export function mountAstroCraft() {
         eCore.queue.push({ key: want.key, t: want.buildTime })
       }
     }
-    // once a strike group is standing around at home, send it at the player
+    // once a strike group is standing around at home, send it at the player.
+    // Holds off for the first 4 minutes so the scripted waves stay the only
+    // early pressure and the player has time to build defenses.
     const idle = army.filter(e => !e.moveTarget && !e.targetId && e.x > WORLD_W * 0.6)
-    if (idle.length >= 5) {
+    if (gameTime > 240 && idle.length >= 6) {
       showBanner('CYBORG ASSAULT DETECTED', 3)
       say('The cyborgs are marching on your base!', 5)
       for (const u of idle) {
