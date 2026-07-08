@@ -6,12 +6,14 @@
 // brackets) so no new building art is needed - construction renders as a
 // hologram fill on the pad. Mouse-only per the project hard rule:
 // left-click / drag to select, right-click to move / attack / harvest,
+// middle-drag or minimap-drag to pan, mouse wheel to zoom,
 // command-card buttons to build and train, minimap click to jump.
 //
 // One mission: "First Claim". Mine credit shards, build up, survive the
-// cyborg waves, destroy the Cyborg Core on the right side of the map.
+// cyborg waves AND roaming Scavenger raiders, race the enemy for neutral
+// supply drops, destroy the Cyborg Core on the right side of the map.
 
-type Team = 'robot' | 'cyborg'
+type Team = 'robot' | 'cyborg' | 'raider'
 
 interface UnitDef {
   key: string
@@ -54,14 +56,24 @@ const WORLD_W = COLS * CELL
 const WORLD_H = ROWS * CELL
 const SUPPLY_CAP = 40
 
+const TEAM_COLOR: Record<Team, string> = { robot: '#5ad0ff', cyborg: '#ff5a4a', raider: '#c85aff' }
+const TEAM_SHADOW: Record<Team, string> = {
+  robot: 'rgba(60,140,220,0.30)',
+  cyborg: 'rgba(220,70,60,0.30)',
+  raider: 'rgba(180,80,220,0.30)',
+}
+
 const UNITS: Record<string, UnitDef> = {
   drone: { key: 'drone', label: 'Sphere Drone', sprite: 'sphere', hp: 60, speed: 95, dmg: 3, range: 30, cooldown: 1.0, radius: 12, drawSize: 40, cost: 50, supply: 1, buildTime: 6, worker: true },
   dog: { key: 'dog', label: 'Combat Dog', sprite: 'dog', hp: 90, speed: 150, dmg: 8, range: 30, cooldown: 0.7, radius: 13, drawSize: 46, cost: 50, supply: 1, buildTime: 7 },
   marine: { key: 'marine', label: 'Marine', sprite: 'doublegun', hp: 120, speed: 90, dmg: 10, range: 150, cooldown: 0.9, radius: 14, drawSize: 50, cost: 80, supply: 2, buildTime: 10 },
   heavy: { key: 'heavy', label: 'Heavy', sprite: 'cannon', hp: 220, speed: 60, dmg: 26, range: 215, cooldown: 1.6, radius: 16, drawSize: 54, cost: 120, supply: 3, buildTime: 14 },
   // cyborg side (AI only in this mission)
-  gatling: { key: 'gatling', label: 'Cyborg Gatling', sprite: 'cyborg_gatling', hp: 110, speed: 85, dmg: 9, range: 140, cooldown: 0.8, radius: 14, drawSize: 50, cost: 0, supply: 0, buildTime: 0 },
-  hulk: { key: 'hulk', label: 'Cyborg Hulk', sprite: 'hulk', hp: 320, speed: 55, dmg: 30, range: 34, cooldown: 1.2, radius: 17, drawSize: 56, cost: 0, supply: 0, buildTime: 0 },
+  gatling: { key: 'gatling', label: 'Cyborg Gatling', sprite: 'cyborg_gatling', hp: 110, speed: 85, dmg: 9, range: 140, cooldown: 0.8, radius: 14, drawSize: 50, cost: 100, supply: 0, buildTime: 12 },
+  hulk: { key: 'hulk', label: 'Cyborg Hulk', sprite: 'hulk', hp: 320, speed: 55, dmg: 30, range: 34, cooldown: 1.2, radius: 17, drawSize: 56, cost: 220, supply: 0, buildTime: 20 },
+  // scavenger raiders (neutral hostiles, attack both sides)
+  scavenger: { key: 'scavenger', label: 'Scavenger', sprite: 'human_marine', hp: 100, speed: 105, dmg: 9, range: 130, cooldown: 0.85, radius: 14, drawSize: 50, cost: 0, supply: 0, buildTime: 0 },
+  scavbrute: { key: 'scavbrute', label: 'Scavenger Brute', sprite: 'grenadier', hp: 200, speed: 75, dmg: 20, range: 160, cooldown: 1.5, radius: 15, drawSize: 52, cost: 0, supply: 0, buildTime: 0 },
 }
 
 const BUILDINGS: Record<string, BuildingDef> = {
@@ -78,6 +90,16 @@ interface Shard {
   y: number
   amount: number
   seed: number
+}
+
+interface Crate {
+  x: number
+  y: number
+  t: number // countdown while incoming, age while landed
+  landed: boolean
+  amount: number
+  claimT: number // progress of a claim in seconds
+  claimTeam: Team | null
 }
 
 let nextId = 1
@@ -135,6 +157,12 @@ interface Shot {
 interface Boom {
   x: number; y: number; t: number; big: boolean
 }
+interface Spark {
+  x: number; y: number; vx: number; vy: number; t: number; max: number; c: string
+}
+interface FloatText {
+  x: number; y: number; t: number; text: string; c: string
+}
 
 export function mountAstroCraft() {
   document.title = 'AstroCraft'
@@ -148,7 +176,7 @@ export function mountAstroCraft() {
 
   // ---------- sprites ----------
   const images = new Map<string, HTMLImageElement>()
-  const tinted = new Map<string, HTMLCanvasElement>()
+  const tintedCache = new Map<string, HTMLCanvasElement>()
   function img(name: string, dir: string): HTMLImageElement | null {
     const key = `${name}/${dir}`
     if (!images.has(key)) {
@@ -161,11 +189,11 @@ export function mountAstroCraft() {
     if (im.getAttribute('data-bad')) return name && dir !== 'south' ? img(name, 'south') : null
     return im.complete && im.naturalWidth > 0 ? im : null
   }
-  function redTint(name: string, dir: string): CanvasImageSource | null {
+  function tint(name: string, dir: string, color: string): CanvasImageSource | null {
     const base = img(name, dir)
     if (!base) return null
-    const key = `${name}/${dir}`
-    let c = tinted.get(key)
+    const key = `${name}/${dir}/${color}`
+    let c = tintedCache.get(key)
     if (!c) {
       c = document.createElement('canvas')
       c.width = base.naturalWidth
@@ -173,12 +201,14 @@ export function mountAstroCraft() {
       const t = c.getContext('2d')!
       t.drawImage(base, 0, 0)
       t.globalCompositeOperation = 'source-atop'
-      t.fillStyle = 'rgba(255,60,50,0.38)'
+      t.fillStyle = color
       t.fillRect(0, 0, c.width, c.height)
-      tinted.set(key, c)
+      tintedCache.set(key, c)
     }
     return c
   }
+  const redTint = (name: string, dir: string) => tint(name, dir, 'rgba(255,60,50,0.38)')
+  const purpleTint = (name: string, dir: string) => tint(name, dir, 'rgba(190,70,255,0.34)')
 
   // ---------- audio ----------
   // Reuses AstroHold's existing audio files. A small dial in the bottom-right
@@ -219,13 +249,30 @@ export function mountAstroCraft() {
   const shards: Shard[] = []
   const shots: Shot[] = []
   const booms: Boom[] = []
+  const sparks: Spark[] = []
+  const floats: FloatText[] = []
+  const crates: Crate[] = []
   let credits = 200
+  let cyCredits = 150 // the red side has a REAL economy now
   let gameTime = 0
   let over: 'win' | 'lose' | null = null
   let msg = 'Mission: FIRST CLAIM. Mine shards, build an army, destroy the Cyborg Core.'
   let msgT = 12
+  let banner = ''
+  let bannerT = 0
+  let shake = 0
 
   function say(s: string, t = 6) { msg = s; msgT = t }
+  function showBanner(s: string, t = 3.2) { banner = s; bannerT = t }
+  function addFloat(x: number, y: number, text: string, c: string) { floats.push({ x, y, t: 1.4, text, c }) }
+  function burst(x: number, y: number, n: number, c: string, speed = 130) {
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2
+      const v = speed * (0.3 + Math.random() * 0.9)
+      const life = 0.35 + Math.random() * 0.4
+      sparks.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, t: life, max: life, c })
+    }
+  }
 
   function shardCluster(cx: number, cy: number, n: number) {
     for (let i = 0; i < n; i++) {
@@ -257,8 +304,8 @@ export function mountAstroCraft() {
   for (let i = 0; i < 3; i++) {
     ents.push(new Entity('cyborg', WORLD_W - CELL * 8 - (i % 2) * 40, WORLD_H / 2 - 60 + i * 44, UNITS.gatling))
   }
-  // enemy economy: their own shard patch plus mining drones, so the red base
-  // visibly works like yours instead of just sitting there
+  // enemy economy: their own shard patch plus mining drones. Their income is
+  // REAL - deposits fill cyCredits, which the Cyborg Core spends on units.
   shardCluster(WORLD_W - CELL * 4, WORLD_H / 2 - CELL * 5, 6)
   const eShard = shards[shards.length - 3]
   for (let i = 0; i < 3; i++) {
@@ -267,15 +314,22 @@ export function mountAstroCraft() {
     ents.push(d)
   }
 
-  // waves
+  // scripted early waves (pressure while both economies spin up)
   const waves = [
     { at: 75, units: ['gatling', 'gatling'] },
     { at: 170, units: ['gatling', 'gatling'] },
     { at: 280, units: ['gatling', 'hulk'] },
-    { at: 400, units: ['gatling', 'gatling', 'hulk'] },
-    { at: 540, units: ['gatling', 'gatling', 'hulk', 'hulk'] },
   ]
   let waveIdx = 0
+
+  // adaptive cyborg AI (kicks in alongside/after the scripted waves)
+  let aiThinkT = 8
+  let aiTrainToggle = 0
+  // scavenger raiders hit BOTH sides from the top/bottom edges
+  let raiderT = 110 + Math.random() * 30
+  let raiderWaveN = 0
+  // neutral supply drops land near the middle; either side can claim them
+  let crateT = 45 + Math.random() * 20
 
   // ---------- camera + input ----------
   let zoom = 1 // mouse-wheel zoom, world pixels -> screen pixels
@@ -284,6 +338,9 @@ export function mountAstroCraft() {
   let mx = 0, my = 0 // screen mouse
   let dragging = false
   let dragX0 = 0, dragY0 = 0
+  let panning = false // middle-mouse drag pan
+  let panX0 = 0, panY0 = 0, panCamX0 = 0, panCamY0 = 0
+  let miniDrag = false
   const selected = new Set<number>()
   let placing: BuildingDef | null = null
   let mouseIn = true
@@ -304,6 +361,20 @@ export function mountAstroCraft() {
   }
   resize()
   addEventListener('resize', resize)
+
+  // static starfield + nebula, seeded once so it never flickers
+  const stars: { x: number; y: number; r: number; a: number }[] = []
+  for (let i = 0; i < 260; i++) {
+    stars.push({ x: Math.random() * WORLD_W, y: Math.random() * WORLD_H, r: Math.random() < 0.85 ? 1 : 2, a: 0.15 + Math.random() * 0.5 })
+  }
+  const nebulae: { x: number; y: number; r: number; c: string }[] = []
+  for (let i = 0; i < 7; i++) {
+    nebulae.push({
+      x: Math.random() * WORLD_W, y: Math.random() * WORLD_H,
+      r: 220 + Math.random() * 320,
+      c: ['rgba(40,70,140,0.10)', 'rgba(110,40,140,0.08)', 'rgba(30,110,120,0.08)'][i % 3],
+    })
+  }
 
   // ---------- HUD geometry ----------
   const MINI_W = 200
@@ -367,7 +438,7 @@ export function mountAstroCraft() {
 
   // ---------- commands ----------
   function issueRightClick(x: number, y: number) {
-    const foe = ents.find(e => !e.dead && e.team === 'cyborg' && Math.hypot(e.x - x, e.y - y) < e.radius + 10)
+    const foe = ents.find(e => !e.dead && e.team !== 'robot' && Math.hypot(e.x - x, e.y - y) < e.radius + 10)
     const shard = shards.find(s => s.amount > 0 && Math.hypot(s.x - x, s.y - y) < 20)
     let any = false
     for (const id of selected) {
@@ -403,6 +474,13 @@ export function mountAstroCraft() {
     return true
   }
 
+  function miniJump() {
+    const m = mini()
+    camX = ((mx - m.x) / m.w) * WORLD_W - innerWidth / zoom / 2
+    camY = ((my - m.y) / m.h) * WORLD_H - innerHeight / zoom / 2
+    clampCam()
+  }
+
   cv.addEventListener('contextmenu', e => e.preventDefault())
   cv.addEventListener('wheel', e => {
     e.preventDefault()
@@ -412,13 +490,28 @@ export function mountAstroCraft() {
     camY = py - my / zoom
     clampCam()
   }, { passive: false })
-  cv.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY })
+  cv.addEventListener('mousemove', e => {
+    mx = e.clientX; my = e.clientY
+    if (panning) {
+      camX = panCamX0 - (mx - panX0) / zoom
+      camY = panCamY0 - (my - panY0) / zoom
+      clampCam()
+    }
+    if (miniDrag) miniJump()
+  })
   cv.addEventListener('mouseleave', () => { mouseIn = false })
   cv.addEventListener('mouseenter', () => { mouseIn = true })
   cv.addEventListener('mousedown', e => {
     mx = e.clientX; my = e.clientY
     startMusic()
     if (over) { location.href = '/?astrocraft'; return }
+    if (e.button === 1) {
+      // middle-mouse drag pans the map (like grabbing it)
+      e.preventDefault()
+      panning = true
+      panX0 = mx; panY0 = my; panCamX0 = camX; panCamY0 = camY
+      return
+    }
     // sound dial, bottom-right corner
     if (Math.hypot(mx - (innerWidth - 26), my - (innerHeight - 26)) < 17) {
       soundMode = (soundMode + 1) % 3
@@ -429,9 +522,8 @@ export function mountAstroCraft() {
     }
     const m = mini()
     if (mx >= m.x && mx <= m.x + m.w && my >= m.y && my <= m.y + m.h) {
-      camX = ((mx - m.x) / m.w) * WORLD_W - innerWidth / zoom / 2
-      camY = ((my - m.y) / m.h) * WORLD_H - innerHeight / zoom / 2
-      clampCam()
+      miniDrag = true
+      miniJump()
       return
     }
     if (e.button === 0) {
@@ -463,6 +555,8 @@ export function mountAstroCraft() {
     }
   })
   cv.addEventListener('mouseup', e => {
+    if (e.button === 1) { panning = false; return }
+    if (e.button === 0 && miniDrag) { miniDrag = false; return }
     if (e.button !== 0 || !dragging) return
     dragging = false
     const x0 = Math.min(dragX0, mx) / zoom + camX, x1 = Math.max(dragX0, mx) / zoom + camX
@@ -497,9 +591,12 @@ export function mountAstroCraft() {
     shots.push({ x1: e.x, y1: e.y, x2: t.x, y2: t.y, t: 0.12, team: e.team })
     playSfx(e.team === 'robot' ? 'shotRobot' : 'shotCyborg', 0.18)
     t.hp -= dmg
+    burst(t.x, t.y, 2, TEAM_COLOR[e.team], 90)
     if (t.hp <= 0 && !t.dead) {
       t.dead = true
       booms.push({ x: t.x, y: t.y, t: 0.5, big: !!t.bld })
+      burst(t.x, t.y, t.bld ? 26 : 10, '#ffcf5a', t.bld ? 220 : 150)
+      if (t.bld) shake = Math.max(shake, 9)
       playSfx(t.bld ? 'boomBig' : 'boomSmall', t.bld ? 0.7 : 0.4)
       selected.delete(t.id)
       if (t === eCore) over = 'win'
@@ -507,13 +604,134 @@ export function mountAstroCraft() {
     }
   }
 
+  function cyborgArmy(): Entity[] {
+    return ents.filter(e => !e.dead && e.team === 'cyborg' && e.unit && !e.unit.worker)
+  }
+
+  function stepCyborgAI(dt: number) {
+    if (eCore.dead) return
+    aiThinkT -= dt
+    if (aiThinkT > 0) return
+    aiThinkT = 6
+    // replace lost miners (up to 3) so the red economy keeps running
+    const miners = ents.filter(e => !e.dead && e.team === 'cyborg' && e.unit?.worker)
+    if (miners.length < 3 && cyCredits >= UNITS.drone.cost && eCore.queue.length < 2) {
+      cyCredits -= UNITS.drone.cost
+      eCore.queue.push({ key: 'drone', t: UNITS.drone.buildTime })
+    }
+    // spend the mined credits on an army: alternate gatlings and hulks
+    const army = cyborgArmy()
+    if (army.length < 10 && eCore.queue.length < 2) {
+      const want = aiTrainToggle % 3 === 2 ? UNITS.hulk : UNITS.gatling
+      if (cyCredits >= want.cost) {
+        cyCredits -= want.cost
+        aiTrainToggle++
+        eCore.queue.push({ key: want.key, t: want.buildTime })
+      }
+    }
+    // once a strike group is standing around at home, send it at the player
+    const idle = army.filter(e => !e.moveTarget && !e.targetId && e.x > WORLD_W * 0.6)
+    if (idle.length >= 5) {
+      showBanner('CYBORG ASSAULT DETECTED', 3)
+      say('The cyborgs are marching on your base!', 5)
+      for (const u of idle) {
+        u.moveTarget = { x: pCore.x, y: pCore.y }
+        u.attackMove = true
+      }
+    }
+  }
+
+  function spawnRaiders() {
+    raiderWaveN++
+    const n = Math.min(2 + Math.floor(raiderWaveN / 2), 5)
+    const top = Math.random() < 0.5
+    const cx = WORLD_W * (0.3 + Math.random() * 0.4)
+    showBanner('SCAVENGERS RAIDING', 3.2)
+    say('Neutral Scavengers spotted. They attack BOTH sides.', 6)
+    for (let i = 0; i < n; i++) {
+      const def = i === n - 1 && raiderWaveN >= 2 ? UNITS.scavbrute : UNITS.scavenger
+      const u = new Entity('raider', cx + (i - n / 2) * 46, top ? -20 : WORLD_H + 20, def)
+      // raiders sweep toward whichever core is closer to their entry point,
+      // fighting anything they meet on the way
+      const goal = Math.random() < 0.5 ? pCore : eCore
+      u.moveTarget = { x: goal.x, y: goal.y }
+      u.attackMove = true
+      ents.push(u)
+    }
+  }
+
+  function spawnCrate() {
+    const x = WORLD_W * (0.35 + Math.random() * 0.3)
+    const y = WORLD_H * (0.2 + Math.random() * 0.6)
+    crates.push({ x, y, t: 2.2, landed: false, amount: 150, claimT: 0, claimTeam: null })
+    showBanner('SUPPLY DROP INBOUND', 3)
+    say('A neutral supply drop is falling near the middle. First side to grab it keeps it.', 7)
+    ping(x, y, '#ffcf5a')
+  }
+
+  function stepCrates(dt: number) {
+    crateT -= dt
+    if (crateT <= 0) {
+      spawnCrate()
+      crateT = 55 + Math.random() * 30
+    }
+    for (let i = crates.length - 1; i >= 0; i--) {
+      const c = crates[i]
+      if (!c.landed) {
+        c.t -= dt
+        if (c.t <= 0) {
+          c.landed = true
+          c.t = 0
+          burst(c.x, c.y, 14, '#ffcf5a', 160)
+          playSfx('boomSmall', 0.3)
+        }
+        continue
+      }
+      c.t += dt
+      // a unit standing next to the crate claims it after a short beat
+      let claimer: Entity | null = null
+      for (const e of ents) {
+        if (e.dead || !e.unit) continue
+        if (Math.hypot(e.x - c.x, e.y - c.y) < e.radius + 26) { claimer = e; break }
+      }
+      if (claimer) {
+        if (c.claimTeam !== claimer.team) { c.claimTeam = claimer.team; c.claimT = 0 }
+        c.claimT += dt
+        if (c.claimT >= 1.2) {
+          crates.splice(i, 1)
+          burst(c.x, c.y, 18, TEAM_COLOR[claimer.team], 180)
+          if (claimer.team === 'robot') {
+            credits += c.amount
+            addFloat(c.x, c.y, `+${c.amount} SUPPLY DROP`, '#8dffb0')
+            say(`Supply drop secured! +${c.amount} credits.`, 5)
+          } else if (claimer.team === 'cyborg') {
+            cyCredits += c.amount
+            addFloat(c.x, c.y, 'CYBORGS TOOK THE DROP', '#ff5a4a')
+            say('The cyborgs grabbed the supply drop.', 5)
+          } else {
+            addFloat(c.x, c.y, 'SCAVENGERS LOOTED IT', '#c85aff')
+            say('Scavengers looted the supply drop. Nobody gets it.', 5)
+          }
+        }
+      } else {
+        c.claimT = 0
+        c.claimTeam = null
+      }
+      // unclaimed crates evaporate eventually so the map does not clutter
+      if (c.t > 75) { crates.splice(i, 1); burst(c.x, c.y, 8, '#6c8aa3', 90) }
+    }
+  }
+
   function step(dt: number) {
     gameTime += dt
     if (msgT > 0) msgT -= dt
+    if (bannerT > 0) bannerT -= dt
+    if (shake > 0) shake = Math.max(0, shake - dt * 18)
 
-    // waves
+    // scripted early waves
     if (waveIdx < waves.length && gameTime >= waves[waveIdx].at) {
       const w = waves[waveIdx++]
+      showBanner('CYBORG RAID INBOUND', 3)
       say('Cyborg raiding party inbound!', 5)
       w.units.forEach((k, i) => {
         const u = new Entity('cyborg', WORLD_W - CELL * 2, WORLD_H / 2 - 80 + i * 40, UNITS[k])
@@ -523,9 +741,17 @@ export function mountAstroCraft() {
       })
     }
 
+    stepCyborgAI(dt)
+    stepCrates(dt)
+    raiderT -= dt
+    if (raiderT <= 0) {
+      spawnRaiders()
+      raiderT = 95 + Math.random() * 45
+    }
+
     // edge scroll
     const EDGE = 24, SCROLL = 620 / zoom
-    if (mouseIn && !dragging) {
+    if (mouseIn && !dragging && !panning && !miniDrag) {
       if (mx < EDGE) camX -= SCROLL * dt
       if (mx > innerWidth - EDGE) camX += SCROLL * dt
       if (my < EDGE) camY -= SCROLL * dt
@@ -549,6 +775,11 @@ export function mountAstroCraft() {
             const u = UNITS[e.queue.shift()!.key]
             const spawned = new Entity(e.team, e.x, e.y + e.radius + u.radius + 4, u)
             spawned.moveTarget = { x: e.rallyX, y: e.rallyY }
+            if (e.team === 'cyborg' && u.worker) {
+              // fresh red miners head straight for their shard patch
+              const s = shards.find(v => v.amount > 0 && v.x > WORLD_W * 0.7)
+              if (s) { spawned.harvestShard = s; spawned.moveTarget = null }
+            }
             ents.push(spawned)
             rebuildBtns()
           }
@@ -570,6 +801,7 @@ export function mountAstroCraft() {
       if (u.worker && e.harvestShard) {
         const s = e.harvestShard
         const home = e.team === 'robot' ? pCore : eCore
+        if (home.dead) { e.harvestShard = null; continue }
         if (s.amount <= 0 && e.carrying === 0) {
           const next = shards.find(v => v.amount > 0 && Math.hypot(v.x - s.x, v.y - s.y) < CELL * 4)
           e.harvestShard = next ?? null
@@ -577,10 +809,14 @@ export function mountAstroCraft() {
           continue
         }
         if (e.carrying > 0) {
-          // return to own core (enemy income is cosmetic, waves are scripted)
           const d = Math.hypot(home.x - e.x, home.y - e.y)
           if (d < home.radius + e.radius + 6) {
-            if (e.team === 'robot') credits += e.carrying
+            if (e.team === 'robot') {
+              credits += e.carrying
+              addFloat(home.x, home.y - home.radius - 8, `+${e.carrying}`, '#39e6ff')
+            } else {
+              cyCredits += e.carrying
+            }
             e.carrying = 0
           } else moveToward(e, home.x, home.y, dt)
         } else {
@@ -592,6 +828,7 @@ export function mountAstroCraft() {
               const take = Math.min(10, s.amount)
               s.amount -= take
               e.carrying = take
+              burst(s.x, s.y, 3, '#39e6ff', 60)
             }
           } else moveToward(e, s.x, s.y, dt)
         }
@@ -617,6 +854,10 @@ export function mountAstroCraft() {
         const d = Math.hypot(e.moveTarget.x - e.x, e.moveTarget.y - e.y)
         if (d < 14) { e.moveTarget = null; e.attackMove = false }
         else moveToward(e, e.moveTarget.x, e.moveTarget.y, dt)
+      } else if (e.team === 'raider') {
+        // idle raiders wander toward the nearest thing worth shooting
+        const foe = nearestFoe(e, 4000)
+        if (foe) { e.moveTarget = { x: foe.x, y: foe.y }; e.attackMove = true }
       }
     }
 
@@ -641,6 +882,20 @@ export function mountAstroCraft() {
     for (let i = shots.length - 1; i >= 0; i--) { shots[i].t -= dt; if (shots[i].t <= 0) shots.splice(i, 1) }
     for (let i = booms.length - 1; i >= 0; i--) { booms[i].t -= dt; if (booms[i].t <= 0) booms.splice(i, 1) }
     for (let i = pings.length - 1; i >= 0; i--) { pings[i].t -= dt; if (pings[i].t <= 0) pings.splice(i, 1) }
+    for (let i = sparks.length - 1; i >= 0; i--) {
+      const s = sparks[i]
+      s.t -= dt
+      if (s.t <= 0) { sparks.splice(i, 1); continue }
+      s.x += s.vx * dt
+      s.y += s.vy * dt
+      s.vx *= 0.94
+      s.vy *= 0.94
+    }
+    for (let i = floats.length - 1; i >= 0; i--) {
+      floats[i].t -= dt
+      floats[i].y -= 22 * dt
+      if (floats[i].t <= 0) floats.splice(i, 1)
+    }
   }
 
   function moveToward(e: Entity, x: number, y: number, dt: number) {
@@ -688,9 +943,16 @@ export function mountAstroCraft() {
     const x = s.x - camX, y = s.y - camY
     const sz = 7 + (s.amount / 300) * 8
     const rot = ((s.seed % 60) / 60) * Math.PI
+    const pulse = 0.75 + 0.25 * Math.sin(gameTime * 2 + s.seed)
     ctx.save()
     ctx.translate(x, y)
     ctx.rotate(rot)
+    // soft glow halo
+    ctx.globalAlpha = 0.10 * pulse
+    ctx.fillStyle = '#39e6ff'
+    ctx.beginPath()
+    ctx.arc(0, 0, sz * 1.9, 0, Math.PI * 2)
+    ctx.fill()
     ctx.fillStyle = '#39e6ff'
     ctx.strokeStyle = '#b7f6ff'
     ctx.lineWidth = 1.5
@@ -707,6 +969,57 @@ export function mountAstroCraft() {
     ctx.restore()
   }
 
+  function drawCrate(c: Crate) {
+    const x = c.x - camX, y = c.y - camY
+    if (!c.landed) {
+      // falling pod: drop line + pod sliding down + landing ring
+      const p = Math.max(0, Math.min(1, 1 - c.t / 2.2))
+      const podY = y - (1 - p) * 420
+      ctx.strokeStyle = 'rgba(255,207,90,0.35)'
+      ctx.lineWidth = 1
+      ctx.setLineDash([4, 6])
+      ctx.beginPath(); ctx.moveTo(x, podY); ctx.lineTo(x, y); ctx.stroke()
+      ctx.setLineDash([])
+      ctx.strokeStyle = '#ffcf5a'
+      ctx.globalAlpha = 0.5 + 0.5 * Math.sin(gameTime * 10)
+      ctx.beginPath(); ctx.arc(x, y, 18, 0, Math.PI * 2); ctx.stroke()
+      ctx.globalAlpha = 1
+      ctx.fillStyle = '#ffcf5a'
+      ctx.fillRect(x - 8, podY - 8, 16, 16)
+      return
+    }
+    // landed crate: gold container + beacon + claim ring
+    const bob = Math.sin(c.t * 3) * 1.5
+    ctx.fillStyle = '#c9971f'
+    ctx.strokeStyle = '#ffcf5a'
+    ctx.lineWidth = 2
+    ctx.fillRect(x - 12, y - 10 + bob, 24, 20)
+    ctx.strokeRect(x - 12, y - 10 + bob, 24, 20)
+    ctx.beginPath(); ctx.moveTo(x, y - 10 + bob); ctx.lineTo(x, y + 10 + bob); ctx.stroke()
+    // beacon light
+    const blink = 0.4 + 0.6 * Math.abs(Math.sin(c.t * 4))
+    ctx.globalAlpha = blink
+    ctx.fillStyle = '#ffe9a8'
+    ctx.beginPath(); ctx.arc(x, y - 16 + bob, 3, 0, Math.PI * 2); ctx.fill()
+    ctx.globalAlpha = 0.15 * blink
+    ctx.beginPath(); ctx.arc(x, y - 16 + bob, 10, 0, Math.PI * 2); ctx.fill()
+    ctx.globalAlpha = 1
+    if (c.claimTeam && c.claimT > 0) {
+      ctx.strokeStyle = TEAM_COLOR[c.claimTeam]
+      ctx.lineWidth = 3
+      ctx.beginPath()
+      ctx.arc(x, y, 22, -Math.PI / 2, -Math.PI / 2 + (c.claimT / 1.2) * Math.PI * 2)
+      ctx.stroke()
+    }
+  }
+
+  function unitSprite(e: Entity, dir: string): CanvasImageSource | null {
+    const u = e.unit!
+    if (e.team === 'raider') return purpleTint(u.sprite, dir) ?? purpleTint(u.sprite, 'south')
+    if (e.team === 'cyborg' && u.sprite === 'sphere') return redTint(u.sprite, dir) ?? redTint(u.sprite, 'south')
+    return img(u.sprite, dir) ?? img(u.sprite, 'south')
+  }
+
   function draw() {
     const W = innerWidth, H = innerHeight
     ctx.clearRect(0, 0, W, H)
@@ -715,17 +1028,53 @@ export function mountAstroCraft() {
 
     // everything until ctx.restore() is drawn in WORLD scale (zoomed)
     ctx.save()
+    if (shake > 0) ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake)
     ctx.scale(zoom, zoom)
     const VW = W / zoom, VH = H / zoom // visible world size
+
+    // nebulae + starfield (world-anchored so they pan with the map)
+    for (const n of nebulae) {
+      const x = n.x - camX, y = n.y - camY
+      if (x < -n.r || x > VW + n.r || y < -n.r || y > VH + n.r) continue
+      const g = ctx.createRadialGradient(x, y, 0, x, y, n.r)
+      g.addColorStop(0, n.c)
+      g.addColorStop(1, 'rgba(0,0,0,0)')
+      ctx.fillStyle = g
+      ctx.fillRect(x - n.r, y - n.r, n.r * 2, n.r * 2)
+    }
+    ctx.fillStyle = '#cfe9f5'
+    for (const s of stars) {
+      const x = s.x - camX, y = s.y - camY
+      if (x < 0 || x > VW || y < 0 || y > VH) continue
+      ctx.globalAlpha = s.a
+      ctx.fillRect(x, y, s.r, s.r)
+    }
+    ctx.globalAlpha = 1
+
+    // soft team glow under each base corner of the map
+    for (const [core, col] of [[pCore, 'rgba(60,140,220,0.05)'], [eCore, 'rgba(220,70,60,0.05)']] as const) {
+      if (core.dead) continue
+      const x = core.x - camX, y = core.y - camY
+      const g = ctx.createRadialGradient(x, y, 0, x, y, CELL * 8)
+      g.addColorStop(0, col)
+      g.addColorStop(1, 'rgba(0,0,0,0)')
+      ctx.fillStyle = g
+      ctx.fillRect(x - CELL * 8, y - CELL * 8, CELL * 16, CELL * 16)
+    }
 
     // grid
     ctx.strokeStyle = 'rgba(90,140,190,0.10)'
     ctx.lineWidth = 1 / zoom
     for (let gx = -(camX % CELL); gx < VW; gx += CELL) { ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, VH); ctx.stroke() }
     for (let gy = -(camY % CELL); gy < VH; gy += CELL) { ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(VW, gy); ctx.stroke() }
+    // world border so the map edge reads when zoomed out
+    ctx.strokeStyle = 'rgba(90,208,255,0.30)'
+    ctx.lineWidth = 2 / zoom
+    ctx.strokeRect(-camX, -camY, WORLD_W, WORLD_H)
     ctx.lineWidth = 1
 
     for (const s of shards) if (s.amount > 0) drawShard(s)
+    for (const c of crates) drawCrate(c)
 
     // pings
     for (const p of pings) {
@@ -741,7 +1090,7 @@ export function mountAstroCraft() {
     for (const e of sorted) {
       const x = e.x - camX, y = e.y - camY
       if (x < -120 || x > VW + 120 || y < -120 || y > VH + 120) continue
-      const color = e.team === 'robot' ? '#5ad0ff' : '#ff5a4a'
+      const color = TEAM_COLOR[e.team]
       if (selected.has(e.id)) {
         ctx.strokeStyle = '#8dffb0'
         ctx.lineWidth = 2
@@ -754,7 +1103,7 @@ export function mountAstroCraft() {
         // buildings stand on a soft team-colored glow instead
         if (!e.done) drawPad(x, y, e.radius, color, e.buildProgress)
         else {
-          ctx.fillStyle = e.team === 'robot' ? 'rgba(60,140,220,0.16)' : 'rgba(220,70,60,0.16)'
+          ctx.fillStyle = TEAM_SHADOW[e.team].replace('0.30', '0.16')
           ctx.beginPath()
           ctx.ellipse(x, y + e.radius * 0.45, e.radius * 0.85, e.radius * 0.30, 0, 0, Math.PI * 2)
           ctx.fill()
@@ -768,12 +1117,10 @@ export function mountAstroCraft() {
         }
       } else {
         const u = e.unit!
-        const sp = (e.team === 'cyborg' && u.sprite === 'sphere')
-          ? redTint(u.sprite, DIR_NAMES[e.dir]) ?? redTint(u.sprite, 'south')
-          : img(u.sprite, DIR_NAMES[e.dir]) ?? img(u.sprite, 'south')
+        const sp = unitSprite(e, DIR_NAMES[e.dir])
         const sz = u.drawSize
         // drop shadow tinted by side (per visual style)
-        ctx.fillStyle = e.team === 'robot' ? 'rgba(60,140,220,0.30)' : 'rgba(220,70,60,0.30)'
+        ctx.fillStyle = TEAM_SHADOW[e.team]
         ctx.beginPath()
         ctx.ellipse(x, y + sz * 0.34, sz * 0.32, sz * 0.12, 0, 0, Math.PI * 2)
         ctx.fill()
@@ -781,6 +1128,15 @@ export function mountAstroCraft() {
         if (e.carrying > 0) {
           ctx.fillStyle = '#39e6ff'
           ctx.fillRect(x - 3, y - sz / 2 - 8, 6, 6)
+        }
+        // muzzle flash right after firing
+        if (e.cool > 0 && u.cooldown - e.cool < 0.08 && !u.worker) {
+          ctx.fillStyle = '#fff3c0'
+          ctx.globalAlpha = 0.9
+          ctx.beginPath()
+          ctx.arc(x + Math.cos(e.dir * Math.PI / 4) * (u.radius + 4), y + Math.sin(e.dir * Math.PI / 4) * (u.radius + 4), 4, 0, Math.PI * 2)
+          ctx.fill()
+          ctx.globalAlpha = 1
         }
       }
       // hp bar when damaged or selected
@@ -803,17 +1159,31 @@ export function mountAstroCraft() {
       }
     }
 
-    // shots
+    // shots (glowing tracers)
     for (const s of shots) {
-      ctx.strokeStyle = s.team === 'robot' ? '#9fe4ff' : '#ffb0a0'
-      ctx.lineWidth = 2
+      const c = s.team === 'robot' ? '#9fe4ff' : s.team === 'cyborg' ? '#ffb0a0' : '#e0b0ff'
+      ctx.globalAlpha = Math.min(1, s.t / 0.12) * 0.35
+      ctx.strokeStyle = c
+      ctx.lineWidth = 5
+      ctx.beginPath()
+      ctx.moveTo(s.x1 - camX, s.y1 - camY)
+      ctx.lineTo(s.x2 - camX, s.y2 - camY)
+      ctx.stroke()
       ctx.globalAlpha = Math.min(1, s.t / 0.12)
+      ctx.lineWidth = 2
       ctx.beginPath()
       ctx.moveTo(s.x1 - camX, s.y1 - camY)
       ctx.lineTo(s.x2 - camX, s.y2 - camY)
       ctx.stroke()
       ctx.globalAlpha = 1
     }
+    // sparks
+    for (const s of sparks) {
+      ctx.globalAlpha = Math.max(0, s.t / s.max)
+      ctx.fillStyle = s.c
+      ctx.fillRect(s.x - camX - 1.5, s.y - camY - 1.5, 3, 3)
+    }
+    ctx.globalAlpha = 1
     // booms
     for (const b of booms) {
       const r = (0.5 - b.t) * (b.big ? 140 : 60) + 8
@@ -825,6 +1195,16 @@ export function mountAstroCraft() {
       ctx.stroke()
       ctx.globalAlpha = 1
     }
+    // floating text
+    ctx.font = 'bold 13px "Courier New",monospace'
+    ctx.textAlign = 'center'
+    for (const f of floats) {
+      ctx.globalAlpha = Math.min(1, f.t / 0.5)
+      ctx.fillStyle = f.c
+      ctx.fillText(f.text, f.x - camX, f.y - camY)
+    }
+    ctx.globalAlpha = 1
+    ctx.textAlign = 'left'
 
     // placement ghost
     if (placing) {
@@ -872,6 +1252,20 @@ export function mountAstroCraft() {
       const t = Math.max(0, waves[waveIdx].at - gameTime)
       ctx.fillStyle = t < 15 ? '#ff5a4a' : '#6c8aa3'
       ctx.fillText(`NEXT RAID ${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`, W - 190, 22)
+    }
+
+    // banner (big center alert)
+    if (bannerT > 0 && banner) {
+      ctx.textAlign = 'center'
+      ctx.font = 'bold 28px "Courier New",monospace'
+      ctx.globalAlpha = Math.min(1, bannerT / 0.6)
+      ctx.fillStyle = 'rgba(8,12,18,0.7)'
+      const bw2 = ctx.measureText(banner).width
+      ctx.fillRect(W / 2 - bw2 / 2 - 20, 86, bw2 + 40, 44)
+      ctx.fillStyle = '#ffcf5a'
+      ctx.fillText(banner, W / 2, 116)
+      ctx.globalAlpha = 1
+      ctx.textAlign = 'left'
     }
 
     // message
@@ -923,9 +1317,13 @@ export function mountAstroCraft() {
       ctx.fillStyle = '#39e6ff'
       ctx.fillRect(m.x + (s.x / WORLD_W) * m.w - 1, m.y + (s.y / WORLD_H) * m.h - 1, 2, 2)
     }
+    for (const c of crates) {
+      ctx.fillStyle = '#ffcf5a'
+      ctx.fillRect(m.x + (c.x / WORLD_W) * m.w - 2, m.y + (c.y / WORLD_H) * m.h - 2, 4, 4)
+    }
     for (const e of ents) {
       if (e.dead) continue
-      ctx.fillStyle = e.team === 'robot' ? '#5ad0ff' : '#ff5a4a'
+      ctx.fillStyle = TEAM_COLOR[e.team]
       const sz = e.bld ? 4 : 2
       ctx.fillRect(m.x + (e.x / WORLD_W) * m.w - sz / 2, m.y + (e.y / WORLD_H) * m.h - sz / 2, sz, sz)
     }
@@ -1002,7 +1400,7 @@ export function mountAstroCraft() {
     draw()
     requestAnimationFrame(frame)
   }
-  say('Right-click a shard with your Sphere Drones to start mining. Mouse wheel zooms.', 12)
+  say('Right-click a shard with your Sphere Drones to start mining. Wheel zooms, middle-drag pans.', 12)
   requestAnimationFrame(frame)
 
   // Playtest/debug handle (same spirit as window.astrohold in the main game).
@@ -1010,9 +1408,11 @@ export function mountAstroCraft() {
     state: () => ({
       time: Math.round(gameTime),
       credits,
+      cyCredits: Math.round(cyCredits),
       supply: `${supplyUsed()}/${supplyMax()}`,
       over,
       selected: [...selected],
+      crates: crates.map(c => ({ x: Math.round(c.x), y: Math.round(c.y), landed: c.landed })),
       ents: ents.filter(e => !e.dead).map(e => ({
         id: e.id, team: e.team, kind: e.unit?.key ?? e.bld!.key,
         x: Math.round(e.x), y: Math.round(e.y), hp: Math.round(e.hp),
