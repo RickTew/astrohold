@@ -30,6 +30,7 @@ interface UnitDef {
   supply: number
   buildTime: number // s to train
   worker?: boolean
+  desc: string
 }
 
 interface BuildingDef {
@@ -64,23 +65,23 @@ const TEAM_SHADOW: Record<Team, string> = {
 }
 
 const UNITS: Record<string, UnitDef> = {
-  drone: { key: 'drone', label: 'Sphere Drone', sprite: 'sphere', hp: 60, speed: 95, dmg: 3, range: 30, cooldown: 1.0, radius: 12, drawSize: 40, cost: 50, supply: 1, buildTime: 6, worker: true },
-  dog: { key: 'dog', label: 'Combat Dog', sprite: 'dog', hp: 90, speed: 150, dmg: 8, range: 30, cooldown: 0.7, radius: 13, drawSize: 46, cost: 50, supply: 1, buildTime: 7 },
-  marine: { key: 'marine', label: 'Marine', sprite: 'doublegun', hp: 120, speed: 90, dmg: 10, range: 150, cooldown: 0.9, radius: 14, drawSize: 50, cost: 80, supply: 2, buildTime: 10 },
-  heavy: { key: 'heavy', label: 'Heavy', sprite: 'cannon', hp: 220, speed: 60, dmg: 26, range: 215, cooldown: 1.6, radius: 16, drawSize: 54, cost: 120, supply: 3, buildTime: 14 },
+  drone: { key: 'drone', label: 'Sphere Drone', sprite: 'sphere', hp: 60, speed: 95, dmg: 3, range: 30, cooldown: 1.0, radius: 12, drawSize: 40, cost: 50, supply: 1, buildTime: 6, worker: true, desc: 'Worker. Right-click a shard to mine credits.' },
+  dog: { key: 'dog', label: 'Combat Dog', sprite: 'dog', hp: 90, speed: 150, dmg: 8, range: 30, cooldown: 0.7, radius: 13, drawSize: 46, cost: 50, supply: 1, buildTime: 7, desc: 'Fast, cheap melee attacker. Good for swarms.' },
+  marine: { key: 'marine', label: 'Marine', sprite: 'doublegun', hp: 120, speed: 90, dmg: 10, range: 150, cooldown: 0.9, radius: 14, drawSize: 50, cost: 80, supply: 2, buildTime: 10, desc: 'All-round ranged infantry. Backbone of your army.' },
+  heavy: { key: 'heavy', label: 'Heavy', sprite: 'cannon', hp: 220, speed: 60, dmg: 26, range: 215, cooldown: 1.6, radius: 16, drawSize: 54, cost: 120, supply: 3, buildTime: 14, desc: 'Slow siege cannon. Outranges enemy sentries.' },
   // cyborg side (AI only in this mission)
-  gatling: { key: 'gatling', label: 'Cyborg Gatling', sprite: 'cyborg_gatling', hp: 110, speed: 85, dmg: 9, range: 140, cooldown: 0.8, radius: 14, drawSize: 50, cost: 100, supply: 0, buildTime: 12 },
-  hulk: { key: 'hulk', label: 'Cyborg Hulk', sprite: 'hulk', hp: 320, speed: 55, dmg: 30, range: 34, cooldown: 1.2, radius: 17, drawSize: 56, cost: 220, supply: 0, buildTime: 20 },
+  gatling: { key: 'gatling', label: 'Cyborg Gatling', sprite: 'cyborg_gatling', hp: 110, speed: 85, dmg: 9, range: 140, cooldown: 0.8, radius: 14, drawSize: 50, cost: 100, supply: 0, buildTime: 12, desc: 'Cyborg ranged trooper.' },
+  hulk: { key: 'hulk', label: 'Cyborg Hulk', sprite: 'hulk', hp: 320, speed: 55, dmg: 30, range: 34, cooldown: 1.2, radius: 17, drawSize: 56, cost: 220, supply: 0, buildTime: 20, desc: 'Cyborg melee bruiser.' },
   // scavenger raiders (neutral hostiles, attack both sides)
-  scavenger: { key: 'scavenger', label: 'Scavenger', sprite: 'human_marine', hp: 100, speed: 105, dmg: 9, range: 130, cooldown: 0.85, radius: 14, drawSize: 50, cost: 0, supply: 0, buildTime: 0 },
-  scavbrute: { key: 'scavbrute', label: 'Scavenger Brute', sprite: 'grenadier', hp: 200, speed: 75, dmg: 20, range: 160, cooldown: 1.5, radius: 15, drawSize: 52, cost: 0, supply: 0, buildTime: 0 },
+  scavenger: { key: 'scavenger', label: 'Scavenger', sprite: 'human_marine', hp: 100, speed: 105, dmg: 9, range: 130, cooldown: 0.85, radius: 14, drawSize: 50, cost: 0, supply: 0, buildTime: 0, desc: 'Neutral raider. Attacks both sides.' },
+  scavbrute: { key: 'scavbrute', label: 'Scavenger Brute', sprite: 'grenadier', hp: 200, speed: 75, dmg: 20, range: 160, cooldown: 1.5, radius: 15, drawSize: 52, cost: 0, supply: 0, buildTime: 0, desc: 'Heavy neutral raider. Attacks both sides.' },
 }
 
 const BUILDINGS: Record<string, BuildingDef> = {
   core: { key: 'core', label: 'Command Core', sprite: 'powercore', hp: 1500, cells: 2, cost: 400, buildTime: 40, supplyGrant: 10, drawSize: 92, trains: ['drone'], desc: 'HQ. Trains Sphere Drones, receives credits.' },
-  fab: { key: 'fab', label: 'Fabricator', sprite: 'defense', hp: 900, cells: 2, cost: 150, buildTime: 20, supplyGrant: 0, drawSize: 84, trains: ['dog', 'marine', 'heavy'], desc: 'Trains combat units.' },
-  pylon: { key: 'pylon', label: 'Relay Pylon', sprite: 'signal', hp: 400, cells: 1, cost: 100, buildTime: 12, supplyGrant: 8, drawSize: 44, desc: '+8 supply.' },
-  turret: { key: 'turret', label: 'Sentry Turret', sprite: 'tower', hp: 500, cells: 1, cost: 120, buildTime: 15, supplyGrant: 0, drawSize: 48, dmg: 14, range: 200, cooldown: 0.9, desc: 'Automated defense gun.' },
+  fab: { key: 'fab', label: 'Fabricator', sprite: 'defense', hp: 900, cells: 2, cost: 150, buildTime: 20, supplyGrant: 0, drawSize: 84, trains: ['dog', 'marine', 'heavy'], desc: 'War factory. Trains Combat Dogs, Marines and Heavies.' },
+  pylon: { key: 'pylon', label: 'Relay Pylon', sprite: 'signal', hp: 400, cells: 1, cost: 100, buildTime: 12, supplyGrant: 8, drawSize: 44, desc: 'Grants +8 supply so you can train a bigger army.' },
+  turret: { key: 'turret', label: 'Sentry Turret', sprite: 'tower', hp: 500, cells: 1, cost: 120, buildTime: 15, supplyGrant: 0, drawSize: 48, dmg: 14, range: 200, cooldown: 0.9, desc: 'Automated defense gun. Protects your base.' },
 }
 
 const DIR_NAMES = ['east', 'south-east', 'south', 'south-west', 'west', 'north-west', 'north', 'north-east']
@@ -379,8 +380,9 @@ export function mountAstroCraft() {
   // ---------- HUD geometry ----------
   const MINI_W = 200
   const mini = () => ({ x: 12, y: innerHeight - MINI_W * (ROWS / COLS) - 12, w: MINI_W, h: MINI_W * (ROWS / COLS) })
-  interface Btn { x: number; y: number; w: number; h: number; label: string; sub: string; act: () => void; on: () => boolean }
+  interface Btn { x: number; y: number; w: number; h: number; label: string; sub: string; tip: string; act: () => void; on: () => boolean }
   let btns: Btn[] = []
+  let selPanelW = 320 // actual drawn width, used by the click-through guard
 
   function trainableBuilding(): Entity | null {
     for (const id of selected) {
@@ -398,15 +400,15 @@ export function mountAstroCraft() {
     const bw = 118, bh = 52, gap = 8
     const baseY = innerHeight - bh - 12
     let x = innerWidth - 56 - (bw + gap) * 4 // leaves room for the sound dial
-    const add = (label: string, sub: string, act: () => void, on: () => boolean) => {
-      btns.push({ x, y: baseY, w: bw, h: bh, label, sub, act, on })
+    const add = (label: string, sub: string, tip: string, act: () => void, on: () => boolean) => {
+      btns.push({ x, y: baseY, w: bw, h: bh, label, sub, tip, act, on })
       x += bw + gap
     }
     const tb = trainableBuilding()
     if (tb) {
       for (const uk of tb.bld!.trains!) {
         const u = UNITS[uk]
-        add(u.label, `${u.cost}cr  ${u.supply}sup`, () => {
+        add(u.label, `${u.cost}cr  ${u.supply}sup`, u.desc, () => {
           if (credits < u.cost) return say('Not enough credits.')
           if (supplyUsed() + u.supply > supplyMax()) return say('Supply blocked. Build a Relay Pylon.')
           credits -= u.cost
@@ -416,7 +418,7 @@ export function mountAstroCraft() {
     } else if (selectedWorkers().length) {
       for (const bk of ['fab', 'pylon', 'turret'] as const) {
         const b = BUILDINGS[bk]
-        add(b.label, `${b.cost}cr`, () => {
+        add(b.label, `${b.cost}cr`, b.desc, () => {
           if (credits < b.cost) return say('Not enough credits.')
           placing = b
         }, () => true)
@@ -526,6 +528,12 @@ export function mountAstroCraft() {
       miniJump()
       return
     }
+    // clicks on HUD chrome (top bar, selection panel) must not fall through
+    // to the world - that was silently deselecting everything
+    const overSelPanel = selected.size > 0
+      && mx >= innerWidth / 2 - selPanelW / 2 && mx <= innerWidth / 2 + selPanelW / 2
+      && my >= innerHeight - 34 && my <= innerHeight - 10
+    if (my <= 34 || overSelPanel) return
     if (e.button === 0) {
       for (const b of btns) {
         if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h && b.on()) { b.act(); rebuildBtns(); return }
@@ -1296,13 +1304,16 @@ export function mountAstroCraft() {
     const selEnts = ents.filter(e => selected.has(e.id) && !e.dead)
     if (selEnts.length) {
       ctx.font = '13px "Courier New",monospace'
-      const label = selEnts.length === 1
-        ? `${(selEnts[0].unit?.label ?? selEnts[0].bld!.label)}  ${Math.ceil(selEnts[0].hp)}/${selEnts[0].maxHp} hp${selEnts[0].bld && !selEnts[0].done ? '  (constructing)' : ''}`
+      const one = selEnts.length === 1 ? selEnts[0] : null
+      const label = one
+        ? `${(one.unit?.label ?? one.bld!.label)}  ${Math.ceil(one.hp)}/${one.maxHp} hp${one.bld && !one.done ? '  (constructing)' : ''}  -  ${(one.unit ?? one.bld!).desc}`
         : `${selEnts.length} units selected`
+      const lw = Math.max(320, ctx.measureText(label).width + 24)
+      selPanelW = lw
       ctx.fillStyle = 'rgba(8,12,18,0.85)'
-      ctx.fillRect(W / 2 - 160, H - 34, 320, 24)
+      ctx.fillRect(W / 2 - lw / 2, H - 34, lw, 24)
       ctx.fillStyle = '#9fd8ef'
-      ctx.fillText(label, W / 2 - 150, H - 17)
+      ctx.fillText(label, W / 2 - lw / 2 + 10, H - 17)
     }
 
     // command card
@@ -1318,6 +1329,21 @@ export function mountAstroCraft() {
       ctx.fillStyle = '#39e6ff'
       ctx.font = '11px "Courier New",monospace'
       ctx.fillText(b.sub, b.x + 8, b.y + 38)
+    }
+    // hover tooltip above the command card
+    const hov = btns.find(b => mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h)
+    if (hov?.tip) {
+      ctx.font = '12px "Courier New",monospace'
+      const tw = ctx.measureText(hov.tip).width
+      let tx = Math.min(hov.x, W - tw - 28)
+      const ty = hov.y - 34
+      ctx.fillStyle = 'rgba(8,12,18,0.95)'
+      ctx.fillRect(tx, ty, tw + 16, 24)
+      ctx.strokeStyle = 'rgba(90,208,255,0.45)'
+      ctx.lineWidth = 1
+      ctx.strokeRect(tx, ty, tw + 16, 24)
+      ctx.fillStyle = '#cfe9f5'
+      ctx.fillText(hov.tip, tx + 8, ty + 16)
     }
 
     // minimap
