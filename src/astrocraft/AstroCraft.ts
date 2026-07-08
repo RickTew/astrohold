@@ -253,7 +253,7 @@ export function mountAstroCraft() {
   const floats: FloatText[] = []
   const crates: Crate[] = []
   let credits = 200
-  let cyCredits = 150 // the red side has a REAL economy now
+  let cyCredits = 50 // the red side has a REAL economy now
   let gameTime = 0
   let over: 'win' | 'lose' | null = null
   let msg = 'Mission: FIRST CLAIM. Mine shards, build an army, destroy the Cyborg Core.'
@@ -601,6 +601,15 @@ export function mountAstroCraft() {
       selected.delete(t.id)
       if (t === eCore) over = 'win'
       if (t === pCore) over = 'lose'
+    }
+    // call to arms: when a building takes fire, idle friendly combat units
+    // nearby converge on the attacker instead of watching the base burn
+    if (t.bld && !t.dead) {
+      for (const d of ents) {
+        if (d.dead || d.team !== t.team || !d.unit || d.unit.worker) continue
+        if (d.targetId || d.moveTarget) continue
+        if (Math.hypot(d.x - t.x, d.y - t.y) < 640) { d.targetId = e.id; d.attackMove = true }
+      }
     }
   }
 
