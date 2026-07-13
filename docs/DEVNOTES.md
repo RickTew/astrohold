@@ -3209,3 +3209,49 @@ in-place restart instead of page reload.
   while the control sat at 67%.
 - Discoverability: mission + intro text now say build a FABRICATOR to train
   your attack units (Rick did not know where the army came from).
+
+## Session 29 (2026-07-13) - App icon (Delta Fighter A-spaceship) + PWA manifest
+
+Short session. Rick asked for an SVG PWA icon built around the letter A
+as a spaceship, with a test page to pick from on his phone.
+
+**Icon test page:** `/public/icon-test.html` (still live, kept for future
+revisits). Six concepts, all in the game palette (#00e0ff / #6ac4ff cyan,
+#030710 navy, #ff5a78 red): 1 Delta Fighter (solid A fighter, swept
+wings, twin engine flames, red crossbar stripe, cockpit), 2 Rocket A
+(porthole + red fins + center engine), 3 Neon Grid (wireframe A over the
+vector grid, wing bar with nav lights), 4 Pixel Ship (chunky pixel A),
+5 Arrowhead (stealth ship, A counter cut out), 6 Orbit A (orbit ring as
+crossbar + red planet). Page mimics a phone home screen (icon + label +
+60/40/29px sizes) and is tap-to-preview. **Rick picked #1 Delta Fighter.**
+
+**Shipped icon set** (`/public/icons/`): `icon.svg` (source of truth),
+`icon-192.png`, `icon-512.png`, `icon-maskable-192.png`,
+`icon-maskable-512.png` (ship scaled to 78% for the Android mask safe
+zone), `apple-touch-icon.png` (180). Rasterized with `npx sharp-cli`
+from the SVGs (no rasterizer is installed locally; re-run sharp-cli if
+the SVG changes). Plus `/public/manifest.webmanifest` (name AstroHold,
+standalone, landscape, #030710 theme/background) and `index.html` head:
+SVG favicon (replaces the Power Core sprite favicon), apple-touch-icon
+link, manifest link, theme-color meta. How to play changelog got a
+2026-07-13 entry. No game code touched. No service worker (icon +
+Add to Home Screen only, not an offline PWA).
+
+**Verified live:** manifest + all icons 200 on www.astrohold.com, head
+links present in served HTML, game loads to the side picker with zero
+console errors. Note: `astro-hold.vercel.app` now 307-redirects to
+`astrohold.vercel.app`; both land on the same deploy, www.astrohold.com
+serves directly.
+
+**MOBILE FLAG (no specifics yet):** Rick reports the game "doesn't work
+on the phone" (iPhone). This is the first real-device report since the
+S25-era mobile work shipped; exact symptom NOT captured (his messages
+kept getting cut off, then we deprioritized). Decision: **finish the
+browser game first, phone later.** When mobile resumes, first step is
+getting the exact on-screen symptom (stuck loading? layout? input?).
+The 219MB audio-weight question in `project_mobile_support` is a prime
+suspect for load issues.
+
+**RESUME / NEXT:** unchanged from S28 - browser game first: online
+2-player entry screen, S24 flags, Hacker balance, AstroCraft Campaign
+stub, watch Rick's first full AstroCraft game.

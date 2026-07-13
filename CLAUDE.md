@@ -7,7 +7,17 @@ Two terminal states: core dies (defender loses) or all cyborgs dead /
 unable to attack (defender wins). No stalemate rule
 (`feedback_die_or_survive`).
 
-**S28 state (latest, 2026-07-08): AstroCraft "living world" update.** All in
+**S29 state (latest, 2026-07-13): app icon + PWA manifest.** Rick picked
+the "Delta Fighter" A-spaceship from six concepts on `/icon-test.html`
+(page kept live). Shipped `/public/icons/` (icon.svg source, 192/512 +
+maskable PNGs via `npx sharp-cli`, apple-touch-icon),
+`/public/manifest.webmanifest`, and index.html head links (SVG favicon
+replaced the Power Core sprite). No game code touched; no service worker.
+**MOBILE FLAG:** first real iPhone test = "doesn't work on the phone",
+symptom unknown (not captured). Decision: finish the browser game first,
+phone later. Log: DEVNOTES Session 29 + `project_session_29_wrap`.
+
+**S28 state (2026-07-08): AstroCraft "living world" update.** All in
 `src/astrocraft/AstroCraft.ts`, main game untouched. Real red economy (cyborg
 miners fill cyCredits at 50% player rate; core trains gatlings + a hulk every
 4th, army cap 8, assaults after 5:00 when 6+ idle), neutral purple SCAVENGER
