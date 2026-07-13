@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AstroHold PWA icon test</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    background: #05080f;
+    color: #d8ecff;
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding: 20px 16px 60px;
+    max-width: 720px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 20px; letter-spacing: 1px; margin-bottom: 4px; }
+  .hint { color: #6c8294; font-size: 13px; margin-bottom: 18px; }
+
+  /* Fake home screen preview */
+  .homescreen {
+    border-radius: 18px;
+    padding: 26px 20px 22px;
+    margin-bottom: 26px;
+    background:
+      radial-gradient(circle at 18% 25%, rgba(106,196,255,.14), transparent 40%),
+      radial-gradient(circle at 80% 70%, rgba(255,90,120,.10), transparent 45%),
+      radial-gradient(circle at 60% 10%, rgba(255,255,255,.06), transparent 30%),
+      linear-gradient(160deg, #0a1626, #030710);
+    border: 1px solid #14324f;
+    display: flex;
+    align-items: flex-start;
+    gap: 28px;
+    flex-wrap: wrap;
+  }
+  .homeicon { display: flex; flex-direction: column; align-items: center; gap: 7px; }
+  .homeicon svg { border-radius: 27px; box-shadow: 0 6px 18px rgba(0,0,0,.55); }
+  .homeicon .label { font-size: 12px; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
+  .sizes { display: flex; align-items: flex-end; gap: 14px; padding-top: 8px; }
+  .sizes .s { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+  .sizes svg { box-shadow: 0 3px 10px rgba(0,0,0,.5); }
+  .sizes .cap { font-size: 10px; color: #6c8294; }
+
+  /* Picker grid */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 14px;
+  }
+  .card {
+    background: #0a1420;
+    border: 1px solid #1a2f45;
+    border-radius: 14px;
+    padding: 16px 10px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: border-color .15s, transform .1s;
+  }
+  .card:active { transform: scale(.97); }
+  .card.selected { border-color: #00e0ff; box-shadow: 0 0 0 1px #00e0ff, 0 0 18px rgba(0,224,255,.25); }
+  .card svg { border-radius: 26px; }
+  .card .name { font-size: 13px; color: #b0c8dc; }
+  .card .num {
+    font-size: 11px; color: #00e0ff; letter-spacing: 1px;
+    border: 1px solid #14506a; border-radius: 10px; padding: 1px 8px;
+  }
+  .foot { margin-top: 26px; color: #6c8294; font-size: 13px; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<h1>AstroHold PWA icon test</h1>
+<p class="hint">Tap a card below. The strip up top shows it at real home screen sizes.</p>
+
+<div class="homescreen">
+  <div class="homeicon">
+    <svg id="pv-big" width="120" height="120" viewBox="0 0 512 512"><use href="#v1"/></svg>
+    <div class="label">AstroHold</div>
+  </div>
+  <div class="sizes">
+    <div class="s"><svg class="pv" width="60" height="60" viewBox="0 0 512 512" style="border-radius:13px"><use href="#v1"/></svg><div class="cap">60</div></div>
+    <div class="s"><svg class="pv" width="40" height="40" viewBox="0 0 512 512" style="border-radius:9px"><use href="#v1"/></svg><div class="cap">40</div></div>
+    <div class="s"><svg class="pv" width="29" height="29" viewBox="0 0 512 512" style="border-radius:6px"><use href="#v1"/></svg><div class="cap">29</div></div>
+  </div>
+</div>
+
+<div class="grid" id="grid">
+  <div class="card selected" data-v="v1"><svg width="110" height="110" viewBox="0 0 512 512"><use href="#v1"/></svg><div class="name">Delta Fighter</div><div class="num">1</div></div>
+  <div class="card" data-v="v2"><svg width="110" height="110" viewBox="0 0 512 512"><use href="#v2"/></svg><div class="name">Rocket A</div><div class="num">2</div></div>
+  <div class="card" data-v="v3"><svg width="110" height="110" viewBox="0 0 512 512"><use href="#v3"/></svg><div class="name">Neon Grid</div><div class="num">3</div></div>
+  <div class="card" data-v="v4"><svg width="110" height="110" viewBox="0 0 512 512"><use href="#v4"/></svg><div class="name">Pixel Ship</div><div class="num">4</div></div>
+  <div class="card" data-v="v5"><svg width="110" height="110" viewBox="0 0 512 512"><use href="#v5"/></svg><div class="name">Arrowhead</div><div class="num">5</div></div>
+  <div class="card" data-v="v6"><svg width="110" height="110" viewBox="0 0 512 512"><use href="#v6"/></svg><div class="name">Orbit A</div><div class="num">6</div></div>
+</div>
+
+<p class="foot">Pick a number and tell Claude. The winner gets exported as the real
+PWA icon set (192, 512, maskable, apple-touch-icon).</p>
+
+<!-- ============ ICON DEFINITIONS ============ -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+<defs>
+  <radialGradient id="bgA" cx="50%" cy="32%" r="85%">
+    <stop offset="0%" stop-color="#0d2440"/>
+    <stop offset="60%" stop-color="#061527"/>
+    <stop offset="100%" stop-color="#030710"/>
+  </radialGradient>
+  <linearGradient id="bodyG" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#eaf6ff"/>
+    <stop offset="55%" stop-color="#9ed6ff"/>
+    <stop offset="100%" stop-color="#5aa8e8"/>
+  </linearGradient>
+  <linearGradient id="flameG" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#c8f4ff"/>
+    <stop offset="45%" stop-color="#00e0ff"/>
+    <stop offset="100%" stop-color="#00e0ff" stop-opacity="0"/>
+  </linearGradient>
+</defs>
+
+<!-- 1. DELTA FIGHTER: solid letter A as a sleek fighter, swept wings, twin engines -->
+<symbol id="v1" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="url(#bgA)"/>
+  <circle cx="92" cy="108" r="3" fill="#fff" opacity=".7"/>
+  <circle cx="404" cy="76" r="2" fill="#fff" opacity=".5"/>
+  <circle cx="436" cy="286" r="2.5" fill="#fff" opacity=".6"/>
+  <circle cx="66" cy="330" r="2" fill="#fff" opacity=".4"/>
+  <circle cx="356" cy="452" r="1.8" fill="#fff" opacity=".45"/>
+  <!-- swept wings -->
+  <polygon points="152,290 78,398 170,362" fill="#2f6fa8"/>
+  <polygon points="360,290 434,398 342,362" fill="#2f6fa8"/>
+  <!-- engine flames -->
+  <path d="M143,424 Q165,502 187,424 Z" fill="url(#flameG)"/>
+  <path d="M325,424 Q347,502 369,424 Z" fill="url(#flameG)"/>
+  <path d="M154,424 Q165,468 176,424 Z" fill="#e6fbff"/>
+  <path d="M336,424 Q347,468 358,424 Z" fill="#e6fbff"/>
+  <!-- A body -->
+  <path fill-rule="evenodd" fill="url(#bodyG)" stroke="#0a1c30" stroke-width="6" stroke-linejoin="round"
+    d="M256,72 L372,420 L318,420 L294,344 L218,344 L192,420 L138,420 Z
+       M256,164 L286,296 L226,296 Z"/>
+  <!-- crossbar stripe -->
+  <rect x="223" y="308" width="66" height="15" rx="5" fill="#ff5a78"/>
+  <!-- cockpit -->
+  <ellipse cx="256" cy="122" rx="13" ry="24" fill="#072033"/>
+  <ellipse cx="256" cy="114" rx="7" ry="13" fill="#7ee9ff"/>
+</symbol>
+
+<!-- 2. ROCKET A: curved rocket body, porthole, red fins, single big engine -->
+<symbol id="v2" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="url(#bgA)"/>
+  <circle cx="98" cy="96" r="2.5" fill="#fff" opacity=".6"/>
+  <circle cx="420" cy="130" r="2" fill="#fff" opacity=".5"/>
+  <circle cx="440" cy="360" r="2" fill="#fff" opacity=".4"/>
+  <circle cx="76" cy="420" r="2.5" fill="#fff" opacity=".55"/>
+  <!-- red fins -->
+  <polygon points="176,320 104,424 182,396" fill="#ff5a78"/>
+  <polygon points="336,320 408,424 330,396" fill="#ff5a78"/>
+  <!-- center engine flame -->
+  <path d="M212,410 Q256,514 300,410 Z" fill="url(#flameG)"/>
+  <path d="M232,410 Q256,472 280,410 Z" fill="#e6fbff"/>
+  <!-- rocket A body -->
+  <path fill="url(#bodyG)" stroke="#08213a" stroke-width="6" stroke-linejoin="round"
+    d="M256,58
+       C 298,94 324,178 352,406
+       L 298,406 L 286,350 L 226,350 L 214,406
+       L 160,406
+       C 188,178 214,94 256,58 Z"/>
+  <!-- porthole -->
+  <circle cx="256" cy="204" r="35" fill="#072033" stroke="#eaf6ff" stroke-width="9"/>
+  <circle cx="245" cy="193" r="9" fill="#9ee8ff" opacity=".85"/>
+  <!-- crossbar accent -->
+  <rect x="222" y="314" width="68" height="14" rx="5" fill="#ff5a78"/>
+</symbol>
+
+<!-- 3. NEON GRID: game-style vector grid, glowing A wireframe with wing bar -->
+<symbol id="v3" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="url(#bgA)"/>
+  <path stroke="#14324f" stroke-width="2" opacity=".55" fill="none"
+    d="M64,0 V512 M128,0 V512 M192,0 V512 M256,0 V512 M320,0 V512 M384,0 V512 M448,0 V512
+       M0,64 H512 M0,128 H512 M0,192 H512 M0,256 H512 M0,320 H512 M0,384 H512 M0,448 H512"/>
+  <circle cx="106" cy="92" r="2.5" fill="#fff" opacity=".7"/>
+  <circle cx="422" cy="148" r="2" fill="#fff" opacity=".5"/>
+  <circle cx="88" cy="404" r="2" fill="#fff" opacity=".45"/>
+  <circle cx="430" cy="440" r="2.5" fill="#fff" opacity=".55"/>
+  <!-- wing bar (crossbar extended past the legs) -->
+  <line x1="118" y1="330" x2="394" y2="330" stroke="#00e0ff" stroke-width="26" stroke-linecap="round" opacity=".22"/>
+  <line x1="118" y1="330" x2="394" y2="330" stroke="#aef4ff" stroke-width="8" stroke-linecap="round"/>
+  <!-- wingtip nav lights -->
+  <circle cx="118" cy="330" r="13" fill="#ff5a78" opacity=".35"/>
+  <circle cx="394" cy="330" r="13" fill="#ff5a78" opacity=".35"/>
+  <circle cx="118" cy="330" r="6" fill="#ff8ca0"/>
+  <circle cx="394" cy="330" r="6" fill="#ff8ca0"/>
+  <!-- A wireframe -->
+  <path d="M162,424 L256,92 L350,424" fill="none" stroke="#00e0ff" stroke-width="30"
+        stroke-linecap="round" stroke-linejoin="round" opacity=".28"/>
+  <path d="M162,424 L256,92 L350,424" fill="none" stroke="#d8f6ff" stroke-width="10"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- thruster glows under the feet -->
+  <circle cx="162" cy="448" r="14" fill="#00e0ff" opacity=".3"/>
+  <circle cx="350" cy="448" r="14" fill="#00e0ff" opacity=".3"/>
+  <circle cx="162" cy="448" r="6" fill="#c8f4ff"/>
+  <circle cx="350" cy="448" r="6" fill="#c8f4ff"/>
+  <!-- cockpit light on the nose -->
+  <circle cx="256" cy="132" r="9" fill="#ff5a78"/>
+</symbol>
+
+<!-- 4. PIXEL SHIP: chunky pixel-art A matching the sprite style -->
+<symbol id="v4" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="url(#bgA)"/>
+  <rect x="64" y="96" width="10" height="10" fill="#fff" opacity=".6"/>
+  <rect x="416" y="64" width="8" height="8" fill="#fff" opacity=".5"/>
+  <rect x="448" y="320" width="8" height="8" fill="#fff" opacity=".45"/>
+  <rect x="48" y="384" width="8" height="8" fill="#fff" opacity=".4"/>
+  <g fill="#7fd0ff">
+    <rect x="224" y="64" width="64" height="64"/>
+    <rect x="192" y="128" width="128" height="32"/>
+    <rect x="192" y="160" width="32" height="32"/>
+    <rect x="288" y="160" width="32" height="32"/>
+    <rect x="160" y="192" width="64" height="32"/>
+    <rect x="288" y="192" width="64" height="32"/>
+    <rect x="160" y="224" width="32" height="32"/>
+    <rect x="320" y="224" width="32" height="32"/>
+    <rect x="128" y="256" width="64" height="32"/>
+    <rect x="320" y="256" width="64" height="32"/>
+    <rect x="96" y="320" width="64" height="64"/>
+    <rect x="352" y="320" width="64" height="64"/>
+  </g>
+  <!-- lighter crossbar row -->
+  <rect x="128" y="288" width="256" height="32" fill="#d8ecff"/>
+  <!-- wing tips -->
+  <rect x="64" y="352" width="32" height="32" fill="#2f6fa8"/>
+  <rect x="416" y="352" width="32" height="32" fill="#2f6fa8"/>
+  <!-- cockpit pixels -->
+  <rect x="240" y="96" width="32" height="32" fill="#ff5a78"/>
+  <!-- pixel flames -->
+  <g fill="#00e0ff">
+    <rect x="96" y="384" width="32" height="32"/>
+    <rect x="128" y="384" width="32" height="32"/>
+    <rect x="352" y="384" width="32" height="32"/>
+    <rect x="384" y="384" width="32" height="32"/>
+  </g>
+  <rect x="112" y="416" width="32" height="32" fill="#bef6ff" opacity=".8"/>
+  <rect x="368" y="416" width="32" height="32" fill="#bef6ff" opacity=".8"/>
+</symbol>
+
+<!-- 5. ARROWHEAD: stealth arrowhead ship, the A cut out of it -->
+<symbol id="v5" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="url(#bgA)"/>
+  <circle cx="90" cy="120" r="2.5" fill="#fff" opacity=".65"/>
+  <circle cx="416" cy="96" r="2" fill="#fff" opacity=".5"/>
+  <circle cx="452" cy="300" r="2" fill="#fff" opacity=".45"/>
+  <circle cx="60" cy="300" r="2.5" fill="#fff" opacity=".5"/>
+  <!-- center engine flame in the tail notch -->
+  <path d="M222,386 Q256,492 290,386 Z" fill="url(#flameG)"/>
+  <path d="M238,386 Q256,452 274,386 Z" fill="#e6fbff"/>
+  <!-- arrowhead body with A counter cut out -->
+  <path fill-rule="evenodd" fill="url(#bodyG)" stroke="#0a1c30" stroke-width="6" stroke-linejoin="round"
+    d="M256,78 L420,432 L256,366 L92,432 Z
+       M256,176 L302,312 L210,312 Z"/>
+  <!-- panel line -->
+  <path d="M256,366 L256,176" stroke="#3f81b8" stroke-width="5" opacity=".6"/>
+  <!-- cockpit -->
+  <ellipse cx="256" cy="136" rx="12" ry="22" fill="#072033"/>
+  <ellipse cx="256" cy="129" rx="6" ry="11" fill="#7ee9ff"/>
+  <!-- wingtip nav lights -->
+  <circle cx="402" cy="418" r="8" fill="#ff5a78"/>
+  <circle cx="110" cy="418" r="8" fill="#ff5a78"/>
+</symbol>
+
+<!-- 6. ORBIT A: clean A with an orbit ring as the crossbar -->
+<symbol id="v6" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="url(#bgA)"/>
+  <circle cx="100" cy="100" r="2.5" fill="#fff" opacity=".65"/>
+  <circle cx="410" cy="88" r="2" fill="#fff" opacity=".5"/>
+  <circle cx="446" cy="240" r="2" fill="#fff" opacity=".45"/>
+  <circle cx="70" cy="250" r="2" fill="#fff" opacity=".4"/>
+  <circle cx="390" cy="460" r="2.5" fill="#fff" opacity=".5"/>
+  <!-- back half of the orbit (behind the A) -->
+  <g transform="rotate(-12 256 300)">
+    <path d="M86,300 A170,48 0 0 1 426,300" fill="none" stroke="#0e5e74" stroke-width="10"/>
+  </g>
+  <!-- engine flames -->
+  <path d="M138,446 Q154,500 170,446 Z" fill="url(#flameG)"/>
+  <path d="M342,446 Q358,500 374,446 Z" fill="url(#flameG)"/>
+  <!-- the A -->
+  <path d="M154,420 L256,88 L358,420" fill="none" stroke="url(#bodyG)" stroke-width="36"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- front half of the orbit (in front of the A) -->
+  <g transform="rotate(-12 256 300)">
+    <path d="M86,300 A170,48 0 0 0 426,300" fill="none" stroke="#00e0ff" stroke-width="11"/>
+  </g>
+  <!-- planet on the orbit -->
+  <circle cx="414" cy="286" r="15" fill="#ff5a78"/>
+  <circle cx="409" cy="281" r="5" fill="#ffb0c0"/>
+  <!-- cockpit window -->
+  <circle cx="256" cy="146" r="12" fill="#0a1c30"/>
+  <circle cx="256" cy="143" r="5" fill="#7ee9ff"/>
+</symbol>
+</svg>
+
+<script>
+  var cards = document.querySelectorAll('.card');
+  var big = document.querySelector('#pv-big use');
+  var small = document.querySelectorAll('.pv use');
+  cards.forEach(function (card) {
+    card.addEventListener('click', function () {
+      cards.forEach(function (c) { c.classList.remove('selected'); });
+      card.classList.add('selected');
+      var v = '#' + card.dataset.v;
+      big.setAttribute('href', v);
+      small.forEach(function (u) { u.setAttribute('href', v); });
+    });
+  });
+</script>
+</body>
+</html>
