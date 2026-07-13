@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- AstroHold app icon: "Delta Fighter" letter A spaceship (test page variant 1) -->
+  <defs>
+    <radialGradient id="bgA" cx="50%" cy="32%" r="85%">
+      <stop offset="0%" stop-color="#0d2440"/>
+      <stop offset="60%" stop-color="#061527"/>
+      <stop offset="100%" stop-color="#030710"/>
+    </radialGradient>
+    <linearGradient id="bodyG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#eaf6ff"/>
+      <stop offset="55%" stop-color="#9ed6ff"/>
+      <stop offset="100%" stop-color="#5aa8e8"/>
+    </linearGradient>
+    <linearGradient id="flameG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#c8f4ff"/>
+      <stop offset="45%" stop-color="#00e0ff"/>
+      <stop offset="100%" stop-color="#00e0ff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#bgA)"/>
+  <circle cx="92" cy="108" r="3" fill="#fff" opacity=".7"/>
+  <circle cx="404" cy="76" r="2" fill="#fff" opacity=".5"/>
+  <circle cx="436" cy="286" r="2.5" fill="#fff" opacity=".6"/>
+  <circle cx="66" cy="330" r="2" fill="#fff" opacity=".4"/>
+  <circle cx="356" cy="452" r="1.8" fill="#fff" opacity=".45"/>
+  <polygon points="152,290 78,398 170,362" fill="#2f6fa8"/>
+  <polygon points="360,290 434,398 342,362" fill="#2f6fa8"/>
+  <path d="M143,424 Q165,502 187,424 Z" fill="url(#flameG)"/>
+  <path d="M325,424 Q347,502 369,424 Z" fill="url(#flameG)"/>
+  <path d="M154,424 Q165,468 176,424 Z" fill="#e6fbff"/>
+  <path d="M336,424 Q347,468 358,424 Z" fill="#e6fbff"/>
+  <path fill-rule="evenodd" fill="url(#bodyG)" stroke="#0a1c30" stroke-width="6" stroke-linejoin="round"
+    d="M256,72 L372,420 L318,420 L294,344 L218,344 L192,420 L138,420 Z
+       M256,164 L286,296 L226,296 Z"/>
+  <rect x="223" y="308" width="66" height="15" rx="5" fill="#ff5a78"/>
+  <ellipse cx="256" cy="122" rx="13" ry="24" fill="#072033"/>
+  <ellipse cx="256" cy="114" rx="7" ry="13" fill="#7ee9ff"/>
+</svg>
